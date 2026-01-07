@@ -1,0 +1,140 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    // Users collection - users can only read/write their own profile
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+    }
+
+    // Courses collection - read-only for students, write for admins
+    match /courses/{courseId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+
+      // Modules subcollection
+      match /modules/{moduleId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+
+        // Lessons subcollection
+        match /lessons/{lessonId} {
+          allow read: if isAuthenticated();
+          allow write: if isAdmin();
+
+          // Quiz questions subcollection
+          match /questions/{questionId} {
+            allow read: if isAuthenticated();
+            allow write: if isAdmin();
+          }
+        }
+      }
+    }
+
+    // User Progress - write only through API/Cloud Functions, never directly from client
+    match /userProgress/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if false; // Only server-side updates via Cloud Functions or API
+
+      // Course progress subcollection
+      match /courses/{courseId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+
+        // Module progress subcollection
+        match /modules/{moduleId} {
+          allow read: if isOwner(userId);
+          allow write: if false;
+
+          // Lesson progress subcollection
+          match /lessons/{lessonId} {
+            allow read: if isOwner(userId);
+            allow write: if false;
+          }
+        }
+      }
+
+      // Quiz attempts subcollection
+      match /quizAttempts/{attemptId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+    }
+
+    // User achievements/badges
+    match /userAchievements/{userId} {
+      allow read: if isOwner(userId) || isAuthenticated();
+      allow write: if false; // Only server-side updates
+
+      match /badges/{badgeId} {
+        allow read: if isOwner(userId) || isAuthenticated();
+        allow write: if false;
+      }
+    }
+
+    // Learning streaks
+    match /userStreaks/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if false; // Only server-side updates
+    }
+
+    // Quiz submissions - students can only create their own, API validates answers
+    match /quizSubmissions/{submissionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if false; // Submissions are immutable
+      allow delete: if isAdmin();
+    }
+
+    // Learning notes - users can manage their own
+    match /learningNotes/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId);
+
+      match /notes/{noteId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    // Badges collection (admin defined) - read-only for users
+    match /badges/{badgeId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Recommendations (AI-generated) - read-only
+    match /recommendations/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if false; // Only server-side via Cloud Functions
+    }
+
+    // Admin logs - admins only
+    match /adminLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // Default deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,14 @@
+# Aptly Learning - robots.txt
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /_next/
+Disallow: /settings
+
+# Sitemaps
+Sitemap: https://aptlylearning.com/sitemap.xml
+
+# Crawl-delay for polite crawling
+Crawl-delay: 1
