@@ -17,9 +17,9 @@ type CardProps = {
 const variants: Record<CardVariant, string> = {
   default: 'bg-white rounded-xl',
   elevated: 'bg-white rounded-xl shadow-md',
-  outlined: 'bg-white rounded-xl border border-grey',
-  interactive: 'bg-white rounded-xl shadow-md hover:shadow-lg cursor-pointer transition-all duration-200',
-  glass: 'glass rounded-xl border border-white/20',
+  outlined: 'bg-white rounded-xl border border-grey hover:border-muted-teal transition-colors duration-200',
+  interactive: 'bg-white rounded-xl shadow-md cursor-pointer transition-all duration-200 hover:border-teal/20 border border-transparent',
+  glass: 'backdrop-blur-lg bg-white/80 rounded-xl border border-white/30',
   gradient: 'bg-gradient-light rounded-xl',
 };
 
@@ -40,7 +40,7 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
           className={cn(variants[variant], paddings[padding], className)}
           whileHover={
             variant === 'interactive'
-              ? { scale: 1.01, y: -4, boxShadow: '0 12px 40px rgba(10, 0, 74, 0.16)' }
+              ? { scale: 1.01, y: -4, boxShadow: '0 8px 24px rgba(33, 168, 176, 0.15)' }
               : undefined
           }
           whileTap={variant === 'interactive' ? { scale: 0.99 } : undefined}

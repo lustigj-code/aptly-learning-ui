@@ -47,6 +47,10 @@
   --shadow-glow: 0 0 20px rgba(33, 168, 176, 0.4);
   --shadow-celebration: 0 0 30px rgba(255, 222, 0, 0.5);
 
+  /* Interactive Shadows (with subtle teal tint) */
+  --shadow-hover: 0 8px 24px rgba(33, 168, 176, 0.15);
+  --shadow-active: 0 2px 8px rgba(10, 0, 74, 0.1);
+
   /* Border Radius */
   --radius-sm: 4px;
   --radius-md: 8px;
@@ -72,11 +76,16 @@
   /* Typography */
   --font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
 
-  /* Animation */
+  /* Animation - 3 Tier System */
+  --transition-instant: 100ms cubic-bezier(0.4, 0, 0.2, 1);  /* micro-feedback, toggles */
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);     /* standard transitions */
   --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-spring: 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  --transition-spring: 400ms cubic-bezier(0.34, 1.56, 0.64, 1); /* elaborate, celebrations */
+
+  /* Semantic Animation Aliases */
+  --transition-standard: var(--transition-base);
+  --transition-elaborate: var(--transition-spring);
 
   /* Layout */
   --sidebar-width: 280px;

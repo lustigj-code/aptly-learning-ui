@@ -39,3 +39,25 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Sensitive deployment docs (may contain API keys)
+DEPLOYMENT_*.md
+
+# Firebase functions
+/functions/node_modules/
+/functions/.env*
+
+# Service account keys
+*service-account*.json
+*credentials*.json
+*firebase-adminsdk*.json
+
+# IDE
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# Local development
+.claude/

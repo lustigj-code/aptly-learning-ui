@@ -72,7 +72,7 @@ export function Header({
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2 }}
           >
-            <InlineStreak count={user.streak.currentStreak} />
+            <InlineStreak count={user?.streak?.currentStreak ?? 0} />
           </motion.div>
         )}
 

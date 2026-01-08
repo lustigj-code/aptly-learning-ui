@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, type ButtonHTMLAttributes } from 'react';
+import { forwardRef } from 'react';
 import { motion, type HTMLMotionProps } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -29,10 +29,10 @@ const variants: Record<ButtonVariant, string> = {
 };
 
 const sizes: Record<ButtonSize, string> = {
-  sm: 'h-8 px-3 text-sm gap-1.5 rounded-md',
-  md: 'h-10 px-4 text-base gap-2 rounded-lg',
-  lg: 'h-12 px-6 text-base gap-2.5 rounded-lg',
-  xl: 'h-14 px-8 text-lg gap-3 rounded-xl',
+  sm: 'h-9 px-3 text-sm gap-1.5 rounded-md min-w-[36px]',
+  md: 'h-11 px-4 text-base gap-2 rounded-lg min-w-[44px]',  /* 44px touch target */
+  lg: 'h-12 px-6 text-base gap-2.5 rounded-lg min-w-[48px]',
+  xl: 'h-14 px-8 text-lg gap-3 rounded-xl min-w-[56px]',
 };
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -57,8 +57,11 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <motion.button
         ref={ref}
         className={cn(
-          'inline-flex items-center justify-center font-medium transition-colors focus-ring',
+          'inline-flex items-center justify-center font-medium',
+          'transition-all duration-200',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal focus-visible:ring-offset-2',
           'disabled:opacity-50 disabled:cursor-not-allowed',
+          'active:shadow-sm', /* Reduced shadow on press */
           variants[variant],
           sizes[size],
           fullWidth && 'w-full',
@@ -66,7 +69,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         )}
         disabled={disabled}
         whileHover={!disabled ? { scale: 1.02, y: -2 } : undefined}
-        whileTap={!disabled ? { scale: 0.95 } : undefined}
+        whileTap={!disabled ? { scale: 0.97 } : undefined}
         transition={{
           type: 'spring',
           stiffness: 400,

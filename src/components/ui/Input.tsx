@@ -10,6 +10,7 @@ type InputSize = 'sm' | 'md' | 'lg';
 type InputProps = {
   label?: string;
   error?: string;
+  success?: boolean;
   hint?: string;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
@@ -33,6 +34,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     {
       label,
       error,
+      success,
       hint,
       leftIcon,
       rightIcon,
@@ -81,14 +83,16 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             disabled={disabled}
             className={cn(
               'w-full rounded-lg border bg-white transition-all duration-200',
-              'focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal',
+              'focus:outline-none focus:ring-2 focus:border-teal',
               'placeholder:text-grey',
               sizes[inputSize],
               leftIcon && 'pl-10',
               (rightIcon || isPassword) && 'pr-10',
               error
                 ? 'border-error focus:ring-error/30 focus:border-error'
-                : 'border-grey hover:border-muted-teal',
+                : success
+                ? 'border-success focus:ring-success/30 focus:border-success'
+                : 'border-grey hover:border-muted-teal focus:ring-teal/30',
               disabled && 'bg-light-grey cursor-not-allowed opacity-60',
               className
             )}

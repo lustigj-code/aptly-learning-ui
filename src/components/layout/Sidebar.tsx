@@ -91,9 +91,9 @@ export function Sidebar() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Zap size={16} className="text-yellow" />
-                  <span className="font-semibold">{user.progress.xp.toLocaleString()} XP</span>
+                  <span className="font-semibold">{Number(user?.progress?.xp ?? 0).toLocaleString()} XP</span>
                 </div>
-                <InlineStreak count={user.streak.currentStreak} />
+                <InlineStreak count={user?.streak?.currentStreak ?? 0} />
               </div>
             </motion.div>
           )}

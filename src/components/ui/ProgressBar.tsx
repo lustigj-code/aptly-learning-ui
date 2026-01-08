@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { motion, useSpring, useTransform } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 type ProgressBarSize = 'xs' | 'sm' | 'md' | 'lg';
@@ -46,30 +45,8 @@ export function ProgressBar({
   className,
 }: ProgressBarProps) {
   const percentage = Math.min(Math.max((value / max) * 100, 0), 100);
-  const [displayPercentage, setDisplayPercentage] = useState(0);
-
-  // Spring animation for the progress value
-  const springValue = useSpring(0, {
-    stiffness: 100,
-    damping: 20,
-    mass: 1,
-  });
-
-  const displayValue = useTransform(springValue, (latest) => Math.round(latest));
-
-  useEffect(() => {
-    if (animated) {
-      springValue.set(percentage);
-      const unsubscribe = displayValue.on('change', (latest) => {
-        setDisplayPercentage(latest);
-      });
-      return unsubscribe;
-    } else {
-      setDisplayPercentage(percentage);
-    }
-  }, [percentage, animated, springValue, displayValue]);
-
-  const label = `${Math.round(displayPercentage)}%`;
+  // Use actual percentage for label - Framer Motion handles visual animation
+  const label = `${Math.round(percentage)}%`;
 
   return (
     <div className={cn('flex items-center gap-3', className)}>
@@ -92,9 +69,9 @@ export function ProgressBar({
       >
         <motion.div
           className={cn(
-            'h-full rounded-full relative',
+            'h-full rounded-full relative overflow-hidden',
             colors[color],
-            shimmer && 'overflow-hidden'
+            percentage === 100 && 'shadow-[0_0_8px_rgba(33,168,176,0.5)]' /* Glow on completion */
           )}
           initial={animated ? { width: 0 } : { width: `${percentage}%` }}
           animate={{ width: `${percentage}%` }}
@@ -105,15 +82,16 @@ export function ProgressBar({
             mass: 1,
           }}
         >
-          {shimmer && (
+          {/* Shimmer effect - shown when prop is true OR at 100% completion */}
+          {(shimmer || percentage === 100) && (
             <motion.div
-              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent"
               animate={{
                 x: ['-100%', '100%'],
               }}
               transition={{
                 repeat: Infinity,
-                duration: 1.5,
+                duration: percentage === 100 ? 1 : 1.5,
                 ease: 'linear',
               }}
             />

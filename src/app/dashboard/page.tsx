@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowRight, Clock, BookOpen, Target, Trophy, Lock, CheckCircle, Zap, Play } from 'lucide-react';
+import { ArrowRight, Clock, BookOpen, Target, Lock, CheckCircle, Zap, Play } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/Card';
 import { ProgressBar, CircularProgress } from '@/components/ui/ProgressBar';
@@ -15,12 +15,43 @@ import { useUser, useSyncStatus } from '@/store/unifiedStore';
 import { COURSES } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 
+// Demo user for UI testing when not authenticated
+const DEMO_USER = {
+  id: 'demo-user',
+  name: 'Demo User',
+  email: 'demo@aptly.com',
+  progress: {
+    currentCourseId: 'c1',
+    currentModuleId: 'c1-m1',
+    currentLessonId: 'c1-m1-l1',
+    lessonsCompleted: ['c1-m1-l1', 'c1-m1-l2'],
+    modulesCompleted: [],
+    coursesCompleted: [],
+    overallPercentage: 12,
+    totalTimeSpentMinutes: 45,
+    xp: 1250,
+  },
+  streak: {
+    currentStreak: 5,
+    longestStreak: 12,
+    freezesAvailable: 2,
+    streakHistory: [],
+  },
+  badges: [],
+  preferences: {
+    dailyGoalMinutes: 15,
+  },
+};
+
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, isLoading } = useUser();
+  const { user: authUser, isLoading } = useUser();
   const { syncStatus, isSyncing } = useSyncStatus();
 
-  if (isLoading || !user) {
+  // Use demo user if not authenticated (for UI testing)
+  const user = authUser || DEMO_USER;
+
+  if (isLoading) {
     return <SkeletonDashboard />;
   }
 
@@ -182,7 +213,7 @@ export default function DashboardPage() {
           <StatCard
             label="Today's Progress"
             icon={<Clock size={20} />}
-            delay={0.2}
+            index={0}
           >
             <div className="flex items-center gap-3">
               <CircularProgress
@@ -202,7 +233,7 @@ export default function DashboardPage() {
           <StatCard
             label="Overall Progress"
             icon={<Target size={20} />}
-            delay={0.25}
+            index={1}
           >
             <div className="flex items-center gap-3">
               <CircularProgress
@@ -221,7 +252,7 @@ export default function DashboardPage() {
           <StatCard
             label="Lessons Completed"
             icon={<BookOpen size={20} />}
-            delay={0.3}
+            index={2}
           >
             <p className="text-3xl font-bold text-navy">
               {completedLessons}
@@ -232,10 +263,10 @@ export default function DashboardPage() {
           <StatCard
             label="Total XP"
             icon={<Zap size={20} className="text-yellow" />}
-            delay={0.35}
+            index={3}
           >
             <p className="text-3xl font-bold text-navy">
-              {(progress.xp || 0).toLocaleString()}
+              {Number(progress?.xp ?? 0).toLocaleString()}
             </p>
             <p className="text-sm text-rich-black/60">experience points</p>
           </StatCard>
@@ -267,7 +298,7 @@ export default function DashboardPage() {
                     key={badge.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 + index * 0.1 }}
+                    transition={{ delay: 0.35 + index * 0.05 }}
                   >
                     <AchievementBadge
                       badge={badge}
@@ -299,8 +330,8 @@ export default function DashboardPage() {
           <CardContent>
             <div className="grid gap-4">
               {COURSES.map((course, index) => {
-                const coursesCompleted = progress.coursesCompleted || [];
-                const modulesCompleted = progress.modulesCompleted || [];
+                const coursesCompleted: string[] = progress.coursesCompleted || [];
+                const modulesCompleted: string[] = progress.modulesCompleted || [];
                 const isCompleted = coursesCompleted.includes(course.id);
                 const isCurrent = progress.currentCourseId === course.id;
                 const isLocked = !course.prerequisites.every(p =>
@@ -319,7 +350,7 @@ export default function DashboardPage() {
                     key={course.id}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.5 + index * 0.1 }}
+                    transition={{ delay: 0.45 + index * 0.05 }}
                   >
                     <CourseCard
                       number={course.number}
@@ -395,20 +426,21 @@ function StatCard({
   label,
   icon,
   children,
-  delay = 0,
+  index = 0,
 }: {
   label: string;
   icon: React.ReactNode;
   children: React.ReactNode;
-  delay?: number;
+  index?: number;
 }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay }}
+      transition={{ delay: 0.15 + index * 0.05 }}
+      whileHover={{ y: -4, transition: { duration: 0.2 } }}
     >
-      <Card variant="elevated" padding="md" className="h-full">
+      <Card variant="elevated" padding="md" className="h-full hover:shadow-lg transition-shadow duration-200">
         <div className="flex items-center gap-2 mb-3 text-rich-black/60">
           {icon}
           <span className="text-xs font-medium uppercase tracking-wide">{label}</span>

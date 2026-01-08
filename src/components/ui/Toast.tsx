@@ -228,10 +228,15 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: () => void }) 
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 50, scale: 0.9 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
+      initial={{ opacity: 0, y: 50, scale: 0.9, x: 20 }}
+      animate={{ opacity: 1, y: 0, scale: 1, x: 0 }}
       exit={{ opacity: 0, x: 100, scale: 0.9 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+      transition={{
+        type: 'spring',
+        stiffness: 350,
+        damping: 25,
+        mass: 0.8,
+      }}
       className={cn(
         'relative rounded-xl border shadow-lg p-4 pointer-events-auto',
         styles.bg,
