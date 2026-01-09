@@ -1,0 +1,94 @@
+---
+title: Authentication
+description: "How authentication works in Aptly Learning"
+---
+
+# Authentication
+
+Aptly Learning uses **Firebase Auth** for authentication with a custom middleware layer.
+
+## Auth Flow
+
+```
+┌──────────┐    ┌──────────────┐    ┌─────────────┐
+│  Client  │───▶│  Firebase    │───▶│  Firestore  │
+│          │    │    Auth      │    │   (users)   │
+└──────────┘    └──────────────┘    └─────────────┘
+      │                                     │
+      ▼                                     ▼
+┌──────────────────────────────────────────────┐
+│            Next.js Middleware                 │
+│  • Validates session cookie                  │
+│  • Redirects unauthenticated users           │
+│  • Protects API routes                       │
+└──────────────────────────────────────────────┘
+```
+
+## Protected Routes
+
+The middleware at `middleware.ts` protects routes:
+
+```typescript
+const PUBLIC_ROUTES = [
+  '/',
+  '/login',
+  '/signup',
+  '/forgot-password',
+  '/reset-password',
+  '/privacy',
+  '/help',
+];
+
+// All other routes require authentication
+```
+
+## Auth Provider
+
+The `AuthProvider` component wraps the app:
+
+```tsx
+// src/components/providers/AuthProvider.tsx
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // Fetch user profile from Firestore
+        const profile = await getUserProfile(firebaseUser.uid);
+        setUser(profile);
+      } else {
+        setUser(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  return <>{children}</>;
+}
+```
+
+## API Route Protection
+
+API routes verify the session:
+
+```typescript
+// src/app/api/courses/route.ts
+export async function GET(request: Request) {
+  const session = await verifySession(request);
+
+  if (!session) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
+
+  // Proceed with authenticated request
+}
+```
+
+## Session Management
+
+- Sessions stored as HTTP-only cookies
+- 7-day expiration with refresh
+- Automatic refresh on activity

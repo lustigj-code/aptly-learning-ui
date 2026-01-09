@@ -1,0 +1,80 @@
+---
+title: State Management
+description: "How state is managed with Zustand"
+---
+
+# State Management
+
+Aptly Learning uses **Zustand** for state management with a unified store pattern.
+
+## Unified Store
+
+Located at `src/store/unifiedStore.ts`, the unified store contains:
+
+```typescript
+interface UnifiedStore {
+  // User state
+  user: User | null;
+  setUser: (user: User | null) => void;
+
+  // Progress state
+  progress: UserProgress | null;
+  updateProgress: (progress: Partial<UserProgress>) => void;
+
+  // UI state
+  sidebarCollapsed: boolean;
+  setSidebarCollapsed: (collapsed: boolean) => void;
+
+  // Loading states
+  isLoading: boolean;
+  setIsLoading: (loading: boolean) => void;
+}
+```
+
+## Usage in Components
+
+```tsx
+// Select specific state slices to minimize re-renders
+const { user } = useUser();
+const { progress, updateProgress } = useProgress();
+
+// Or use the full store
+const store = useUnifiedStore();
+```
+
+## Custom Hooks
+
+We provide typed hooks for common state access patterns:
+
+| Hook | Returns |
+|------|---------|
+| `useUser()` | `{ user, setUser }` |
+| `useProgress()` | `{ progress, updateProgress }` |
+| `useUI()` | `{ sidebarCollapsed, setSidebarCollapsed }` |
+
+## Persistence
+
+Selected state is persisted to localStorage:
+- User preferences
+- Sidebar state
+- Theme preference
+
+```typescript
+// Zustand persist middleware
+persist(
+  (set) => ({ ... }),
+  {
+    name: 'aptly-storage',
+    partialize: (state) => ({
+      sidebarCollapsed: state.sidebarCollapsed,
+    }),
+  }
+)
+```
+
+## Server State
+
+For server data (courses, lessons, etc.), we use:
+- React Query for caching and revalidation
+- Next.js server components for initial data
+- API routes for mutations

@@ -1,0 +1,99 @@
+---
+title: Button
+description: "Primary interaction component"
+---
+
+# Button
+
+The Button component is the primary interaction element in Aptly Learning.
+
+## Import
+
+```tsx
+import { Button } from '@/components/ui/Button';
+```
+
+## Basic Usage
+
+```tsx
+<Button>Click me</Button>
+```
+
+## Variants
+
+<CodeGroup>
+```tsx primary
+<Button variant="primary">Primary</Button>
+```
+
+```tsx secondary
+<Button variant="secondary">Secondary</Button>
+```
+
+```tsx ghost
+<Button variant="ghost">Ghost</Button>
+```
+
+```tsx danger
+<Button variant="danger">Danger</Button>
+```
+
+```tsx success
+<Button variant="success">Success</Button>
+```
+
+```tsx celebration
+<Button variant="celebration">Celebration 🎉</Button>
+```
+</CodeGroup>
+
+## Sizes
+
+All sizes maintain minimum 44px touch targets on mobile.
+
+| Size | Height | Min Width |
+|------|--------|-----------|
+| `sm` | 36px | 36px |
+| `md` | 44px | 44px |
+| `lg` | 48px | 48px |
+| `xl` | 56px | 56px |
+
+```tsx
+<Button size="sm">Small</Button>
+<Button size="md">Medium (default)</Button>
+<Button size="lg">Large</Button>
+<Button size="xl">Extra Large</Button>
+```
+
+## With Icons
+
+```tsx
+import { ArrowRight, Plus } from 'lucide-react';
+
+<Button leftIcon={<Plus />}>Add Item</Button>
+<Button rightIcon={<ArrowRight />}>Continue</Button>
+```
+
+## Loading State
+
+```tsx
+<Button loading>Processing...</Button>
+```
+
+## Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `variant` | `'primary' \| 'secondary' \| 'ghost' \| 'danger' \| 'success' \| 'celebration'` | `'primary'` | Visual style |
+| `size` | `'sm' \| 'md' \| 'lg' \| 'xl'` | `'md'` | Button size |
+| `loading` | `boolean` | `false` | Shows loading spinner |
+| `disabled` | `boolean` | `false` | Disables interaction |
+| `leftIcon` | `ReactNode` | - | Icon before text |
+| `rightIcon` | `ReactNode` | - | Icon after text |
+| `fullWidth` | `boolean` | `false` | Spans full width |
+
+## Animation
+
+- **Hover**: `scale(1.02)` with shadow elevation
+- **Press**: `scale(0.97)` with shadow reduction
+- **Focus**: Teal ring with 2px offset

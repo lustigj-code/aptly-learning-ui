@@ -1,0 +1,119 @@
+---
+title: Courses API
+description: "Course and lesson endpoints"
+---
+
+# Courses API
+
+## List All Courses
+
+<ParamField path="GET" endpoint="/api/courses">
+  Get all available courses.
+</ParamField>
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "course-123",
+      "title": "Financial Analysis Fundamentals",
+      "description": "Learn the basics of financial analysis",
+      "thumbnail": "https://...",
+      "totalLessons": 24,
+      "estimatedHours": 8,
+      "difficulty": "beginner",
+      "tags": ["finance", "analysis"]
+    }
+  ]
+}
+```
+
+---
+
+## Get Course Details
+
+<ParamField path="GET" endpoint="/api/courses/[courseId]">
+  Get detailed information about a specific course.
+</ParamField>
+
+### Path Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `courseId` | string | Course ID |
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "course-123",
+    "title": "Financial Analysis Fundamentals",
+    "description": "Learn the basics of financial analysis",
+    "modules": [
+      {
+        "id": "module-1",
+        "title": "Introduction",
+        "lessons": [
+          {
+            "id": "lesson-1",
+            "title": "What is Financial Analysis?",
+            "type": "video",
+            "duration": 600
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+---
+
+## Get Module Details
+
+<ParamField path="GET" endpoint="/api/courses/[courseId]/modules/[moduleId]">
+  Get detailed information about a specific module.
+</ParamField>
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "module-1",
+    "title": "Introduction",
+    "description": "Get started with the fundamentals",
+    "lessons": [...]
+  }
+}
+```
+
+---
+
+## Get Lesson Content
+
+<ParamField path="GET" endpoint="/api/lessons/[lessonId]">
+  Get the full content of a lesson.
+</ParamField>
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "lesson-1",
+    "title": "What is Financial Analysis?",
+    "type": "video",
+    "videoUrl": "https://...",
+    "transcript": "...",
+    "quiz": [...]
+  }
+}
+```

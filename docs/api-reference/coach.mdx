@@ -1,0 +1,93 @@
+---
+title: AI Coach API
+description: "AI-powered learning assistant"
+---
+
+# AI Coach API
+
+The AI Coach is powered by Google Gemini and provides personalized learning assistance.
+
+## Chat with Coach
+
+<ParamField path="POST" endpoint="/api/coach">
+  Send a message to the AI coach and receive a response.
+</ParamField>
+
+### Request
+
+```json
+{
+  "message": "Can you explain the concept of compound interest?",
+  "context": {
+    "courseId": "course-123",
+    "lessonId": "lesson-456"
+  }
+}
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "response": "Compound interest is when you earn interest on both your initial investment and on the interest you've already earned...",
+    "suggestions": [
+      "Would you like a practice problem?",
+      "Should I explain the formula?",
+      "Want to see a real-world example?"
+    ]
+  }
+}
+```
+
+### Context Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `courseId` | string | Current course (optional) |
+| `lessonId` | string | Current lesson (optional) |
+| `quizId` | string | Current quiz (optional) |
+
+The coach uses this context to provide more relevant answers.
+
+---
+
+## Rate Limits
+
+The coach endpoint has stricter rate limits:
+
+| Limit | Value |
+|-------|-------|
+| Requests per minute | 20 |
+| Requests per day | 100 |
+
+---
+
+## Coach Capabilities
+
+The AI coach can:
+
+- **Explain concepts** from the current lesson
+- **Answer questions** about course material
+- **Provide examples** and analogies
+- **Generate practice problems**
+- **Give encouragement** and study tips
+- **Summarize** complex topics
+
+---
+
+## Error Handling
+
+| Status | Error | Description |
+|--------|-------|-------------|
+| 429 | Rate limited | Too many requests |
+| 503 | Service unavailable | AI service temporarily down |
+
+```json
+{
+  "success": false,
+  "error": "Rate limit exceeded. Please wait before sending another message.",
+  "retryAfter": 60
+}
+```

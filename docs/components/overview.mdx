@@ -1,0 +1,72 @@
+---
+title: Components Overview
+description: "UI component library for Aptly Learning"
+---
+
+# Components Overview
+
+Aptly Learning has a custom component library built with React, Tailwind CSS, and Framer Motion.
+
+## Design Principles
+
+<CardGroup cols={2}>
+  <Card title="Consistent" icon="equals">
+    All components follow the same design tokens and patterns
+  </Card>
+  <Card title="Accessible" icon="universal-access">
+    WCAG compliant with proper focus states and ARIA labels
+  </Card>
+  <Card title="Animated" icon="wand-magic-sparkles">
+    Subtle Framer Motion animations for delight
+  </Card>
+  <Card title="Responsive" icon="mobile">
+    Mobile-first with 44px touch targets
+  </Card>
+</CardGroup>
+
+## Component Categories
+
+### Core UI (`/components/ui/`)
+
+| Component | Description |
+|-----------|-------------|
+| [Button](/components/button) | Primary interaction element |
+| [Card](/components/card) | Content container with variants |
+| [Input](/components/input) | Form inputs with validation |
+| [ProgressBar](/components/progress-bar) | Animated progress indicator |
+| [Toast](/components/toast) | Notification system |
+
+### Layout (`/components/layout/`)
+
+| Component | Description |
+|-----------|-------------|
+| Sidebar | Collapsible navigation |
+| Header | Top bar with user info |
+| Footer | Page footer |
+
+### Learning (`/components/learning/`)
+
+| Component | Description |
+|-----------|-------------|
+| LessonCard | Course lesson preview |
+| QuizQuestion | Interactive quiz UI |
+| VideoPlayer | Video with progress |
+
+## Import Pattern
+
+```tsx
+// Import from the ui folder
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
+```
+
+## Animation Tokens
+
+All components use the 3-tier animation system:
+
+```css
+--transition-instant: 100ms;   /* toggles, micro-feedback */
+--transition-standard: 200ms;  /* most transitions */
+--transition-elaborate: 400ms; /* page transitions */
+```

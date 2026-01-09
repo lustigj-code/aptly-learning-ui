@@ -1,0 +1,134 @@
+---
+title: Progress API
+description: "User progress and streak endpoints"
+---
+
+# Progress API
+
+## Get Progress by Course
+
+<ParamField path="GET" endpoint="/api/progress/by-course">
+  Get the current user's progress for all courses.
+</ParamField>
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "courses": {
+      "course-123": {
+        "completedLessons": 12,
+        "totalLessons": 24,
+        "lastAccessedAt": "2025-01-08T10:00:00Z"
+      }
+    },
+    "totalXP": 2500,
+    "level": 5
+  }
+}
+```
+
+---
+
+## Complete Lesson
+
+<ParamField path="POST" endpoint="/api/progress/complete-lesson">
+  Mark a lesson as complete and award XP.
+</ParamField>
+
+### Request
+
+```json
+{
+  "lessonId": "lesson-123",
+  "courseId": "course-456",
+  "score": 85
+}
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "xpAwarded": 50,
+    "totalXP": 2550,
+    "levelUp": false,
+    "badgesEarned": []
+  }
+}
+```
+
+---
+
+## Update Streak
+
+<ParamField path="POST" endpoint="/api/progress/update-streak">
+  Update the user's daily learning streak.
+</ParamField>
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "currentStreak": 7,
+    "longestStreak": 14,
+    "streakFreezes": 2
+  }
+}
+```
+
+---
+
+## Use Streak Freeze
+
+<ParamField path="POST" endpoint="/api/progress/use-freeze">
+  Use a streak freeze to maintain streak.
+</ParamField>
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "freezeUsed": true,
+    "remainingFreezes": 1,
+    "streakMaintained": true
+  }
+}
+```
+
+---
+
+## Complete Atom (Micro-lesson)
+
+<ParamField path="POST" endpoint="/api/progress/complete-atom">
+  Complete a micro-learning atom within a lesson.
+</ParamField>
+
+### Request
+
+```json
+{
+  "atomId": "atom-123",
+  "lessonId": "lesson-456"
+}
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "atomCompleted": true,
+    "lessonProgress": 0.75
+  }
+}
+```

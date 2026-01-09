@@ -1,0 +1,101 @@
+---
+title: Folder Structure
+description: "Project organization and file structure"
+---
+
+# Folder Structure
+
+```
+src/
+├── app/                      # Next.js App Router
+│   ├── (auth)/               # Auth route group
+│   │   ├── login/
+│   │   ├── signup/
+│   │   └── forgot-password/
+│   ├── dashboard/            # Main dashboard
+│   ├── learn/                # Learning experience
+│   │   └── [courseId]/       # Dynamic course pages
+│   ├── progress/             # Progress tracking
+│   ├── achievements/         # Badges & achievements
+│   ├── settings/             # User settings
+│   ├── api/                  # API routes
+│   │   ├── auth/
+│   │   ├── courses/
+│   │   ├── progress/
+│   │   ├── coach/
+│   │   └── badges/
+│   ├── globals.css           # Global styles & CSS variables
+│   └── layout.tsx            # Root layout
+│
+├── components/
+│   ├── ui/                   # Core UI components
+│   │   ├── Button.tsx
+│   │   ├── Card.tsx
+│   │   ├── Input.tsx
+│   │   ├── ProgressBar.tsx
+│   │   ├── Toast.tsx
+│   │   └── Modal.tsx
+│   ├── layout/               # Layout components
+│   │   ├── Sidebar.tsx
+│   │   ├── Header.tsx
+│   │   └── Footer.tsx
+│   ├── learning/             # Learning-specific components
+│   │   ├── LessonCard.tsx
+│   │   ├── QuizQuestion.tsx
+│   │   └── VideoPlayer.tsx
+│   ├── progress/             # Progress components
+│   │   └── StreakCounter.tsx
+│   ├── characters/           # Coach characters
+│   │   └── Character.tsx
+│   └── providers/            # React providers
+│       └── AuthProvider.tsx
+│
+├── lib/
+│   ├── firebase/             # Firebase configuration
+│   │   ├── config.ts
+│   │   ├── auth.ts
+│   │   ├── firestore.ts
+│   │   └── admin.ts
+│   ├── services/             # Business logic
+│   │   ├── userService.ts
+│   │   ├── courseService.ts
+│   │   ├── progressService.ts
+│   │   └── coachService.ts
+│   ├── utils/                # Utility functions
+│   │   └── index.ts
+│   └── auth/                 # Auth utilities
+│       └── validation.ts
+│
+├── store/                    # Zustand state
+│   ├── unifiedStore.ts       # Main store
+│   └── authStore.ts          # Auth-specific state
+│
+├── types/                    # TypeScript types
+│   └── index.ts
+│
+└── test/                     # Test utilities
+    └── setup.ts
+
+functions/                    # Firebase Cloud Functions
+├── src/
+│   ├── triggers/             # Firestore triggers
+│   └── scheduled/            # Scheduled functions
+└── package.json
+
+docs/                         # Mintlify documentation
+├── docs.json
+└── *.mdx
+
+e2e/                          # Playwright E2E tests
+└── auth.spec.ts
+```
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/app/globals.css` | Design system tokens, CSS variables |
+| `src/store/unifiedStore.ts` | Central Zustand store |
+| `src/lib/firebase/config.ts` | Firebase initialization |
+| `middleware.ts` | Auth middleware, route protection |
+| `docs.json` | Mintlify documentation config |

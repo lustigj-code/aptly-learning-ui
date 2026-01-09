@@ -1,0 +1,117 @@
+---
+title: Input
+description: "Form input with validation states"
+---
+
+# Input
+
+Input component for forms with built-in validation states.
+
+## Import
+
+```tsx
+import { Input } from '@/components/ui/Input';
+```
+
+## Basic Usage
+
+```tsx
+<Input placeholder="Enter your email" />
+```
+
+## With Label
+
+```tsx
+<Input
+  label="Email Address"
+  placeholder="you@example.com"
+/>
+```
+
+## States
+
+### Default
+```tsx
+<Input placeholder="Default input" />
+```
+
+### Focus
+Teal glow ring appears on focus.
+
+### Error
+```tsx
+<Input
+  error="Please enter a valid email"
+  placeholder="Invalid input"
+/>
+```
+
+### Success
+```tsx
+<Input
+  success
+  placeholder="Valid input"
+/>
+```
+
+### Disabled
+```tsx
+<Input
+  disabled
+  placeholder="Disabled input"
+/>
+```
+
+## Sizes
+
+| Size | Height |
+|------|--------|
+| `sm` | 36px |
+| `md` | 44px (default) |
+| `lg` | 48px |
+
+```tsx
+<Input size="md" placeholder="Medium input" />
+```
+
+## With Icons
+
+```tsx
+import { Mail, Lock } from 'lucide-react';
+
+<Input
+  leftIcon={<Mail />}
+  placeholder="Email"
+/>
+
+<Input
+  rightIcon={<Lock />}
+  type="password"
+  placeholder="Password"
+/>
+```
+
+## Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `label` | `string` | - | Input label |
+| `error` | `string` | - | Error message |
+| `success` | `boolean` | `false` | Success state |
+| `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | Input size |
+| `leftIcon` | `ReactNode` | - | Icon on left |
+| `rightIcon` | `ReactNode` | - | Icon on right |
+| `disabled` | `boolean` | `false` | Disabled state |
+
+## Styling
+
+```css
+/* Focus state */
+focus:ring-2 focus:ring-teal/30 focus:border-teal
+
+/* Error state */
+border-error focus:ring-error/30 focus:border-error
+
+/* Success state */
+border-success focus:ring-success/30 focus:border-success
+```

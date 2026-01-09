@@ -1,0 +1,69 @@
+---
+title: Architecture Overview
+description: "High-level architecture of the Aptly Learning platform"
+---
+
+# Architecture Overview
+
+Aptly Learning is built as a modern Next.js application with a focus on performance, accessibility, and user experience.
+
+## System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        Client Layer                          │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │   Next.js   │  │   React     │  │   Framer Motion     │  │
+│  │  App Router │  │ Components  │  │    Animations       │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                        State Layer                           │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │                    Zustand Store                     │    │
+│  │   • User State    • Progress    • UI State          │    │
+│  └─────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      API Layer (Next.js)                     │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
+│  │  /auth   │  │ /courses │  │/progress │  │  /coach  │    │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘    │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      Backend Services                        │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │  Firebase   │  │  Firebase   │  │   Google Gemini     │  │
+│  │    Auth     │  │  Firestore  │  │     AI Coach        │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Key Architectural Decisions
+
+### Server Components First
+
+We use React Server Components by default, only adding `'use client'` when necessary for:
+- Interactive components (buttons, forms)
+- Components using browser APIs
+- Components with Framer Motion animations
+
+### API Routes
+
+All data mutations go through Next.js API routes in `/src/app/api/`:
+- Centralizes business logic
+- Enables rate limiting and validation
+- Provides consistent error handling
+
+### State Management
+
+Zustand for client state with a unified store pattern:
+- Single source of truth for user, progress, and UI state
+- Minimal re-renders with selective subscriptions
+- Persisted to localStorage where appropriate

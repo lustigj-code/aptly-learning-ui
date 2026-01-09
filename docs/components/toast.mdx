@@ -1,0 +1,114 @@
+---
+title: Toast
+description: "Notification system with animations"
+---
+
+# Toast
+
+Toast notifications for feedback and alerts.
+
+## Import
+
+```tsx
+import { useToast, Toast, ToastProvider } from '@/components/ui/Toast';
+```
+
+## Setup
+
+Wrap your app with the ToastProvider:
+
+```tsx
+// In layout.tsx
+<ToastProvider>
+  {children}
+</ToastProvider>
+```
+
+## Usage
+
+```tsx
+function MyComponent() {
+  const { toast } = useToast();
+
+  const handleClick = () => {
+    toast({
+      title: 'Success!',
+      description: 'Your changes have been saved.',
+      variant: 'success',
+    });
+  };
+
+  return <Button onClick={handleClick}>Save</Button>;
+}
+```
+
+## Variants
+
+### Default
+```tsx
+toast({ title: 'Notification' });
+```
+
+### Success
+```tsx
+toast({
+  title: 'Saved!',
+  description: 'Your progress has been saved.',
+  variant: 'success',
+});
+```
+
+### Error
+```tsx
+toast({
+  title: 'Error',
+  description: 'Something went wrong.',
+  variant: 'error',
+});
+```
+
+### Warning
+```tsx
+toast({
+  title: 'Warning',
+  description: 'Please review before continuing.',
+  variant: 'warning',
+});
+```
+
+## Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `title` | `string` | - | Toast title |
+| `description` | `string` | - | Toast description |
+| `variant` | `'default' \| 'success' \| 'error' \| 'warning'` | `'default'` | Visual style |
+| `duration` | `number` | `5000` | Auto-dismiss time (ms) |
+| `action` | `ReactNode` | - | Action button |
+
+## Animation
+
+Toasts slide in with a subtle bounce:
+
+```tsx
+initial={{ opacity: 0, y: 50, scale: 0.95 }}
+animate={{ opacity: 1, y: 0, scale: 1 }}
+exit={{ opacity: 0, y: 20, scale: 0.95 }}
+transition={{
+  type: 'spring',
+  stiffness: 400,
+  damping: 25
+}}
+```
+
+## Positioning
+
+Toasts appear in the bottom-right corner by default. Configure position in the provider:
+
+```tsx
+<ToastProvider position="bottom-right">
+  {children}
+</ToastProvider>
+```
+
+Options: `top-left`, `top-right`, `bottom-left`, `bottom-right`

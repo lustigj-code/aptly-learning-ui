@@ -1,0 +1,82 @@
+---
+title: Authentication API
+description: "Session and authentication endpoints"
+---
+
+# Authentication API
+
+## Create/Verify Session
+
+<ParamField path="POST" endpoint="/api/auth/session">
+  Create or verify a user session.
+</ParamField>
+
+### Request
+
+```typescript
+POST /api/auth/session
+Content-Type: application/json
+
+{
+  "idToken": "firebase-id-token"
+}
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "user": {
+    "id": "user-123",
+    "email": "user@example.com",
+    "name": "John Doe"
+  }
+}
+```
+
+### Error Responses
+
+| Status | Error |
+|--------|-------|
+| 400 | Invalid or missing ID token |
+| 401 | Token expired or invalid |
+
+---
+
+## Get Current Session
+
+<ParamField path="GET" endpoint="/api/auth/session">
+  Get the current authenticated user's session.
+</ParamField>
+
+### Response
+
+```json
+{
+  "success": true,
+  "user": {
+    "id": "user-123",
+    "email": "user@example.com",
+    "name": "John Doe",
+    "avatar": "https://...",
+    "createdAt": "2025-01-01T00:00:00Z"
+  }
+}
+```
+
+---
+
+## Delete Session (Logout)
+
+<ParamField path="DELETE" endpoint="/api/auth/session">
+  End the current session and log out.
+</ParamField>
+
+### Response
+
+```json
+{
+  "success": true
+}
+```

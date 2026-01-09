@@ -1,0 +1,75 @@
+---
+title: API Overview
+description: "REST API endpoints for Aptly Learning"
+---
+
+# API Overview
+
+Aptly Learning exposes REST API endpoints through Next.js API routes.
+
+## Base URL
+
+```
+/api
+```
+
+## Authentication
+
+All API routes (except auth endpoints) require authentication via session cookie.
+
+```typescript
+// Requests automatically include credentials
+fetch('/api/courses', {
+  credentials: 'include'
+});
+```
+
+## Response Format
+
+All responses follow a consistent format:
+
+### Success
+```json
+{
+  "data": { ... },
+  "success": true
+}
+```
+
+### Error
+```json
+{
+  "error": "Error message",
+  "success": false
+}
+```
+
+## Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/session` | Create/verify session |
+| GET | `/api/courses` | List all courses |
+| GET | `/api/courses/[id]` | Get course details |
+| GET | `/api/progress/by-course` | Get user progress |
+| POST | `/api/progress/complete-lesson` | Mark lesson complete |
+| POST | `/api/progress/update-streak` | Update streak |
+| POST | `/api/coach` | Chat with AI coach |
+| GET | `/api/badges/progress` | Get badge progress |
+
+## Rate Limiting
+
+API endpoints are rate limited:
+- **Standard endpoints**: 100 requests/minute
+- **AI Coach**: 20 requests/minute
+
+## Error Codes
+
+| Code | Description |
+|------|-------------|
+| 400 | Bad Request - Invalid parameters |
+| 401 | Unauthorized - Not authenticated |
+| 403 | Forbidden - Insufficient permissions |
+| 404 | Not Found - Resource doesn't exist |
+| 429 | Too Many Requests - Rate limited |
+| 500 | Internal Server Error |

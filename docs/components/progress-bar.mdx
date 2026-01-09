@@ -1,0 +1,101 @@
+---
+title: ProgressBar
+description: "Animated progress indicator with shimmer effects"
+---
+
+# ProgressBar
+
+Animated progress bar with optional shimmer and glow effects.
+
+## Import
+
+```tsx
+import { ProgressBar } from '@/components/ui/ProgressBar';
+```
+
+## Basic Usage
+
+```tsx
+<ProgressBar value={75} />
+```
+
+## Colors
+
+```tsx
+<ProgressBar value={50} color="teal" />    {/* default */}
+<ProgressBar value={50} color="success" />
+<ProgressBar value={50} color="warning" />
+<ProgressBar value={50} color="error" />
+<ProgressBar value={50} color="purple" />
+```
+
+## Sizes
+
+| Size | Height |
+|------|--------|
+| `sm` | 4px |
+| `md` | 8px (default) |
+| `lg` | 12px |
+
+```tsx
+<ProgressBar value={50} size="lg" />
+```
+
+## Shimmer Effect
+
+Add a shimmer animation for active progress:
+
+```tsx
+<ProgressBar value={50} shimmer />
+```
+
+## Auto Effects at 100%
+
+When the progress reaches 100%, the component automatically:
+- Adds a shimmer effect
+- Adds a teal glow shadow
+
+```tsx
+<ProgressBar value={100} />
+// Automatically shows shimmer + glow
+```
+
+## With Label
+
+```tsx
+<ProgressBar
+  value={75}
+  showLabel
+  label="Course Progress"
+/>
+```
+
+## Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `value` | `number` | `0` | Progress percentage (0-100) |
+| `color` | `'teal' \| 'success' \| 'warning' \| 'error' \| 'purple'` | `'teal'` | Bar color |
+| `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | Bar height |
+| `shimmer` | `boolean` | `false` | Shimmer animation |
+| `showLabel` | `boolean` | `false` | Show percentage label |
+| `label` | `string` | - | Custom label text |
+
+## Animation
+
+The progress bar animates smoothly when the value changes:
+
+```tsx
+<motion.div
+  initial={{ width: 0 }}
+  animate={{ width: `${percentage}%` }}
+  transition={{ duration: 0.5, ease: 'easeOut' }}
+/>
+```
+
+## 100% Completion Glow
+
+```css
+/* Applied at 100% */
+shadow-[0_0_8px_rgba(33,168,176,0.5)]
+```

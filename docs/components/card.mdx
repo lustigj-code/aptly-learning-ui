@@ -1,0 +1,111 @@
+---
+title: Card
+description: "Content container with multiple variants"
+---
+
+# Card
+
+Cards are used to group related content and actions.
+
+## Import
+
+```tsx
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/Card';
+```
+
+## Basic Usage
+
+```tsx
+<Card>
+  <CardHeader>
+    <CardTitle>Card Title</CardTitle>
+    <CardDescription>Card description text</CardDescription>
+  </CardHeader>
+  <CardContent>
+    <p>Card content goes here</p>
+  </CardContent>
+  <CardFooter>
+    <Button>Action</Button>
+  </CardFooter>
+</Card>
+```
+
+## Variants
+
+### Default
+Standard card with subtle shadow.
+
+```tsx
+<Card variant="default">...</Card>
+```
+
+### Elevated
+Higher shadow for emphasis.
+
+```tsx
+<Card variant="elevated">...</Card>
+```
+
+### Outlined
+Border instead of shadow.
+
+```tsx
+<Card variant="outlined">...</Card>
+```
+
+### Interactive
+Hover effects for clickable cards.
+
+```tsx
+<Card variant="interactive">...</Card>
+```
+
+Features:
+- Hover: `translateY(-4px)` lift
+- Hover: Teal-tinted shadow
+- Hover: Subtle teal border tint
+
+### Glass
+Frosted glass effect with backdrop blur.
+
+```tsx
+<Card variant="glass">...</Card>
+```
+
+### Gradient
+Background gradient for special content.
+
+```tsx
+<Card variant="gradient">...</Card>
+```
+
+## Padding
+
+| Size | Padding |
+|------|---------|
+| `none` | 0 |
+| `sm` | 12px |
+| `md` | 16px (default) |
+| `lg` | 24px |
+| `xl` | 32px |
+
+```tsx
+<Card padding="lg">...</Card>
+```
+
+## Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `variant` | `'default' \| 'elevated' \| 'outlined' \| 'interactive' \| 'glass' \| 'gradient'` | `'default'` | Visual style |
+| `padding` | `'none' \| 'sm' \| 'md' \| 'lg' \| 'xl'` | `'md'` | Internal padding |
+| `className` | `string` | - | Additional CSS classes |
+
+## Animation (Interactive Variant)
+
+```tsx
+whileHover={{
+  y: -4,
+  shadow: '0 8px 24px rgba(33, 168, 176, 0.15)'
+}}
+```

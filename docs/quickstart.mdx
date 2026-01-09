@@ -1,0 +1,70 @@
+---
+title: Quickstart
+description: "Get Aptly Learning running locally in minutes"
+---
+
+## Prerequisites
+
+- Node.js 18+
+- npm or yarn
+- Firebase project (for auth/database)
+
+## Installation
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/lustigj-code/aptly-learning-ui.git
+    cd aptly-learning-ui
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    ```bash
+    npm install
+    ```
+  </Step>
+
+  <Step title="Set up environment variables">
+    Copy the example environment file:
+    ```bash
+    cp .env.example .env.local
+    ```
+
+    Then fill in your Firebase credentials:
+    ```env
+    # Firebase Client SDK
+    NEXT_PUBLIC_FIREBASE_API_KEY=
+    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID=
+    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
+    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
+    NEXT_PUBLIC_FIREBASE_APP_ID=
+
+    # Firebase Admin SDK
+    FIREBASE_ADMIN_PROJECT_ID=
+    FIREBASE_ADMIN_CLIENT_EMAIL=
+    FIREBASE_ADMIN_PRIVATE_KEY=
+
+    # AI Services
+    GOOGLE_GENAI_API_KEY=
+    ```
+  </Step>
+
+  <Step title="Start the development server">
+    ```bash
+    npm run dev
+    ```
+
+    Open [http://localhost:3000](http://localhost:3000) to view the app.
+  </Step>
+</Steps>
+
+## Available Scripts
+
+```bash
+npm run dev       # Start development server (Turbopack)
+npm run build     # Build for production
+npm run lint      # Run ESLint
+npm run test      # Run tests
+```
