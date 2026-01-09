@@ -147,6 +147,52 @@
 
 ---
 
+## Phase 4.1: AI-Powered Dynamic Skill Map Generation (INSERTED)
+
+**Priority:** High (enables multi-course adaptive learning)
+**Status:** In progress (1/4 plans complete)
+
+**Goal:** Use AI to automatically generate skill maps for any course, enabling the adaptive system to work across all content
+
+**Depends on:** Phase 4
+
+### 4.1-01 Types & Course Parser - COMPLETE
+- [x] Define DynamicSkillMap TypeScript types
+- [x] Build course content parser service
+- Summary: `.planning/phases/4.1-ai-powered-dynamic-skill-map-generation/4.1-01-SUMMARY.md`
+
+### 4.1.1 Build Skill Map Generator
+- Create AI service that analyzes course content (lessons, atoms, quizzes)
+- Use Gemini to extract skills/concepts from content
+- Generate prerequisite relationships automatically
+- Output skill map in standard format
+
+### 4.1.2 Course Analysis Pipeline
+- Parse course structure (modules, lessons, atoms)
+- Extract learning objectives from content
+- Identify quiz questions and map to skills
+- Estimate BKT parameters based on content difficulty
+
+### 4.1.3 Dynamic Skill Map Storage
+- Store generated skill maps in Firestore per course
+- Update sequencer to load skill maps dynamically (not hardcoded)
+- Cache skill maps for performance
+- Support skill map versioning
+
+### 4.1.4 Admin Interface for Skill Maps
+- View generated skill maps in admin panel
+- Allow manual adjustments to AI-generated maps
+- Trigger re-generation when content changes
+- Preview adaptive recommendations before publishing
+
+**Success Criteria:**
+- Any course can have skill map generated via AI
+- Sequencer uses dynamic skill maps from Firestore
+- Adaptive learning works for Social Media Marketing course
+- Admin can review and adjust generated skill maps
+
+---
+
 ## Phase 5: Content & Data Migration
 
 **Priority:** Medium
@@ -185,9 +231,9 @@
 ## Execution Order
 
 ```
-Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5
-   ↓         ↓         ↓         ↓         ↓
-Critical  High      High      Med-High  Medium
+Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 4.1 → Phase 5
+   ↓         ↓         ↓         ↓          ↓          ↓
+Critical  High      High      Med-High    High      Medium
 ```
 
 **Recommended approach:**
@@ -195,7 +241,8 @@ Critical  High      High      Med-High  Medium
 2. Phase 2 after — completes the adaptive UX
 3. Phase 3 in parallel — can run tests while building
 4. Phase 4 once flows work — instrument after logic stable
-5. Phase 5 last — production data after features complete
+5. Phase 4.1 after tracking — enables multi-course adaptive learning (URGENT INSERT)
+6. Phase 5 last — production data after features complete
 
 ---
 
@@ -207,8 +254,9 @@ Critical  High      High      Med-High  Medium
 | Phase 2 | 3 | Medium |
 | Phase 3 | 4 | Medium |
 | Phase 4 | 4 | Low-Medium |
+| Phase 4.1 | 4 | Medium-High (AI integration) |
 | Phase 5 | 4 | Low-Medium |
-| **Total** | **20 plans** | |
+| **Total** | **24 plans** | |
 
 ---
 
