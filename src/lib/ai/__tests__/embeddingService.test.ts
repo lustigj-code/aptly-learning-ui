@@ -3,19 +3,24 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { embedText, embedBatch, createEmbedding, getEmbeddingConfig } from '../embeddingService';
 
 // Mock the Google Generative AI SDK
 const mockEmbedContent = vi.fn();
-const mockGetGenerativeModel = vi.fn(() => ({
-  embedContent: mockEmbedContent,
-}));
 
-vi.mock('@google/generative-ai', () => ({
-  GoogleGenerativeAI: vi.fn(() => ({
-    getGenerativeModel: mockGetGenerativeModel,
-  })),
-}));
+vi.mock('@google/generative-ai', () => {
+  return {
+    GoogleGenerativeAI: class MockGoogleGenerativeAI {
+      constructor() {
+        // Constructor
+      }
+      getGenerativeModel() {
+        return {
+          embedContent: mockEmbedContent,
+        };
+      }
+    },
+  };
+});
 
 describe('embeddingService', () => {
   beforeEach(() => {
@@ -29,7 +34,8 @@ describe('embeddingService', () => {
   });
 
   describe('getEmbeddingConfig', () => {
-    it('returns correct embedding configuration', () => {
+    it('returns correct embedding configuration', async () => {
+      const { getEmbeddingConfig } = await import('../embeddingService');
       const config = getEmbeddingConfig();
 
       expect(config.model).toBe('text-embedding-004');
@@ -46,6 +52,7 @@ describe('embeddingService', () => {
         embedding: { values: mockVector },
       });
 
+      const { embedText } = await import('../embeddingService');
       const result = await embedText('What is social media marketing?');
 
       expect(result).toHaveLength(768);
@@ -54,19 +61,23 @@ describe('embeddingService', () => {
     });
 
     it('throws error for empty string', async () => {
+      const { embedText } = await import('../embeddingService');
       await expect(embedText('')).rejects.toThrow('Text must be a non-empty string');
     });
 
     it('throws error for whitespace-only string', async () => {
+      const { embedText } = await import('../embeddingService');
       await expect(embedText('   ')).rejects.toThrow('Text must be a non-empty string');
     });
 
     it('throws error for non-string input', async () => {
+      const { embedText } = await import('../embeddingService');
       // @ts-expect-error Testing invalid input
       await expect(embedText(123)).rejects.toThrow('Text must be a non-empty string');
     });
 
     it('throws error for null input', async () => {
+      const { embedText } = await import('../embeddingService');
       // @ts-expect-error Testing invalid input
       await expect(embedText(null)).rejects.toThrow('Text must be a non-empty string');
     });
@@ -74,6 +85,7 @@ describe('embeddingService', () => {
     it('handles API errors gracefully', async () => {
       mockEmbedContent.mockRejectedValue(new Error('API error'));
 
+      const { embedText } = await import('../embeddingService');
       await expect(embedText('test text')).rejects.toThrow('Failed to generate embedding: API error');
     });
 
@@ -83,6 +95,7 @@ describe('embeddingService', () => {
         embedding: { values: [0.1, 0.2, 0.3] }, // Only 3 dimensions
       });
 
+      const { embedText } = await import('../embeddingService');
       await expect(embedText('test text')).rejects.toThrow('Expected 768-dimensional vector');
     });
 
@@ -96,6 +109,7 @@ describe('embeddingService', () => {
           embedding: { values: mockVector },
         });
 
+      const { embedText } = await import('../embeddingService');
       const result = await embedText('test text');
 
       expect(result).toHaveLength(768);
@@ -121,6 +135,7 @@ describe('embeddingService', () => {
         .mockResolvedValueOnce({ embedding: { values: mockVectors[1] } })
         .mockResolvedValueOnce({ embedding: { values: mockVectors[2] } });
 
+      const { embedBatch } = await import('../embeddingService');
       const results = await embedBatch(texts);
 
       expect(results).toHaveLength(3);
@@ -131,10 +146,12 @@ describe('embeddingService', () => {
     });
 
     it('throws error for empty array', async () => {
+      const { embedBatch } = await import('../embeddingService');
       await expect(embedBatch([])).rejects.toThrow('Texts must be a non-empty array');
     });
 
     it('throws error if any text is empty', async () => {
+      const { embedBatch } = await import('../embeddingService');
       await expect(embedBatch(['valid text', '', 'another valid text'])).rejects.toThrow(
         'Text at index 1 must be a non-empty string'
       );
@@ -146,6 +163,7 @@ describe('embeddingService', () => {
         embedding: { values: mockVector },
       });
 
+      const { embedBatch } = await import('../embeddingService');
       const results = await embedBatch(['Single text']);
 
       expect(results).toHaveLength(1);
@@ -160,6 +178,7 @@ describe('embeddingService', () => {
         embedding: { values: mockVector },
       });
 
+      const { embedBatch } = await import('../embeddingService');
       const results = await embedBatch(texts);
 
       expect(results).toHaveLength(150);
@@ -177,6 +196,7 @@ describe('embeddingService', () => {
         embedding: { values: mockVector },
       });
 
+      const { createEmbedding } = await import('../embeddingService');
       const result = await createEmbedding('Test text');
 
       expect(result.text).toBe('Test text');
@@ -190,6 +210,7 @@ describe('embeddingService', () => {
         embedding: { values: mockVector },
       });
 
+      const { createEmbedding } = await import('../embeddingService');
       const metadata = { courseId: 'course-1', lessonId: 'lesson-1' };
       const result = await createEmbedding('Test text', metadata);
 
@@ -205,6 +226,17 @@ describe('embeddingService', () => {
 
       // Need to reset the module to clear cached genAI instance
       vi.resetModules();
+
+      // Re-mock after resetModules
+      vi.doMock('@google/generative-ai', () => ({
+        GoogleGenerativeAI: class MockGoogleGenerativeAI {
+          constructor() {}
+          getGenerativeModel() {
+            return { embedContent: vi.fn() };
+          }
+        },
+      }));
+
       const { embedText: embedTextFresh } = await import('../embeddingService');
 
       await expect(embedTextFresh('test')).rejects.toThrow(

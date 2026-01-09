@@ -284,13 +284,18 @@ export function chunkAtom(
       const content = atom.content as ReadingContent;
       const fullText = extractReadingContent(content);
 
-      // Try to split by sections first, then by paragraphs
-      const sections = splitBySections(fullText);
-      if (sections.length > 1) {
-        textParts = sections.flatMap((section) => chunkTextWithOverlap(section));
+      // If content is small enough, keep it as one chunk
+      if (countWords(fullText) <= MAX_WORDS_PER_CHUNK) {
+        textParts = [fullText.trim()];
       } else {
-        const paragraphs = splitIntoParagraphs(fullText);
-        textParts = paragraphs.flatMap((para) => chunkTextWithOverlap(para));
+        // Try to split by sections first, then by paragraphs
+        const sections = splitBySections(fullText);
+        if (sections.length > 1) {
+          textParts = sections.flatMap((section) => chunkTextWithOverlap(section));
+        } else {
+          // Split long content while preserving context
+          textParts = chunkTextWithOverlap(fullText);
+        }
       }
       break;
     }

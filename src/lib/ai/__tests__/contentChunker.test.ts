@@ -228,8 +228,11 @@ describe('contentChunker', () => {
       });
 
       it('includes highlights in the chunk text', () => {
+        // Use enough words to exceed MIN_CHUNK_WORDS (20)
         const atom = createReadingAtom(
-          'This is the main body of the reading content with enough words to meet the minimum threshold for chunking.'
+          'This is the main body of the reading content with enough words to meet the minimum threshold for chunking. ' +
+          'Social media marketing involves creating and sharing content on platforms like Facebook, Instagram, and LinkedIn. ' +
+          'The goal is to build brand awareness, drive engagement, and ultimately increase sales and conversions.'
         );
 
         const chunks = chunkAtom(atom, defaultContext);
@@ -341,8 +344,11 @@ describe('contentChunker', () => {
       });
 
       it('chunk IDs include full hierarchy', () => {
+        // Use enough words to exceed MIN_CHUNK_WORDS (20)
         const atom = createReadingAtom(
-          'A sample reading with enough words to create at least one chunk for testing.'
+          'A sample reading with enough words to create at least one chunk for testing. ' +
+          'This content discusses social media marketing strategies and best practices for businesses. ' +
+          'We will cover topics like audience targeting, content creation, and performance measurement.'
         );
         const context = {
           courseId: 'fsm-course',
@@ -352,6 +358,7 @@ describe('contentChunker', () => {
 
         const chunks = chunkAtom(atom, context);
 
+        expect(chunks.length).toBeGreaterThan(0);
         expect(chunks[0].id).toContain('fsm-course');
         expect(chunks[0].id).toContain('module-ads');
         expect(chunks[0].id).toContain('lesson-targeting');
@@ -362,9 +369,12 @@ describe('contentChunker', () => {
 
   describe('chunkLesson', () => {
     it('chunks all atoms in a lesson', () => {
+      // Use enough words to exceed MIN_CHUNK_WORDS (20)
       const lesson = createLesson([
         createReadingAtom(
-          'Reading content with enough words to create a chunk for this test case.'
+          'Reading content with enough words to create a chunk for this test case. ' +
+          'Social media marketing involves creating and sharing content on various platforms to achieve business goals. ' +
+          'This includes building brand awareness, driving website traffic, and generating leads for your business.'
         ),
         createQuizAtom(),
       ]);
@@ -376,9 +386,12 @@ describe('contentChunker', () => {
     });
 
     it('prepends lesson title and objectives to first chunk', () => {
+      // Use enough words to exceed MIN_CHUNK_WORDS (20)
       const lesson = createLesson([
         createReadingAtom(
-          'This is the reading content with enough words to meet the minimum threshold.'
+          'This is the reading content with enough words to meet the minimum threshold. ' +
+          'The lesson covers important concepts about social media marketing strategies and best practices. ' +
+          'Students will learn how to create effective campaigns that drive results and engagement.'
         ),
       ]);
 
@@ -419,9 +432,12 @@ describe('contentChunker', () => {
     });
 
     it('updates first chunk title to include lesson title', () => {
+      // Use enough words to exceed MIN_CHUNK_WORDS (20)
       const lesson = createLesson([
         createReadingAtom(
-          'Content with enough words to create a proper chunk for testing purposes.'
+          'Content with enough words to create a proper chunk for testing purposes. ' +
+          'This lesson teaches the fundamentals of digital marketing and social media strategies. ' +
+          'Students will understand how to measure success and optimize their marketing campaigns.'
         ),
       ]);
 
