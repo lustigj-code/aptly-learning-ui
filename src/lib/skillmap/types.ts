@@ -88,7 +88,7 @@ export interface ParsedQuestion {
  */
 export interface ParsedAtom {
   id: string;
-  type: 'video' | 'reading' | 'quiz' | 'practice';
+  type: 'video' | 'reading' | 'quiz' | 'practice' | 'project';
   title: string;
   content: string; // Text content, transcript, or body
   questions?: ParsedQuestion[]; // For quiz atoms
