@@ -11,6 +11,7 @@ import {
   type UserLearningState,
 } from '@/lib/training'
 import { getModelRouter, type GenerateRequest as SageRequest } from '@/lib/training/serving'
+import { parseCoachSuggestion, applyCoachModification } from '@/lib/coach/pathModifier'
 
 // Initialize Gemini client
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENAI_API_KEY || '')
@@ -253,6 +254,14 @@ export async function POST(request: NextRequest) {
       conversationId = await createConversation(userId, lessonId)
     }
 
+    // If no messages provided, just return the conversation ID (initialization only)
+    if (!messages || messages.length === 0) {
+      return NextResponse.json({
+        message: null,
+        conversationId,
+      })
+    }
+
     // Get the last user message content for emotional analysis
     const latestUserMsg = messages[messages.length - 1]
     const latestMessageContent = latestUserMsg?.role === 'user' ? latestUserMsg.content : undefined
@@ -397,9 +406,15 @@ Provide a concise, memorable summary focusing on:
 
     // Fall back to Gemini if Sage didn't produce a response
     if (!message) {
+      // Build history excluding the last message (which we'll send separately)
+      // Gemini requires history to start with a user message, so filter accordingly
+      const historyMessages = messages.slice(0, -1)
+      const firstUserIndex = historyMessages.findIndex((m) => m.role === 'user')
+      const validHistory = firstUserIndex >= 0 ? historyMessages.slice(firstUserIndex) : []
+
       // Call Gemini API with conversation history
       const chat = model.startChat({
-        history: messages.slice(0, -1).map((m) => ({
+        history: validHistory.map((m) => ({
           role: m.role === 'assistant' ? 'model' : 'user',
           parts: [{ text: m.content }],
         })),
@@ -408,7 +423,9 @@ Provide a concise, memorable summary focusing on:
           temperature: 0.8, // Slightly higher for more engaging responses
           topP: 0.95,
         },
-        systemInstruction: fullContext,
+        systemInstruction: {
+          parts: [{ text: fullContext }],
+        },
       })
 
       const response = await chat.sendMessage(lastUserMessage.content)
@@ -447,6 +464,21 @@ Provide a concise, memorable summary focusing on:
       }
     } catch (firestoreError) {
       console.warn('Could not save conversation to Firestore:', firestoreError)
+    }
+
+    // Check for path modification suggestions in coach response
+    let pathModificationApplied = false;
+    try {
+      if (userId && message) {
+        const modification = parseCoachSuggestion(message);
+        if (modification) {
+          const result = await applyCoachModification(userId, modification);
+          pathModificationApplied = result.success;
+          console.log('[Coach API] Path modification:', result.message);
+        }
+      }
+    } catch (pathError) {
+      console.warn('Could not apply path modification:', pathError);
     }
 
     // Log for training data collection (non-blocking)
@@ -508,6 +540,8 @@ Provide a concise, memorable summary focusing on:
         model: modelUsed,
         variant: abVariant,
       },
+      // Path modification status
+      pathModified: pathModificationApplied,
     })
   } catch (error) {
     console.error('Coach API error:', error)
@@ -542,8 +576,7 @@ function getMockResponse(body: RequestBody): string {
   const name = context?.userName || 'there'
 
   if (type === 'summary') {
-    return `Here's what I want you to take away from this, ${name}: 📚
-
+    return `Here's what I want you to take away from this, ${name}: 
 **Key Insights:**
 
 1. **Know Your Audience First** - Before any campaign, ask yourself: "Who am I really trying to reach, and what do they care about?"
@@ -559,8 +592,7 @@ What resonated most with you from this lesson?`
   }
 
   if (type === 'practice_feedback') {
-    return `I see what you're going for here, ${name}! Let me ask you some questions to help strengthen this response. 💪
-
+    return `I see what you're going for here, ${name}! Let me ask you some questions to help strengthen this response. 
 **What I noticed you did well:**
 You're clearly thinking about the target audience - that's the foundation of everything in marketing.
 
@@ -574,12 +606,11 @@ You're clearly thinking about the target audience - that's the foundation of eve
 **Here's what I'd challenge you to consider:**
 If you had to cut your target audience in half to make it even more specific, who would you keep and why?
 
-Take another crack at it with these questions in mind. You're on the right track! 🎯`
+Take another crack at it with these questions in mind. You're on the right track!`
   }
 
   if (type === 'quiz_help') {
-    return `Let's work through this together, ${name}! I won't give you the answer, but I'll help you think it through. 🤔
-
+    return `Let's work through this together, ${name}! I won't give you the answer, but I'll help you think it through. 
 **First, let's understand the question:**
 What is it really asking? Try to rephrase it in your own words.
 
@@ -595,8 +626,7 @@ Which options are you torn between? Let's talk through them!`
 
   // Chat responses with Socratic approach
   if (lastMessage.includes('hello') || lastMessage.includes('hi ') || lastMessage.includes('hey')) {
-    return `Hey ${name}! Great to see you here. 👋
-
+    return `Hey ${name}! Great to see you here. 
 Before we dive in, I'm curious: What brought you to study social media marketing? Understanding your "why" helps me tailor how we work together.
 
 Are you:
@@ -609,8 +639,7 @@ Tell me a bit about your goal!`
   }
 
   if (lastMessage.includes('help') || lastMessage.includes('stuck') || lastMessage.includes("don't understand")) {
-    return `I hear you, ${name}. Getting stuck is actually a good sign - it means you're pushing into new territory. 💪
-
+    return `I hear you, ${name}. Getting stuck is actually a good sign - it means you're pushing into new territory. 
 Let's figure out where the confusion is:
 
 1. **What's the last concept that made total sense to you?**
@@ -626,7 +655,7 @@ There are no wrong answers here - I just want to understand where you're at so I
   }
 
   if (lastMessage.includes('what is') || lastMessage.includes('what are') || lastMessage.includes('explain')) {
-    return `Good question! But instead of me just telling you, let's build your understanding together. 🧠
+    return `Good question! But instead of me just telling you, let's build your understanding together.
 
 **First, what do you already know or guess about this topic?**
 
@@ -640,8 +669,7 @@ Share your thoughts and we'll build from there!`
   }
 
   // Default Socratic response
-  return `Interesting thought, ${name}! Let me turn this back to you with a question: 🎯
-
+  return `Interesting thought, ${name}! Let me turn this back to you with a question: 
 **When you think about this from a user's perspective**, not a marketer's, what would make you engage with this kind of content?
 
 **Consider:**
