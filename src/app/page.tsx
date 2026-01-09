@@ -14,11 +14,11 @@ export default function HomePage() {
     // Wait for auth to load
     if (isAuthLoading || isLoading) return;
 
-    // If user exists and authenticated, go to dashboard
+    // If user exists and authenticated, go to coach (coach-first architecture)
     // If not, go to onboarding/login
     const timer = setTimeout(() => {
       if (isAuthenticated && user) {
-        router.push('/dashboard');
+        router.push('/coach');
       } else if (isAuthenticated && !user) {
         router.push('/onboarding');
       } else {
