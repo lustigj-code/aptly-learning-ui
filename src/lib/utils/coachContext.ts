@@ -35,6 +35,11 @@ import {
   type RelationshipContext,
   type RelationshipStage,
 } from '@/lib/character/relationshipProgression'
+import {
+  retrieveRelevantContent,
+  formatRetrievedContext,
+  type RetrievedChunk,
+} from '@/lib/ai/retrievalService'
 
 // ============================================
 // TYPES
@@ -120,6 +125,7 @@ export type CoachContextData = {
   emotionalAnalysis: EmotionalAnalysis | null
   personalityState: PersonalityState | null
   relationshipContext: RelationshipContext | null
+  ragContent: string | null // RAG-retrieved curriculum content
   contextString: string
 }
 
@@ -190,6 +196,29 @@ export async function buildCoachContext(
       lessonContext
     )
 
+    // Retrieve relevant RAG content if user message provided
+    let ragContent: string | null = null
+    if (latestMessage && latestMessage.trim().length > 0) {
+      try {
+        console.log('[CoachContext] Retrieving RAG content for:', latestMessage.substring(0, 50) + '...')
+        const retrievedChunks = await retrieveRelevantContent(latestMessage, {
+          topK: 5,
+          minScore: 0.5,
+          courseFilter: lessonContext?.courseId,
+        })
+
+        if (retrievedChunks.length > 0) {
+          ragContent = formatRetrievedContext(retrievedChunks)
+          console.log(`[CoachContext] Retrieved ${retrievedChunks.length} relevant chunks`)
+        } else {
+          console.log('[CoachContext] No relevant RAG content found (below threshold)')
+        }
+      } catch (ragError) {
+        // RAG is non-critical - coach can still function without it
+        console.warn('[CoachContext] RAG retrieval failed:', ragError)
+      }
+    }
+
     // Build the comprehensive context string
     const contextString = buildContextString({
       user: userProfile,
@@ -203,6 +232,7 @@ export async function buildCoachContext(
       emotionalAnalysis,
       personalityState,
       relationshipContext,
+      ragContent,
     })
 
     return {
@@ -217,6 +247,7 @@ export async function buildCoachContext(
       emotionalAnalysis,
       personalityState,
       relationshipContext,
+      ragContent,
       contextString,
     }
   } catch (error) {
@@ -785,6 +816,20 @@ ${truncatedContent}`)
     }
   }
 
+  // RAG Content Section (relevant curriculum material for the user's question)
+  if (data.ragContent) {
+    sections.push(`
+=== RELEVANT COURSE MATERIAL ===
+The following content from the FSM curriculum is relevant to the student's question:
+
+${data.ragContent}
+
+Use this content to inform your response, but remember:
+- Don't quote directly unless teaching a specific concept
+- Guide the student to discover insights through questions
+- Reference the source lesson when helpful`)
+  }
+
   // Conversation History Section
   if (data.conversation && data.conversation.messages.length > 0) {
     sections.push(`
@@ -866,6 +911,7 @@ function buildMinimalContext(userId: string): CoachContextData {
     emotionalAnalysis: null,
     personalityState: null,
     relationshipContext: null,
+    ragContent: null,
     contextString: `Student ID: ${userId}\nNo additional context available. Provide general support and guidance.`,
   }
 }
