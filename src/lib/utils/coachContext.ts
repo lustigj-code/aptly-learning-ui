@@ -47,6 +47,11 @@ import {
   type PedagogicalPattern,
   type PedagogicalSignals,
 } from '@/lib/ai/pedagogicalPatterns'
+import {
+  getUnverifiedConcepts,
+  getComprehensionState,
+  type ConceptComprehension,
+} from '@/lib/services/coachService'
 
 // ============================================
 // TYPES
@@ -134,6 +139,11 @@ export type CoachContextData = {
   relationshipContext: RelationshipContext | null
   ragContent: string | null // RAG-retrieved curriculum content
   pedagogicalPattern: PedagogicalPattern | null // Selected teaching pattern
+  comprehensionState: {
+    unverifiedConcepts: string[]      // Concept names pending verification
+    lastVerifiedMinutesAgo: number    // Time since last verification
+    shouldTriggerVerification: boolean // Whether to prompt verification now
+  } | null
   contextString: string
 }
 
@@ -227,6 +237,44 @@ export async function buildCoachContext(
       }
     }
 
+    // Fetch comprehension state if conversationId provided
+    let comprehensionStateData: CoachContextData['comprehensionState'] = null
+    if (conversationId) {
+      try {
+        const unverifiedConcepts = await getUnverifiedConcepts(conversationId)
+        const fullState = await getComprehensionState(conversationId)
+
+        if (unverifiedConcepts.length > 0 || fullState) {
+          // Calculate minutes since last verification
+          let lastVerifiedMinutesAgo = 999 // Default to large number if never verified
+          if (fullState?.lastVerifiedAt) {
+            const lastVerifiedDate = fullState.lastVerifiedAt instanceof Date
+              ? fullState.lastVerifiedAt
+              : new Date(fullState.lastVerifiedAt)
+            lastVerifiedMinutesAgo = Math.floor(
+              (Date.now() - lastVerifiedDate.getTime()) / (1000 * 60)
+            )
+          }
+
+          // Determine if verification should be triggered
+          const unverifiedCount = unverifiedConcepts.length
+          const shouldTriggerVerification =
+            unverifiedCount > 0 &&
+            (lastVerifiedMinutesAgo > 5 || unverifiedCount >= 3)
+
+          comprehensionStateData = {
+            unverifiedConcepts: unverifiedConcepts.map((c) => c.conceptName),
+            lastVerifiedMinutesAgo,
+            shouldTriggerVerification,
+          }
+          console.log(`[CoachContext] Comprehension state: ${unverifiedCount} unverified, trigger=${shouldTriggerVerification}`)
+        }
+      } catch (compError) {
+        // Comprehension tracking is non-critical
+        console.warn('[CoachContext] Comprehension state fetch failed:', compError)
+      }
+    }
+
     // Select pedagogical pattern based on current signals
     let pedagogicalPattern: PedagogicalPattern | null = null
     try {
@@ -270,6 +318,7 @@ export async function buildCoachContext(
       relationshipContext,
       ragContent,
       pedagogicalPattern,
+      comprehensionState: comprehensionStateData,
     })
 
     return {
@@ -286,6 +335,7 @@ export async function buildCoachContext(
       relationshipContext,
       ragContent,
       pedagogicalPattern,
+      comprehensionState: comprehensionStateData,
       contextString,
     }
   } catch (error) {
@@ -868,6 +918,20 @@ Use this content to inform your response, but remember:
 - Reference the source lesson when helpful`)
   }
 
+  // Verification Needed Section (when unverified concepts accumulate)
+  if (data.comprehensionState?.shouldTriggerVerification) {
+    sections.push(`
+=== VERIFICATION NEEDED ===
+Before continuing, verify the student's understanding of these concepts:
+${data.comprehensionState.unverifiedConcepts.join(', ')}
+
+Use the VERIFY pattern: Ask them to explain one concept in their own words,
+or apply it to a scenario. Don't just ask "do you understand?" - that's useless.
+
+If they demonstrate understanding, acknowledge it specifically.
+If they struggle, don't re-explain yet - ask a simpler question to find the gap.`)
+  }
+
   // Conversation History Section
   if (data.conversation && data.conversation.messages.length > 0) {
     sections.push(`
@@ -965,6 +1029,7 @@ function buildMinimalContext(userId: string): CoachContextData {
     relationshipContext: null,
     ragContent: null,
     pedagogicalPattern: null,
+    comprehensionState: null,
     contextString: `Student ID: ${userId}\nNo additional context available. Provide general support and guidance.`,
   }
 }
