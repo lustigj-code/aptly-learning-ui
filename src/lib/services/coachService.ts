@@ -9,6 +9,35 @@ import { adminDb } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import type { Conversation, CoachMessage, MessageContext, CoachFeedback } from '@/lib/auth/schemas';
 
+// ============================================
+// COMPREHENSION TRACKING TYPES
+// ============================================
+
+/**
+ * Tracks comprehension level for a single concept
+ */
+export type ComprehensionLevel = 'unverified' | 'partial' | 'demonstrated' | 'mastered';
+
+export type ConceptComprehension = {
+  conceptId: string;           // e.g., "lookalike-audiences"
+  conceptName: string;         // Human-readable name
+  introducedAt: Date;          // When coach first explained
+  verificationAttempts: number;
+  lastVerificationAt: Date | null;
+  comprehensionLevel: ComprehensionLevel;
+  studentExplanation?: string; // Their own words when verified
+};
+
+/**
+ * Overall comprehension state for a conversation
+ */
+export type ComprehensionState = {
+  conceptsIntroduced: ConceptComprehension[];
+  pendingVerification: string[];  // conceptIds that need verification
+  lastVerifiedAt: Date | null;
+  verificationStreak: number;     // consecutive successful verifications
+};
+
 /**
  * Get a complete conversation by ID
  * Loads full conversation history with all messages
@@ -73,6 +102,12 @@ export async function createConversation(
     const newConversation: Record<string, unknown> = {
       userId: uid,
       messages: [],
+      comprehensionState: {
+        conceptsIntroduced: [],
+        pendingVerification: [],
+        lastVerifiedAt: null,
+        verificationStreak: 0,
+      },
     };
 
     // Only add optional fields if they have values (Firestore doesn't accept undefined)
@@ -442,6 +477,216 @@ export async function conversationExists(conversationId: string): Promise<boolea
     console.error(`Error checking conversation existence for ${conversationId}:`, error);
     throw new Error(
       `Failed to check conversation existence: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
+// ============================================
+// COMPREHENSION TRACKING FUNCTIONS
+// ============================================
+
+/**
+ * Mark a concept as introduced in the conversation
+ * Called when the coach explains a new concept
+ * @param conversationId - The conversation's ID
+ * @param conceptId - Unique identifier for the concept (e.g., "lookalike-audiences")
+ * @param conceptName - Human-readable name for the concept
+ */
+export async function markConceptIntroduced(
+  conversationId: string,
+  conceptId: string,
+  conceptName: string
+): Promise<void> {
+  try {
+    if (!conversationId || !conceptId || !conceptName) {
+      throw new Error('conversationId, conceptId, and conceptName are required');
+    }
+
+    const conversationRef = adminDb.collection('conversations').doc(conversationId);
+    const doc = await conversationRef.get();
+
+    if (!doc.exists) {
+      throw new Error('Conversation not found');
+    }
+
+    const data = doc.data();
+    const comprehensionState: ComprehensionState = data?.comprehensionState || {
+      conceptsIntroduced: [],
+      pendingVerification: [],
+      lastVerifiedAt: null,
+      verificationStreak: 0,
+    };
+
+    // Check if concept already exists
+    const existingIndex = comprehensionState.conceptsIntroduced.findIndex(
+      (c) => c.conceptId === conceptId
+    );
+
+    if (existingIndex === -1) {
+      // Add new concept
+      const newConcept: ConceptComprehension = {
+        conceptId,
+        conceptName,
+        introducedAt: new Date(),
+        verificationAttempts: 0,
+        lastVerificationAt: null,
+        comprehensionLevel: 'unverified',
+      };
+
+      comprehensionState.conceptsIntroduced.push(newConcept);
+      comprehensionState.pendingVerification.push(conceptId);
+    }
+
+    await conversationRef.update({
+      comprehensionState,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  } catch (error) {
+    console.error(`Error marking concept introduced for conversation ${conversationId}:`, error);
+    throw new Error(
+      `Failed to mark concept introduced: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
+/**
+ * Mark a concept as verified with a comprehension level
+ * Called when the student demonstrates understanding
+ * @param conversationId - The conversation's ID
+ * @param conceptId - The concept that was verified
+ * @param level - The comprehension level demonstrated
+ * @param explanation - Optional student's explanation in their own words
+ */
+export async function markConceptVerified(
+  conversationId: string,
+  conceptId: string,
+  level: ComprehensionLevel,
+  explanation?: string
+): Promise<void> {
+  try {
+    if (!conversationId || !conceptId || !level) {
+      throw new Error('conversationId, conceptId, and level are required');
+    }
+
+    const conversationRef = adminDb.collection('conversations').doc(conversationId);
+    const doc = await conversationRef.get();
+
+    if (!doc.exists) {
+      throw new Error('Conversation not found');
+    }
+
+    const data = doc.data();
+    const comprehensionState: ComprehensionState = data?.comprehensionState || {
+      conceptsIntroduced: [],
+      pendingVerification: [],
+      lastVerifiedAt: null,
+      verificationStreak: 0,
+    };
+
+    // Find and update the concept
+    const conceptIndex = comprehensionState.conceptsIntroduced.findIndex(
+      (c) => c.conceptId === conceptId
+    );
+
+    if (conceptIndex !== -1) {
+      comprehensionState.conceptsIntroduced[conceptIndex].verificationAttempts += 1;
+      comprehensionState.conceptsIntroduced[conceptIndex].lastVerificationAt = new Date();
+      comprehensionState.conceptsIntroduced[conceptIndex].comprehensionLevel = level;
+      if (explanation) {
+        comprehensionState.conceptsIntroduced[conceptIndex].studentExplanation = explanation;
+      }
+
+      // Remove from pending verification if level is demonstrated or mastered
+      if (level === 'demonstrated' || level === 'mastered') {
+        comprehensionState.pendingVerification = comprehensionState.pendingVerification.filter(
+          (id) => id !== conceptId
+        );
+        comprehensionState.verificationStreak += 1;
+      } else if (level === 'partial') {
+        // Keep in pending but update streak
+        comprehensionState.verificationStreak = 0;
+      }
+
+      comprehensionState.lastVerifiedAt = new Date();
+    }
+
+    await conversationRef.update({
+      comprehensionState,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  } catch (error) {
+    console.error(`Error marking concept verified for conversation ${conversationId}:`, error);
+    throw new Error(
+      `Failed to mark concept verified: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
+/**
+ * Get concepts that haven't been verified yet
+ * Used to trigger verification prompts
+ * @param conversationId - The conversation's ID
+ * @returns Array of unverified concepts
+ */
+export async function getUnverifiedConcepts(
+  conversationId: string
+): Promise<ConceptComprehension[]> {
+  try {
+    if (!conversationId || typeof conversationId !== 'string') {
+      throw new Error('Invalid conversationId provided');
+    }
+
+    const doc = await adminDb.collection('conversations').doc(conversationId).get();
+
+    if (!doc.exists) {
+      return [];
+    }
+
+    const data = doc.data();
+    const comprehensionState: ComprehensionState = data?.comprehensionState || {
+      conceptsIntroduced: [],
+      pendingVerification: [],
+      lastVerifiedAt: null,
+      verificationStreak: 0,
+    };
+
+    // Return concepts that are still pending verification
+    return comprehensionState.conceptsIntroduced.filter((concept) =>
+      comprehensionState.pendingVerification.includes(concept.conceptId)
+    );
+  } catch (error) {
+    console.error(`Error getting unverified concepts for conversation ${conversationId}:`, error);
+    throw new Error(
+      `Failed to get unverified concepts: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
+/**
+ * Get the full comprehension state for a conversation
+ * @param conversationId - The conversation's ID
+ * @returns ComprehensionState or null if not found
+ */
+export async function getComprehensionState(
+  conversationId: string
+): Promise<ComprehensionState | null> {
+  try {
+    if (!conversationId || typeof conversationId !== 'string') {
+      throw new Error('Invalid conversationId provided');
+    }
+
+    const doc = await adminDb.collection('conversations').doc(conversationId).get();
+
+    if (!doc.exists) {
+      return null;
+    }
+
+    const data = doc.data();
+    return data?.comprehensionState || null;
+  } catch (error) {
+    console.error(`Error getting comprehension state for conversation ${conversationId}:`, error);
+    throw new Error(
+      `Failed to get comprehension state: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
   }
 }
