@@ -17,7 +17,8 @@
     "firebase:emulate": "firebase emulators:start",
     "firebase:rules:test": "firebase emulators:exec 'npm run test:firestore-rules'",
     "firebase:deploy": "firebase deploy",
-    "docs:generate": "typedoc --out docs/generated --entryPointStrategy expand src/"
+    "docs:generate": "typedoc --out docs/generated --entryPointStrategy expand src/",
+    "ingest:content": "tsx src/scripts/ingest-content.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
