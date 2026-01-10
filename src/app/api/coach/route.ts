@@ -423,7 +423,10 @@ Provide a concise, memorable summary focusing on:
           temperature: 0.8, // Slightly higher for more engaging responses
           topP: 0.95,
         },
-        systemInstruction: fullContext,
+        systemInstruction: {
+          role: 'user',
+          parts: [{ text: fullContext }],
+        },
       })
 
       const response = await chat.sendMessage(lastUserMessage.content)
