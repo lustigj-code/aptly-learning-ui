@@ -50,7 +50,10 @@ import {
 import {
   getUnverifiedConcepts,
   getComprehensionState,
+  getExplanationHistory,
+  getUntriedStrategies,
   type ConceptComprehension,
+  type ExplanationAttempt,
 } from '@/lib/services/coachService'
 
 // ============================================
@@ -144,7 +147,27 @@ export type CoachContextData = {
     lastVerifiedMinutesAgo: number    // Time since last verification
     shouldTriggerVerification: boolean // Whether to prompt verification now
   } | null
+  adaptiveExplanation: {
+    isConfused: boolean
+    confusedAbout: string | null      // Concept they're struggling with
+    triedStrategies: string[]         // What we've already tried
+    suggestedStrategy: string         // Next strategy to try
+    strategyGuidance: string          // How to apply this strategy
+  } | null
   contextString: string
+}
+
+// ============================================
+// ADAPTIVE EXPLANATION STRATEGIES
+// ============================================
+
+const STRATEGY_GUIDANCE: Record<string, string> = {
+  analogy: "Use a familiar comparison. For lookalike audiences: 'It's like having a great party guest who knows exactly who else would love your party.'",
+  example: "Use a specific, real-world brand example. 'When Nike does this, they...'",
+  breakdown: "Break into 3 smaller pieces. 'First, let's just focus on...'",
+  visual: "Describe it as if drawing a diagram. 'Picture a Venn diagram where...'",
+  socratic: "Ask simpler questions to find the exact confusion point. 'When you hear X, what comes to mind?'",
+  direct: "Give a clear, straightforward explanation with the key definition and one example.",
 }
 
 // ============================================
@@ -275,6 +298,57 @@ export async function buildCoachContext(
       }
     }
 
+    // Build adaptive explanation guidance when student shows confusion
+    let adaptiveExplanationData: CoachContextData['adaptiveExplanation'] = null
+    const isConfused = emotionalAnalysis?.primaryState === 'confused' ||
+                       emotionalAnalysis?.primaryState === 'frustrated'
+
+    if (isConfused && conversationId) {
+      try {
+        // Try to identify what concept they're confused about from recent messages
+        let confusedAbout: string | null = null
+        if (conversationHistory?.messages && conversationHistory.messages.length > 0) {
+          // Look at recent messages for concept keywords from comprehension state
+          const recentContent = conversationHistory.messages
+            .slice(-5)
+            .map((m) => m.content.toLowerCase())
+            .join(' ')
+
+          // Check against unverified concepts
+          if (comprehensionStateData?.unverifiedConcepts) {
+            for (const concept of comprehensionStateData.unverifiedConcepts) {
+              if (recentContent.includes(concept.toLowerCase())) {
+                confusedAbout = concept
+                break
+              }
+            }
+          }
+        }
+
+        // Get explanation history and suggest next strategy
+        const conceptId = confusedAbout?.toLowerCase().replace(/\s+/g, '-') || 'general'
+        const history = await getExplanationHistory(conversationId, conceptId)
+        const triedStrategies = history.map((h) => h.strategy)
+        const untriedStrategies = await getUntriedStrategies(conversationId, conceptId)
+
+        // Pick the best next strategy (prefer analogy, example, breakdown for confused students)
+        const preferredOrder = ['analogy', 'example', 'breakdown', 'visual', 'socratic', 'direct']
+        const suggestedStrategy = preferredOrder.find((s) => untriedStrategies.includes(s)) ||
+                                  (untriedStrategies[0] || 'breakdown')
+
+        adaptiveExplanationData = {
+          isConfused: true,
+          confusedAbout,
+          triedStrategies,
+          suggestedStrategy,
+          strategyGuidance: STRATEGY_GUIDANCE[suggestedStrategy] || STRATEGY_GUIDANCE.breakdown,
+        }
+        console.log(`[CoachContext] Student confused, suggesting strategy: ${suggestedStrategy}`)
+      } catch (adaptError) {
+        console.warn('[CoachContext] Adaptive explanation failed:', adaptError)
+      }
+    }
+
     // Select pedagogical pattern based on current signals
     let pedagogicalPattern: PedagogicalPattern | null = null
     try {
@@ -319,6 +393,7 @@ export async function buildCoachContext(
       ragContent,
       pedagogicalPattern,
       comprehensionState: comprehensionStateData,
+      adaptiveExplanation: adaptiveExplanationData,
     })
 
     return {
@@ -336,6 +411,7 @@ export async function buildCoachContext(
       ragContent,
       pedagogicalPattern,
       comprehensionState: comprehensionStateData,
+      adaptiveExplanation: adaptiveExplanationData,
       contextString,
     }
   } catch (error) {
@@ -932,6 +1008,22 @@ If they demonstrate understanding, acknowledge it specifically.
 If they struggle, don't re-explain yet - ask a simpler question to find the gap.`)
   }
 
+  // Adaptive Explanation Section (when student is confused)
+  if (data.adaptiveExplanation?.isConfused) {
+    const { confusedAbout, triedStrategies, suggestedStrategy, strategyGuidance } = data.adaptiveExplanation
+    sections.push(`
+=== STUDENT NEEDS DIFFERENT APPROACH ===
+The student seems confused${confusedAbout ? ` about: ${confusedAbout}` : ''}.
+
+Already tried: ${triedStrategies.length > 0 ? triedStrategies.join(', ') : 'nothing yet'}
+
+Try this strategy: ${suggestedStrategy.toUpperCase()}
+${strategyGuidance}
+
+DO NOT repeat the same explanation. If the first approach didn't work, a different
+angle is needed. Acknowledge their struggle and try the new approach.`)
+  }
+
   // Conversation History Section
   if (data.conversation && data.conversation.messages.length > 0) {
     sections.push(`
@@ -1030,6 +1122,7 @@ function buildMinimalContext(userId: string): CoachContextData {
     ragContent: null,
     pedagogicalPattern: null,
     comprehensionState: null,
+    adaptiveExplanation: null,
     contextString: `Student ID: ${userId}\nNo additional context available. Provide general support and guidance.`,
   }
 }
