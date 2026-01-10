@@ -10,6 +10,20 @@ import { FieldValue } from 'firebase-admin/firestore';
 import type { Conversation, CoachMessage, MessageContext, CoachFeedback } from '@/lib/auth/schemas';
 
 // ============================================
+// EXPLANATION TRACKING TYPES
+// ============================================
+
+/**
+ * Tracks a single explanation attempt for anti-repetition logic
+ */
+export type ExplanationAttempt = {
+  conceptId: string;
+  strategy: 'direct' | 'analogy' | 'example' | 'breakdown' | 'visual' | 'socratic';
+  timestamp: Date;
+  successful: boolean; // Did comprehension improve?
+};
+
+// ============================================
 // COMPREHENSION TRACKING TYPES
 // ============================================
 
@@ -108,6 +122,7 @@ export async function createConversation(
         lastVerifiedAt: null,
         verificationStreak: 0,
       },
+      explanationHistory: [], // Track explanation attempts for anti-repetition
     };
 
     // Only add optional fields if they have values (Firestore doesn't accept undefined)
@@ -688,5 +703,125 @@ export async function getComprehensionState(
     throw new Error(
       `Failed to get comprehension state: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
+  }
+}
+
+// ============================================
+// EXPLANATION TRACKING FUNCTIONS
+// ============================================
+
+const MAX_EXPLANATION_HISTORY = 20; // Limit storage per conversation
+const ALL_STRATEGIES: ExplanationAttempt['strategy'][] = [
+  'direct', 'analogy', 'example', 'breakdown', 'visual', 'socratic'
+];
+
+/**
+ * Record an explanation attempt for a concept
+ * @param conversationId - The conversation's ID
+ * @param attempt - The explanation attempt to record
+ */
+export async function recordExplanation(
+  conversationId: string,
+  attempt: ExplanationAttempt
+): Promise<void> {
+  try {
+    if (!conversationId || typeof conversationId !== 'string') {
+      throw new Error('Invalid conversationId provided');
+    }
+
+    const conversationRef = adminDb.collection('conversations').doc(conversationId);
+    const doc = await conversationRef.get();
+
+    if (!doc.exists) {
+      throw new Error('Conversation not found');
+    }
+
+    const data = doc.data();
+    let explanationHistory: ExplanationAttempt[] = data?.explanationHistory || [];
+
+    // Add new attempt
+    explanationHistory.push({
+      ...attempt,
+      timestamp: attempt.timestamp instanceof Date ? attempt.timestamp : new Date(),
+    });
+
+    // Limit to last N attempts to bound storage
+    if (explanationHistory.length > MAX_EXPLANATION_HISTORY) {
+      explanationHistory = explanationHistory.slice(-MAX_EXPLANATION_HISTORY);
+    }
+
+    await conversationRef.update({
+      explanationHistory,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  } catch (error) {
+    console.error(`Error recording explanation for conversation ${conversationId}:`, error);
+    throw new Error(
+      `Failed to record explanation: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
+/**
+ * Get explanation history for a specific concept
+ * @param conversationId - The conversation's ID
+ * @param conceptId - The concept to get history for
+ * @returns Array of explanation attempts for this concept
+ */
+export async function getExplanationHistory(
+  conversationId: string,
+  conceptId: string
+): Promise<ExplanationAttempt[]> {
+  try {
+    if (!conversationId || typeof conversationId !== 'string') {
+      throw new Error('Invalid conversationId provided');
+    }
+
+    const doc = await adminDb.collection('conversations').doc(conversationId).get();
+
+    if (!doc.exists) {
+      return [];
+    }
+
+    const data = doc.data();
+    const explanationHistory: ExplanationAttempt[] = data?.explanationHistory || [];
+
+    // Filter to only this concept's attempts
+    return explanationHistory
+      .filter((attempt) => attempt.conceptId === conceptId)
+      .map((attempt) => ({
+        ...attempt,
+        timestamp: attempt.timestamp instanceof Date
+          ? attempt.timestamp
+          : new Date(attempt.timestamp as unknown as string),
+      }));
+  } catch (error) {
+    console.error(`Error getting explanation history for conversation ${conversationId}:`, error);
+    throw new Error(
+      `Failed to get explanation history: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
+/**
+ * Get strategies that haven't been tried yet for a concept
+ * @param conversationId - The conversation's ID
+ * @param conceptId - The concept to check strategies for
+ * @returns Array of strategy names not yet used
+ */
+export async function getUntriedStrategies(
+  conversationId: string,
+  conceptId: string
+): Promise<string[]> {
+  try {
+    const history = await getExplanationHistory(conversationId, conceptId);
+    const triedStrategies = new Set(history.map((attempt) => attempt.strategy));
+
+    // Return strategies not yet tried
+    return ALL_STRATEGIES.filter((strategy) => !triedStrategies.has(strategy));
+  } catch (error) {
+    console.error(`Error getting untried strategies for conversation ${conversationId}:`, error);
+    // On error, return all strategies as available
+    return [...ALL_STRATEGIES];
   }
 }
