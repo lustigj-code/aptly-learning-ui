@@ -40,6 +40,13 @@ import {
   formatRetrievedContext,
   type RetrievedChunk,
 } from '@/lib/ai/retrievalService'
+import {
+  selectPedagogicalPattern,
+  deriveStudentState,
+  inferInteractionType,
+  type PedagogicalPattern,
+  type PedagogicalSignals,
+} from '@/lib/ai/pedagogicalPatterns'
 
 // ============================================
 // TYPES
@@ -126,6 +133,7 @@ export type CoachContextData = {
   personalityState: PersonalityState | null
   relationshipContext: RelationshipContext | null
   ragContent: string | null // RAG-retrieved curriculum content
+  pedagogicalPattern: PedagogicalPattern | null // Selected teaching pattern
   contextString: string
 }
 
@@ -219,6 +227,34 @@ export async function buildCoachContext(
       }
     }
 
+    // Select pedagogical pattern based on current signals
+    let pedagogicalPattern: PedagogicalPattern | null = null
+    try {
+      const studentState = deriveStudentState(masteryLevel, emotionalAnalysis)
+      const lastInteractionType = inferInteractionType(latestMessage || '')
+
+      // Check if milestone was just completed (new lesson completion)
+      const previousLessonsCount = conversationHistory?.messages.length
+        ? userPerformance.lessonsCompleted.length - 1
+        : userPerformance.lessonsCompleted.length
+      const justCompletedMilestone = userPerformance.lessonsCompleted.length > previousLessonsCount ||
+        userPerformance.currentStreak >= 7 && userPerformance.currentStreak % 7 === 0
+
+      const pedagogicalSignals: PedagogicalSignals = {
+        studentState,
+        lastInteractionType,
+        emotionalState: emotionalAnalysis,
+        masteryLevel,
+        justCompletedMilestone,
+      }
+
+      pedagogicalPattern = selectPedagogicalPattern(pedagogicalSignals)
+      console.log(`[CoachContext] Selected pedagogical pattern: ${pedagogicalPattern.patternName}`)
+    } catch (patternError) {
+      // Pattern selection is non-critical
+      console.warn('[CoachContext] Pattern selection failed:', patternError)
+    }
+
     // Build the comprehensive context string
     const contextString = buildContextString({
       user: userProfile,
@@ -233,6 +269,7 @@ export async function buildCoachContext(
       personalityState,
       relationshipContext,
       ragContent,
+      pedagogicalPattern,
     })
 
     return {
@@ -248,6 +285,7 @@ export async function buildCoachContext(
       personalityState,
       relationshipContext,
       ragContent,
+      pedagogicalPattern,
       contextString,
     }
   } catch (error) {
@@ -844,6 +882,20 @@ ${data.conversation.messages
   .join('\n')}`)
   }
 
+  // Pedagogical Pattern Section (specific teaching approach for this interaction)
+  if (data.pedagogicalPattern) {
+    const pattern = data.pedagogicalPattern
+    const exampleExchange = pattern.exampleExchanges[0] // Use first example
+    sections.push(`
+=== PEDAGOGICAL APPROACH ===
+For this interaction, use the ${pattern.patternName} pattern:
+${pattern.promptTemplate}
+
+Example of this pattern in action:
+Student: "${exampleExchange.student}"
+Coach: "${exampleExchange.coach}"`)
+  }
+
   // Teaching Approach Section
   sections.push(`
 === TEACHING APPROACH ===
@@ -912,6 +964,7 @@ function buildMinimalContext(userId: string): CoachContextData {
     personalityState: null,
     relationshipContext: null,
     ragContent: null,
+    pedagogicalPattern: null,
     contextString: `Student ID: ${userId}\nNo additional context available. Provide general support and guidance.`,
   }
 }
