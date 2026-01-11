@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import {
   Play,
@@ -94,8 +94,27 @@ function VideoRenderer({
   onComplete: (atomId: string) => void
   isActive: boolean
 }) {
+  const videoRef = useRef<HTMLVideoElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
+
+  const togglePlay = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause()
+      } else {
+        videoRef.current.play()
+      }
+      setIsPlaying(!isPlaying)
+    }
+  }
+
+  const handleTimeUpdate = () => {
+    if (videoRef.current) {
+      const pct = (videoRef.current.currentTime / videoRef.current.duration) * 100
+      setProgress(pct)
+    }
+  }
 
   return (
     <motion.div
@@ -117,17 +136,29 @@ function VideoRenderer({
       </div>
 
       {/* Video Player - LARGE */}
-      <div className="aspect-video bg-navy/5 flex items-center justify-center relative">
-        <button
-          onClick={() => setIsPlaying(!isPlaying)}
-          className="w-20 h-20 bg-teal rounded-full flex items-center justify-center text-white shadow-lg hover:scale-105 transition-transform"
-        >
-          {isPlaying ? (
-            <Pause className="w-8 h-8" />
-          ) : (
-            <Play className="w-8 h-8 ml-1" />
-          )}
-        </button>
+      <div className="aspect-video bg-navy/5 relative">
+        <video
+          ref={videoRef}
+          src={content.videoUrl}
+          className="w-full h-full object-contain"
+          onTimeUpdate={handleTimeUpdate}
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+          onEnded={() => setIsPlaying(false)}
+          controls
+        />
+
+        {/* Overlay play button when paused and at start */}
+        {!isPlaying && progress === 0 && (
+          <button
+            onClick={togglePlay}
+            className="absolute inset-0 flex items-center justify-center bg-black/20"
+          >
+            <div className="w-20 h-20 bg-teal rounded-full flex items-center justify-center text-white shadow-lg hover:scale-105 transition-transform">
+              <Play className="w-8 h-8 ml-1" />
+            </div>
+          </button>
+        )}
 
         {/* Progress bar */}
         <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-grey/20">
@@ -190,59 +221,61 @@ function ReadingRenderer({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-2xl shadow-sm border border-grey/20 overflow-hidden"
+      className="bg-white rounded-xl"
     >
-      {/* Reading Header */}
-      <div className="flex items-center gap-4 p-4 border-b border-grey/10">
-        <div className="w-12 h-12 bg-purple/10 rounded-xl flex items-center justify-center">
-          <BookOpen className="w-6 h-6 text-purple-600" />
-        </div>
-        <div className="flex-1">
-          <h2 className="font-semibold text-navy text-lg">{atom.title}</h2>
-          <p className="text-sm text-grey">
-            {atom.estimatedMinutes} minute read
-          </p>
-        </div>
+      {/* Compact Header */}
+      <div className="flex items-center gap-3 px-6 pt-6 pb-4">
+        <BookOpen className="w-5 h-5 text-teal" />
+        <h2 className="font-semibold text-navy text-xl">{atom.title}</h2>
+        <span className="text-sm text-grey ml-auto">{atom.estimatedMinutes} min</span>
       </div>
 
-      {/* Reading Content - FULL */}
-      <div className="p-6">
-        <div className="prose prose-lg max-w-none text-rich-black/80">
+      {/* Reading Content */}
+      <div className="px-6 pb-6">
+        <div className="text-rich-black/85 leading-relaxed
+          [&_h1]:text-xl [&_h1]:font-bold [&_h1]:text-navy [&_h1]:mt-6 [&_h1]:mb-2
+          [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-navy [&_h2]:mt-5 [&_h2]:mb-2
+          [&_h3]:text-base [&_h3]:font-medium [&_h3]:text-navy [&_h3]:mt-4 [&_h3]:mb-1
+          [&_p]:mb-4 [&_p]:leading-7
+          [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-4 [&_ul]:space-y-1
+          [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-4 [&_ol]:space-y-1
+          [&_li]:leading-7
+          [&_strong]:font-semibold
+          [&_em]:italic
+          [&_blockquote]:border-l-3 [&_blockquote]:border-teal/40 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-grey [&_blockquote]:my-4
+        ">
           <ReactMarkdown>{content.body}</ReactMarkdown>
         </div>
 
-        {/* Highlights */}
+        {/* Key Points inline */}
         {content.highlights?.length > 0 && (
-          <div className="mt-6 p-4 bg-yellow/5 rounded-xl border border-yellow/20">
-            <h3 className="text-sm font-semibold text-yellow-800 mb-3 flex items-center gap-2">
-              <span className="text-lg">💡</span> Key Points
-            </h3>
-            <ul className="space-y-2">
+          <div className="mt-6 p-4 bg-teal/5 rounded-lg">
+            <h3 className="text-sm font-semibold text-teal mb-2">Key Points</h3>
+            <ul className="space-y-1">
               {content.highlights.map((h, i) => (
-                <li key={i} className="text-sm text-yellow-800/80 flex items-start gap-2">
-                  <span className="text-yellow-600">•</span>
+                <li key={i} className="text-sm text-rich-black/70 flex items-start gap-2">
+                  <CheckCircle className="w-4 h-4 text-teal flex-shrink-0 mt-0.5" />
                   {h}
                 </li>
               ))}
             </ul>
           </div>
         )}
-      </div>
 
-      {/* Complete Button */}
-      {isActive && (
-        <div className="p-4 border-t border-grey/10">
+        {/* Complete Button inline */}
+        {isActive && (
           <Button
             variant="primary"
             size="lg"
             fullWidth
+            className="mt-6"
             onClick={() => onComplete(atom.id)}
           >
             <CheckCircle className="w-5 h-5 mr-2" />
-            I've Read This
+            Continue
           </Button>
-        </div>
-      )}
+        )}
+      </div>
     </motion.div>
   )
 }

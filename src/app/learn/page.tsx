@@ -19,10 +19,11 @@ function LearnPageContent() {
     router.push('/dashboard')
   }
 
-  // Handle lesson completion
+  // Handle lesson completion - only redirect when module is complete
   const handleLessonComplete = (completedLessonId: string) => {
-    // Could show celebration, then redirect
-    router.push('/dashboard')
+    // Do nothing on individual lesson completion
+    // CoachLearningView handles advancing to next lesson
+    // Only redirect when user clicks exit or completes entire module
   }
 
   // Show loading state

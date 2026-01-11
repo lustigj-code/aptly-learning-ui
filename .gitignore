@@ -61,3 +61,4 @@ DEPLOYMENT_*.md
 
 # Local development
 .claude/
+public/videos/
