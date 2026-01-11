@@ -58,7 +58,18 @@ Progress: ██████████████░░░░░░ 50% (Phas
 
 ## Session Notes
 
-### 2026-01-10
+### 2026-01-10 (Evening)
+- Coach-first architecture: Unified /learn page with coach as primary UI
+- Fixed CoachLearningView sequencing issues:
+  - Added SessionState tracking (currentAtomIndex, completedAtomIds)
+  - localStorage persistence for resume capability
+  - Auto-advances after content/quiz completion
+  - Uses real lesson data from COURSE_1_MODULE_1
+  - Progress bar in header shows completion status
+- Build passes, commit: a4e7b8e
+- Remaining: Video interrupts, navigation cleanup
+
+### 2026-01-10 (Morning)
 - Executed 4.1-02-PLAN.md: Gemini Skill Extraction
 - Created skillMapGenerator.ts with AI-powered skill extraction
 - Built prerequisite generator and validation (cycle detection)
