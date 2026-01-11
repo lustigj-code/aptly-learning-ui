@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/Button'
 import { useCoach } from '@/hooks/useCoach'
 import { useUser } from '@/store/unifiedStore'
 import { cn } from '@/lib/utils'
-import { COURSE_1_MODULE_1 } from '@/data/mockData'
+import { FSM_MODULE_1 } from '@/data/fsmCourse'
 import type { Atom, Lesson, Module } from '@/types'
 
 // Import content renderers
@@ -76,7 +76,7 @@ function clearSession() {
 // ============================================
 
 function getModule(): Module {
-  return COURSE_1_MODULE_1
+  return FSM_MODULE_1
 }
 
 // ============================================
