@@ -4,11 +4,11 @@
 
 **Milestone:** v1.0 Flawless Launch
 **Phase:** 4.1 of 5 (AI-Powered Dynamic Skill Map Generation)
-**Plan:** 1 of 4 in current phase
+**Plan:** 2 of 4 in current phase
 **Status:** In progress
-**Last activity:** 2026-01-09 - Completed 4.1-01-PLAN.md
+**Last activity:** 2026-01-10 - Completed 4.1-02-PLAN.md
 
-Progress: ██████████░░░░░░░░░░ 25% (Phase 4.1)
+Progress: ██████████████░░░░░░ 50% (Phase 4.1)
 
 ---
 
@@ -27,6 +27,11 @@ Progress: ██████████░░░░░░░░░░ 25% (Phas
   - Reason: Adaptive system only works for hardcoded "AI at Work" course
   - User testing revealed Social Media Marketing course has no skill map
   - This blocks the core adaptive learning feature
+- Phase 4.2 inserted after Phase 4.1: Multi-Course & AI Integration (URGENT)
+  - Reason: Course name shows "Social Media Marketing" instead of "AI at Work"
+  - Reading UI has broken 0% progress bar and confusing layout
+  - AI features only in coach chat, not visible during learning
+  - User requested full multi-course system, reading redesign, and prominent AI
 
 ### Technical Context
 - Gemini API key configured in `.env.local`
@@ -35,6 +40,7 @@ Progress: ██████████░░░░░░░░░░ 25% (Phas
 - Course content: `/src/data/mockData.ts` (Social Media Marketing courses)
 - **NEW:** Dynamic skill map types: `/src/lib/skillmap/types.ts`
 - **NEW:** Course parser: `/src/lib/skillmap/courseParser.ts`
+- **NEW:** Skill map generator: `/src/lib/skillmap/skillMapGenerator.ts` (Gemini AI)
 
 ---
 
@@ -51,6 +57,13 @@ Progress: ██████████░░░░░░░░░░ 25% (Phas
 ---
 
 ## Session Notes
+
+### 2026-01-10
+- Executed 4.1-02-PLAN.md: Gemini Skill Extraction
+- Created skillMapGenerator.ts with AI-powered skill extraction
+- Built prerequisite generator and validation (cycle detection)
+- Tested successfully: 4 skills extracted from course-1
+- Ready for 4.1-03-PLAN.md (Firestore Storage & Sequencer Update)
 
 ### 2026-01-09
 - Executed 4.1-01-PLAN.md: Types & Course Parser
@@ -70,10 +83,10 @@ Progress: ██████████░░░░░░░░░░ 25% (Phas
 
 ## Session Continuity
 
-Last session: 2026-01-09T05:57:38Z
-Stopped at: Completed 4.1-01-PLAN.md
+Last session: 2026-01-10
+Stopped at: Completed 4.1-02-PLAN.md
 Resume file: None
 
 ---
 
-*Last updated: 2026-01-09*
+*Last updated: 2026-01-10*

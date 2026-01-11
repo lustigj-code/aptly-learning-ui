@@ -193,6 +193,52 @@
 
 ---
 
+## Phase 4.2: Multi-Course & AI Integration (INSERTED)
+
+**Priority:** High (fixes critical UX issues)
+**Status:** Not started
+
+**Goal:** Transform platform to support multiple courses dynamically, redesign reading experience, and make AI features prominent throughout learning.
+
+**Depends on:** Phase 4.1
+
+### 4.2.1 Course Registry & Infrastructure
+- Create `/src/data/courseRegistry.ts` as single source of truth
+- Replace hard-coded if/else course selection with dynamic lookups
+- Update dashboard to show correct course title (AI at Work)
+- Update learn page breadcrumbs with actual course/module/lesson names
+- Update user defaults to start with AI at Work course
+
+### 4.2.2 Reading UI Redesign
+- Remove broken scroll-based progress bar
+- Narrow prose width to 680px (optimal reading)
+- Add time-based progress indicator ("5 min read", "2:30 elapsed")
+- Add "Key Takeaways" section from highlights
+- Simple "Mark as Complete" button
+- Mobile-friendly sticky footer
+
+### 4.2.3 Prominent AI Features
+- Verify/fix coach chat functionality
+- Add "Get AI Summary" button during reading
+- Add "Get a Hint" (Socratic) during quizzes
+- Add "Explain Why" after wrong answers
+- Create reusable AI components (AISummary, AIHintPanel, AIContextButton)
+
+### 4.2.4 Integration Testing
+- Verify course switching works
+- Test reading experience on mobile
+- Test AI features respond correctly
+- End-to-end learning flow with new components
+
+**Success Criteria:**
+- Dashboard shows "AI at Work" course correctly
+- Breadcrumb shows correct course/module/lesson names
+- Reading UI is clean with working time-based progress
+- AI features visible and functional during learning
+- Coach chat responds correctly
+
+---
+
 ## Phase 5: Content & Data Migration
 
 **Priority:** Medium
@@ -231,9 +277,9 @@
 ## Execution Order
 
 ```
-Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 4.1 → Phase 5
-   ↓         ↓         ↓         ↓          ↓          ↓
-Critical  High      High      Med-High    High      Medium
+Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 4.1 → Phase 4.2 → Phase 5
+   ↓         ↓         ↓         ↓          ↓          ↓          ↓
+Critical  High      High      Med-High    High       High      Medium
 ```
 
 **Recommended approach:**
@@ -242,7 +288,8 @@ Critical  High      High      Med-High    High      Medium
 3. Phase 3 in parallel — can run tests while building
 4. Phase 4 once flows work — instrument after logic stable
 5. Phase 4.1 after tracking — enables multi-course adaptive learning (URGENT INSERT)
-6. Phase 5 last — production data after features complete
+6. Phase 4.2 after skill maps — course infrastructure, reading UI, AI features (URGENT INSERT)
+7. Phase 5 last — production data after features complete
 
 ---
 
@@ -255,9 +302,10 @@ Critical  High      High      Med-High    High      Medium
 | Phase 3 | 4 | Medium |
 | Phase 4 | 4 | Low-Medium |
 | Phase 4.1 | 4 | Medium-High (AI integration) |
+| Phase 4.2 | 4 | Medium-High (infrastructure + UI + AI) |
 | Phase 5 | 4 | Low-Medium |
-| **Total** | **24 plans** | |
+| **Total** | **28 plans** | |
 
 ---
 
-*Last updated: 2026-01-08*
+*Last updated: 2026-01-09*
