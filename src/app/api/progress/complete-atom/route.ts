@@ -3,6 +3,12 @@ import { adminDb, adminAuth } from '@/lib/firebase/admin';
 import { z } from 'zod';
 import { FieldValue } from 'firebase-admin/firestore';
 import { calculateAtomXP, calculateLevel } from '@/lib/utils/xpCalculator';
+import { getConceptsForAtom } from '@/data/courseToConceptMap';
+import {
+  updateConceptMastery,
+  createInitialConceptMastery,
+} from '@/lib/mastery/fsrs';
+import type { ConceptMastery } from '@/lib/mastery/knowledgeGraph';
 
 const { serverTimestamp, arrayUnion } = FieldValue;
 
@@ -168,6 +174,16 @@ export async function POST(request: NextRequest) {
     // Update streak
     await updateStreakOnCompletion(userId);
 
+    // Update FSRS concept mastery and schedule reviews
+    await updateFSRSMastery(
+      userId,
+      atomId,
+      score ?? 80, // Default to 80% for non-quiz atoms
+      timeSpentSeconds ?? 60
+    ).catch((error) =>
+      console.error('Error updating FSRS mastery:', error)
+    );
+
     // Trigger badge criteria check (async, don't await)
     triggerBadgeCriteriaCheck(userId).catch((error) =>
       console.error('Error checking badge criteria:', error)
@@ -309,5 +325,100 @@ async function triggerBadgeCriteriaCheck(userId: string): Promise<void> {
     }
   } catch (error) {
     console.error('Badge criteria check error:', error);
+  }
+}
+
+/**
+ * Update FSRS concept mastery after atom completion
+ * Creates review items in Firestore for spaced repetition
+ */
+async function updateFSRSMastery(
+  userId: string,
+  atomId: string,
+  score: number,
+  timeSpentSeconds: number
+): Promise<void> {
+  // Get concepts associated with this atom
+  const concepts = getConceptsForAtom(atomId);
+
+  if (concepts.length === 0) {
+    console.log(`No concepts mapped for atom ${atomId}`);
+    return;
+  }
+
+  // Update mastery for each concept
+  for (const conceptId of concepts) {
+    try {
+      const reviewRef = adminDb
+        .collection('reviewQueue')
+        .doc(userId)
+        .collection('items')
+        .doc(conceptId);
+
+      const reviewSnap = await reviewRef.get();
+
+      let mastery: ConceptMastery;
+
+      if (!reviewSnap.exists) {
+        // Create initial mastery record
+        mastery = createInitialConceptMastery(conceptId, userId);
+      } else {
+        // Reconstruct mastery from Firestore data
+        const data = reviewSnap.data();
+        mastery = {
+          conceptId: data?.conceptId || conceptId,
+          userId: data?.userId || userId,
+          masteryLevel: data?.masteryLevel || 0,
+          lastReviewedAt: data?.lastReviewedAt?.toDate() || new Date(),
+          lastQuizScore: data?.lastQuizScore || 0,
+          reviewCount: data?.reviewCount || 0,
+          correctStreak: data?.correctStreak || 0,
+          incorrectStreak: data?.incorrectStreak || 0,
+          fsrsState: data?.fsrsState || {
+            stability: 0,
+            difficulty: 0,
+            elapsedDays: 0,
+            scheduledDays: 0,
+            reps: 0,
+            lapses: 0,
+            state: 'new',
+          },
+          nextReviewAt: data?.nextReviewAt?.toDate() || new Date(),
+          history: data?.history || [],
+        };
+      }
+
+      // Update mastery with FSRS algorithm
+      const updatedMastery = updateConceptMastery(
+        mastery,
+        score,
+        timeSpentSeconds,
+        'lesson_complete'
+      );
+
+      // Save updated mastery to Firestore
+      await reviewRef.set({
+        conceptId,
+        userId,
+        masteryLevel: updatedMastery.masteryLevel,
+        lastReviewedAt: updatedMastery.lastReviewedAt,
+        lastQuizScore: updatedMastery.lastQuizScore,
+        reviewCount: updatedMastery.reviewCount,
+        correctStreak: updatedMastery.correctStreak,
+        incorrectStreak: updatedMastery.incorrectStreak,
+        fsrsState: updatedMastery.fsrsState,
+        nextReviewAt: updatedMastery.nextReviewAt,
+        dueDate: updatedMastery.nextReviewAt,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+
+      console.log(
+        `Updated mastery for concept ${conceptId}: ` +
+        `${Math.round(updatedMastery.masteryLevel)}%, ` +
+        `next review: ${updatedMastery.nextReviewAt.toISOString().split('T')[0]}`
+      );
+    } catch (error) {
+      console.error(`Error updating mastery for concept ${conceptId}:`, error);
+    }
   }
 }

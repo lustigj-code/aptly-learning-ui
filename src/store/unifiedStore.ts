@@ -48,6 +48,10 @@ type UnifiedState = {
   // Errors
   authError: string | null;
   userError: string | null;
+
+  // UI state
+  sidebarCollapsed: boolean;
+  mobileMenuOpen: boolean;
 };
 
 type UnifiedActions = {
@@ -81,6 +85,12 @@ type UnifiedActions = {
   fetchUserFromFirestore: (uid: string) => Promise<void>;
   setSyncStatus: (status: SyncStatus) => void;
   clearUserError: () => void;
+
+  // UI actions
+  setSidebarCollapsed: (collapsed: boolean) => void;
+  toggleSidebar: () => void;
+  setMobileMenuOpen: (open: boolean) => void;
+  toggleMobileMenu: () => void;
 };
 
 type UnifiedStore = UnifiedState & UnifiedActions;
@@ -264,6 +274,8 @@ export const useUnifiedStore = create<UnifiedStore>()(
         pendingUpdates: null,
         authError: null,
         userError: null,
+        sidebarCollapsed: false,
+        mobileMenuOpen: false,
 
         // ============================================
         // AUTH ACTIONS
@@ -755,6 +767,18 @@ export const useUnifiedStore = create<UnifiedStore>()(
         setSyncStatus: (status) => set({ syncStatus: status }),
 
         clearUserError: () => set({ userError: null }),
+
+        // ============================================
+        // UI ACTIONS
+        // ============================================
+
+        setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
+
+        toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+
+        setMobileMenuOpen: (open) => set({ mobileMenuOpen: open }),
+
+        toggleMobileMenu: () => set((state) => ({ mobileMenuOpen: !state.mobileMenuOpen })),
       }),
       {
         name: 'aptly-unified-store',
@@ -762,6 +786,7 @@ export const useUnifiedStore = create<UnifiedStore>()(
           user: state.user,
           lastSyncedAt: state.lastSyncedAt,
           pendingUpdates: state.pendingUpdates,
+          sidebarCollapsed: state.sidebarCollapsed,
         }),
       }
     )

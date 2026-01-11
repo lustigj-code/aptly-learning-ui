@@ -267,41 +267,16 @@ const characterComponents: Record<CharacterName, typeof OwlPlaceholder> = {
   jellyfish: JellyfishPlaceholder,
 };
 
+// Animation disabled - characters are now static for cleaner UX
 const moodAnimations: Record<CharacterMood, object> = {
-  idle: {
-    y: [0, -5, 0],
-    transition: { repeat: Infinity, duration: 3, ease: 'easeInOut' },
-  },
-  celebrating: {
-    scale: [1, 1.1, 1],
-    rotate: [-5, 5, -5],
-    transition: { repeat: Infinity, duration: 0.5, ease: 'easeInOut' },
-  },
-  encouraging: {
-    y: [0, -8, 0],
-    transition: { repeat: Infinity, duration: 1.5, ease: 'easeInOut' },
-  },
-  thinking: {
-    rotate: [0, -10, 0],
-    transition: { repeat: Infinity, duration: 2, ease: 'easeInOut' },
-  },
-  proud: {
-    scale: [1, 1.05, 1],
-    transition: { repeat: Infinity, duration: 2, ease: 'easeInOut' },
-  },
-  concerned: {
-    x: [0, -3, 3, -3, 0],
-    transition: { repeat: Infinity, duration: 3, ease: 'easeInOut' },
-  },
-  excited: {
-    y: [0, -10, 0],
-    scale: [1, 1.05, 1],
-    transition: { repeat: Infinity, duration: 0.8, ease: 'easeInOut' },
-  },
-  impressed: {
-    scale: [1, 1.08, 1],
-    transition: { duration: 0.5, ease: 'easeOut' },
-  },
+  idle: {},
+  celebrating: {},
+  encouraging: {},
+  thinking: {},
+  proud: {},
+  concerned: {},
+  excited: {},
+  impressed: {},
 };
 
 export function Character({

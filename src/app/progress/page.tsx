@@ -15,8 +15,8 @@ import { ProgressBar, CircularProgress } from '@/components/ui/ProgressBar';
 import { InlineBadge } from '@/components/ui/Badge';
 import { SkeletonProgressPage } from '@/components/ui/Skeleton';
 import { StreakCalendar } from '@/components/progress/StreakCounter';
-import { Character } from '@/components/characters/Character';
 import { Section } from '@/components/layout/AppLayout';
+import { SkillMap } from '@/components/mastery/SkillMap';
 import { useUser, useSyncStatus } from '@/store/unifiedStore';
 import { COURSES } from '@/data/mockData';
 import { cn, formatDuration } from '@/lib/utils';
@@ -168,7 +168,9 @@ export default function ProgressPage() {
                   <p className="text-4xl font-bold text-navy">{streak.currentStreak}</p>
                   <p className="text-sm text-rich-black/60">day streak</p>
                 </div>
-                <Character character="squirrel" mood="celebrating" size="md" />
+                <div className="w-12 h-12 bg-yellow rounded-xl flex items-center justify-center">
+                  <Flame size={24} className="text-white" />
+                </div>
               </div>
 
               <StreakCalendar
@@ -232,8 +234,13 @@ export default function ProgressPage() {
         </div>
       </Section>
 
-      {/* Exam Readiness */}
+      {/* Skills Mastery Map - BKT Visualization */}
       <Section delay={0.4}>
+        <SkillMap showModuleFilter={true} />
+      </Section>
+
+      {/* Exam Readiness */}
+      <Section delay={0.5}>
         <Card variant="outlined" padding="lg" className="bg-light-teal/30 border-teal/20">
           <div className="flex items-center gap-6">
             <div className="w-20 h-20 rounded-2xl bg-teal/20 flex items-center justify-center">

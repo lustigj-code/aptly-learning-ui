@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { CourseUploader } from '@/components/admin/CourseUploader'
 import { useUser } from '@/store/unifiedStore'
 
 type ContentStats = {
@@ -163,6 +164,9 @@ export default function AdminContentPage() {
             <span>{seedResult.message}</span>
           </motion.div>
         )}
+
+        {/* Course Upload Section */}
+        <CourseUploader onUploadComplete={() => fetchData()} />
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

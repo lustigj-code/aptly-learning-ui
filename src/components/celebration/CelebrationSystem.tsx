@@ -4,7 +4,6 @@ import { createContext, useContext, useCallback, useState, useEffect } from 'rea
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { Star, Trophy, Sparkles, Award, Zap, Flame } from 'lucide-react';
-import { Character } from '@/components/characters/Character';
 import { cn } from '@/lib/utils';
 import type { CelebrationTier, CharacterMood, CharacterName, Badge } from '@/types';
 
@@ -226,11 +225,11 @@ export function CelebrationProvider({ children }: CelebrationProviderProps) {
     setStreakDays(days);
     setShowStreakCelebration(true);
 
-    // Fire confetti
+    // Fire confetti (positioned to content area)
     confetti({
       particleCount: 100,
       spread: 70,
-      origin: { y: 0.6 },
+      origin: { x: getContentCenterX(), y: 0.6 },
       colors: ['#FFDE00', '#21A8B0', '#88B644'],
       zIndex: 9999,
     });
@@ -245,7 +244,7 @@ export function CelebrationProvider({ children }: CelebrationProviderProps) {
       confetti({
         particleCount: 30,
         spread: 45,
-        origin: { y: 0.7 },
+        origin: { x: getContentCenterX(), y: 0.7 },
         colors: ['#21A8B0', '#FFDE00'],
         zIndex: 9999,
       });
@@ -300,45 +299,61 @@ export function CelebrationProvider({ children }: CelebrationProviderProps) {
   );
 }
 
+// Get the current sidebar width from the DOM or use default
+function getSidebarWidth(): number {
+  if (typeof window === 'undefined') return 280;
+  // Check if sidebar is collapsed by looking at its actual width
+  const sidebar = document.querySelector('aside');
+  if (sidebar) {
+    const rect = sidebar.getBoundingClientRect();
+    return rect.width;
+  }
+  return 280; // Default expanded width
+}
+
+// Calculate confetti origin X to account for sidebar
+function getContentCenterX(): number {
+  if (typeof window === 'undefined') return 0.5;
+  const sidebarWidth = getSidebarWidth();
+  const viewportWidth = window.innerWidth;
+  const contentWidth = viewportWidth - sidebarWidth;
+  const contentCenterX = sidebarWidth + contentWidth / 2;
+  return contentCenterX / viewportWidth;
+}
+
+// Get random X position within content area
+function getRandomContentX(): number {
+  if (typeof window === 'undefined') return Math.random();
+  const sidebarWidth = getSidebarWidth();
+  const viewportWidth = window.innerWidth;
+  const minX = sidebarWidth / viewportWidth;
+  const maxX = 1;
+  return minX + Math.random() * (maxX - minX);
+}
+
 function fireConfetti(config: CelebrationConfig['confetti'], tier: CelebrationTier) {
   if (!config) return;
 
+  const contentCenterX = getContentCenterX();
+
   const defaults = {
-    origin: { y: 0.7 },
+    origin: { x: contentCenterX, y: 0.7 },
     zIndex: 9999,
     ...config,
   };
 
   if (tier >= 4) {
-    // For major celebrations, fire multiple bursts
-    const count = tier === 5 ? 5 : 3;
-    const interval = tier === 5 ? 200 : 300;
+    // For major celebrations, fire multiple bursts (reduced count)
+    const count = tier === 5 ? 2 : 2;
+    const interval = 300;
 
     for (let i = 0; i < count; i++) {
       setTimeout(() => {
         confetti({
           ...defaults,
-          origin: { x: Math.random(), y: Math.random() * 0.5 + 0.3 },
+          origin: { x: getRandomContentX(), y: Math.random() * 0.4 + 0.3 },
         });
       }, i * interval);
-    }
-
-    // Add side cannons for tier 5
-    if (tier === 5) {
-      setTimeout(() => {
-        confetti({
-          ...defaults,
-          angle: 60,
-          spread: 55,
-          origin: { x: 0 },
-        });
-        confetti({
-          ...defaults,
-          angle: 120,
-          spread: 55,
-          origin: { x: 1 },
-        });
-      }, 500);
     }
   } else {
     // Single burst for smaller celebrations
@@ -391,21 +406,15 @@ function CelebrationOverlay({ event, onDismiss }: CelebrationOverlayProps) {
             <Trophy size={48} className="text-white" />
           </motion.div>
         ) : (
-          /* Character for non-badge celebrations */
-          config.character && (
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: 'spring', bounce: 0.5 }}
-              className="mb-4"
-            >
-              <Character
-                character={config.character.name}
-                mood={config.character.mood}
-                size="lg"
-              />
-            </motion.div>
-          )
+          /* Icon for non-badge celebrations */
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: 'spring', bounce: 0.5 }}
+            className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-teal to-purple flex items-center justify-center"
+          >
+            <Sparkles size={40} className="text-white" />
+          </motion.div>
         )}
 
         {/* Title */}
@@ -572,11 +581,11 @@ export function StreakCelebration({ show, days, onDismiss }: StreakCelebrationPr
             onClick={(e) => e.stopPropagation()}
           >
             <motion.div
-              animate={{ rotate: [0, -10, 10, -10, 0] }}
+              animate={{ scale: [1, 1.2, 1] }}
               transition={{ repeat: 2, duration: 0.5 }}
-              className="text-6xl mb-4"
+              className="w-16 h-16 mx-auto mb-4 bg-yellow rounded-2xl flex items-center justify-center"
             >
-              🔥
+              <Flame size={32} className="text-white" />
             </motion.div>
 
             <h2 className="text-3xl font-bold text-white mb-2">

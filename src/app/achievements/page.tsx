@@ -22,7 +22,6 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { InlineBadge } from '@/components/ui/Badge';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { SkeletonAchievementsPage } from '@/components/ui/Skeleton';
-import { Character } from '@/components/characters/Character';
 import { Section } from '@/components/layout/AppLayout';
 import { useUser } from '@/store/unifiedStore';
 import { cn } from '@/lib/utils';
@@ -323,7 +322,9 @@ export default function AchievementsPage() {
       <Section delay={0.1}>
         <Card variant="elevated" padding="lg" className="bg-gradient-to-r from-purple to-navy text-white">
           <div className="flex items-center gap-6">
-            <Character character="owl" mood="celebrating" size="lg" />
+            <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0">
+              <Award size={32} className="text-yellow" />
+            </div>
             <div className="flex-1">
               <h3 className="text-lg font-semibold mb-2">Badge Collection Progress</h3>
               <ProgressBar

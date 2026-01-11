@@ -1,11 +1,11 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Bell, User, ChevronDown } from 'lucide-react';
+import { Bell, User, ChevronDown, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getGreeting } from '@/lib/utils';
 import { InlineStreak } from '@/components/progress/StreakCounter';
-import { useUser } from '@/store/unifiedStore';
+import { useUser, useUnifiedStore } from '@/store/unifiedStore';
 
 type HeaderProps = {
   showGreeting?: boolean;
@@ -22,19 +22,29 @@ export function Header({
 }: HeaderProps) {
   const { user } = useUser();
   const greeting = getGreeting();
+  const toggleMobileMenu = useUnifiedStore((state) => state.toggleMobileMenu);
 
   return (
     <motion.header
       className={cn(
-        'h-16 bg-white border-b border-light-grey flex items-center justify-between px-6',
+        'h-16 bg-white border-b border-light-grey flex items-center justify-between px-4 lg:px-6',
         className
       )}
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      {/* Left side - Greeting or Title */}
-      <div>
+      {/* Left side - Hamburger + Greeting or Title */}
+      <div className="flex items-center gap-3">
+        {/* Mobile hamburger menu */}
+        <motion.button
+          onClick={toggleMobileMenu}
+          className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-light-grey transition-colors"
+          whileTap={{ scale: 0.95 }}
+          aria-label="Toggle navigation menu"
+        >
+          <Menu size={24} className="text-navy" />
+        </motion.button>
         {showGreeting && user ? (
           <motion.div
             initial={{ opacity: 0, x: -10 }}

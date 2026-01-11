@@ -2,14 +2,13 @@
 
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowRight, Clock, BookOpen, Target, Lock, CheckCircle, Zap, Play } from 'lucide-react';
+import { ArrowRight, Clock, BookOpen, Target, Lock, CheckCircle, Zap, Play, MessageCircle, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/Card';
 import { ProgressBar, CircularProgress } from '@/components/ui/ProgressBar';
-import { AchievementBadge, InlineBadge } from '@/components/ui/Badge';
+import { AchievementBadge } from '@/components/ui/Badge';
 import { SkeletonDashboard } from '@/components/ui/Skeleton';
 import { StreakCounter, StreakCalendar } from '@/components/progress/StreakCounter';
-import { Character } from '@/components/characters/Character';
 import { Section } from '@/components/layout/AppLayout';
 import { useUser, useSyncStatus } from '@/store/unifiedStore';
 import { COURSES } from '@/data/mockData';
@@ -82,127 +81,249 @@ export default function DashboardPage() {
   // Defensive defaults for streak
   const streak = user.streak || { currentStreak: 0, longestStreak: 0, freezesAvailable: 2, streakHistory: [] };
 
+  // Get next 3-4 lessons for Learning Path Preview
+  const getUpcomingLessons = () => {
+    // Mock data for upcoming lessons - in real app, this would come from course data
+    return [
+      {
+        id: 'c3-m1-l2',
+        title: 'Setting Your Campaign Objective',
+        module: 'Getting Started with Meta Ads',
+        status: 'current' as const,
+        estimatedMinutes: 20,
+      },
+      {
+        id: 'c3-m1-l3',
+        title: 'Understanding Ad Placements',
+        module: 'Getting Started with Meta Ads',
+        status: 'locked' as const,
+        estimatedMinutes: 15,
+      },
+      {
+        id: 'c3-m2-l1',
+        title: 'Creating Your First Campaign',
+        module: 'Campaign Creation',
+        status: 'locked' as const,
+        estimatedMinutes: 25,
+      },
+      {
+        id: 'c3-m2-l2',
+        title: 'Targeting Your Audience',
+        module: 'Campaign Creation',
+        status: 'locked' as const,
+        estimatedMinutes: 30,
+      },
+    ];
+  };
+
+  const upcomingLessons = getUpcomingLessons();
+
   return (
     <div className="space-y-8">
-      {/* Top Row: Streak + Continue Learning */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Streak Card */}
-        <Section delay={0}>
-          <Card variant="elevated" padding="lg" className="bg-white relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-yellow/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-teal/10 rounded-full translate-y-1/2 -translate-x-1/2" />
+      {/* Hero Section: Continue Learning (70vh) */}
+      <Section delay={0}>
+        <Card
+          variant="interactive"
+          padding="lg"
+          className="bg-gradient-to-br from-navy to-purple text-white relative overflow-hidden group min-h-[50vh] md:min-h-[60vh] lg:min-h-[70vh] flex flex-col justify-center"
+        >
+          {/* Background decoration */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute top-20 right-20 w-64 h-64 bg-teal rounded-full blur-3xl" />
+            <div className="absolute bottom-10 left-32 w-48 h-48 bg-yellow rounded-full blur-2xl" />
+            <div className="absolute top-1/2 left-1/4 w-32 h-32 bg-teal rounded-full blur-3xl" />
+          </div>
 
-            <div className="relative z-10">
-              <div className="flex items-start justify-between mb-4">
-                <StreakCounter
-                  count={streak.currentStreak}
-                  size="lg"
-                  longestStreak={streak.longestStreak}
-                  freezesAvailable={streak.freezesAvailable}
-                />
-                <Character character="squirrel" mood="celebrating" size="sm" />
-              </div>
-
-              <StreakCalendar
-                streakHistory={streak.streakHistory || []}
-                className="mt-4"
-              />
-
-              {streak.currentStreak >= 7 && (
-                <motion.div
-                  className="mt-4 p-3 bg-yellow/10 rounded-lg border border-yellow/20"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.3 }}
-                >
-                  <p className="text-sm font-medium text-navy">
-                    Amazing! You&apos;ve been learning for {streak.currentStreak} days straight!
+          <div className="relative z-10 max-w-4xl">
+            <div className="mb-8">
+              {isNewUser ? (
+                <>
+                  <p className="text-yellow font-semibold uppercase tracking-wider text-sm mb-4">
+                    Welcome, {user.name}
                   </p>
-                </motion.div>
+                  <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 leading-tight">
+                    Ready to Begin Your Journey?
+                  </h1>
+                  <p className="text-white/80 text-xl mb-2">
+                    Start with {currentCourse.title}
+                  </p>
+                  <p className="text-white/60 text-lg">
+                    Your first lesson: Introduction to Social Media Marketing
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-teal font-semibold uppercase tracking-wider text-sm mb-4">
+                    Course {COURSES.findIndex(c => c.id === progress.currentCourseId) + 1} &bull; {currentLessonInfo.moduleTitle}
+                  </p>
+                  <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 leading-tight">
+                    {currentLessonInfo.title}
+                  </h1>
+                  <p className="text-white/80 text-xl">
+                    {currentCourse.title}
+                  </p>
+                </>
               )}
             </div>
-          </Card>
-        </Section>
 
-        {/* Continue Learning Card */}
-        <Section delay={0.1} className="lg:col-span-2">
-          <Card
-            variant="interactive"
-            padding="lg"
-            className="bg-gradient-to-br from-navy to-purple text-white relative overflow-hidden group"
-          >
-            {/* Background decoration */}
-            <div className="absolute inset-0 opacity-10">
-              <div className="absolute top-10 right-10 w-40 h-40 bg-teal rounded-full blur-3xl" />
-              <div className="absolute bottom-0 left-20 w-32 h-32 bg-yellow rounded-full blur-2xl" />
+            {/* Progress Info */}
+            <div className="mb-8">
+              <div className="flex items-center gap-4 sm:gap-6 md:gap-8 mb-6 flex-wrap">
+                <div className="flex items-center gap-3 text-white/90">
+                  <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center">
+                    <BookOpen size={24} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{completedLessons} of {totalLessons}</p>
+                    <p className="text-sm text-white/70">lessons completed</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 text-white/90">
+                  <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center">
+                    <Clock size={24} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">~{currentLessonInfo.estimatedMinutes} min</p>
+                    <p className="text-sm text-white/70">daily goal</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 text-white/90">
+                  <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center">
+                    <Target size={24} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{progress.overallPercentage || 0}%</p>
+                    <p className="text-sm text-white/70">complete</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-8">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-white/80 font-medium">Overall Progress</span>
+                  <span className="text-white font-bold text-lg">{progress.overallPercentage || 0}%</span>
+                </div>
+                <ProgressBar
+                  value={progress.overallPercentage || 0}
+                  size="lg"
+                  color="teal"
+                  className="h-4"
+                />
+                {!isNewUser && (
+                  <p className="text-white/60 text-sm mt-3">
+                    Next milestone: Complete {Math.ceil(totalLessons * 0.5)} lessons to reach 50%
+                  </p>
+                )}
+              </div>
             </div>
 
-            <div className="relative z-10">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  {isNewUser ? (
-                    <>
-                      <InlineBadge variant="yellow" className="mb-2">
-                        Welcome, {user.name}!
-                      </InlineBadge>
-                      <h2 className="text-2xl font-bold mb-1">
-                        Ready to Begin Your Journey?
-                      </h2>
-                      <p className="text-white/70 text-sm">
-                        Start with {currentCourse.title}
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <InlineBadge variant="teal" className="mb-2">
-                        Course {COURSES.findIndex(c => c.id === progress.currentCourseId) + 1}
-                      </InlineBadge>
-                      <h2 className="text-2xl font-bold mb-1">
-                        {currentLessonInfo.title}
-                      </h2>
-                      <p className="text-white/70 text-sm">
-                        {currentLessonInfo.moduleTitle}
-                      </p>
-                    </>
-                  )}
-                </div>
-
-                <motion.div
-                  className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center group-hover:bg-white/20 transition-colors"
-                  whileHover={{ scale: 1.1, rotate: 5 }}
-                >
-                  <Play size={28} className="text-white ml-1" />
-                </motion.div>
-              </div>
-
-              <div className="flex items-center gap-6 mb-6">
-                <div className="flex items-center gap-2 text-sm text-white/80">
-                  <Clock size={16} />
-                  <span>~{currentLessonInfo.estimatedMinutes} min/day goal</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-white/80">
-                  <BookOpen size={16} />
-                  <span>{progress.overallPercentage || 0}% complete</span>
-                </div>
-              </div>
-
-              <ProgressBar
-                value={progress.overallPercentage || 0}
-                size="md"
-                color="teal"
-                className="mb-6"
-              />
-
+            {/* CTA */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
               <Button
                 variant="celebration"
                 size="lg"
-                rightIcon={<ArrowRight size={20} />}
-                className="w-full sm:w-auto"
+                rightIcon={<ArrowRight size={24} />}
+                className="text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4"
                 onClick={() => router.push('/learn')}
               >
                 {isNewUser ? 'Start Learning' : 'Continue Learning'}
               </Button>
+              <motion.div
+                className="hidden sm:flex w-16 h-16 bg-white/10 rounded-2xl items-center justify-center group-hover:bg-white/20 transition-colors cursor-pointer"
+                whileHover={{ scale: 1.1, rotate: 5 }}
+                onClick={() => router.push('/learn')}
+              >
+                <Play size={32} className="text-white ml-1" />
+              </motion.div>
             </div>
+          </div>
+        </Card>
+      </Section>
+
+      {/* Secondary Row: Quick Stats + Learning Path Preview */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Quick Stats (Compact) */}
+        <Section delay={0.1}>
+          <Card variant="elevated" padding="lg" className="bg-white h-full">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg">Quick Stats</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Streak */}
+              <div className="flex items-center gap-3 p-3 bg-yellow/5 rounded-lg border border-yellow/20">
+                <div className="w-10 h-10 bg-yellow/20 rounded-lg flex items-center justify-center">
+                  <Flame size={20} className="text-yellow" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-navy">{streak.currentStreak}</p>
+                  <p className="text-xs text-rich-black/60">day streak</p>
+                </div>
+              </div>
+
+              {/* XP */}
+              <div className="flex items-center gap-3 p-3 bg-teal/5 rounded-lg border border-teal/20">
+                <div className="w-10 h-10 bg-teal/20 rounded-lg flex items-center justify-center">
+                  <Zap size={20} className="text-teal" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-navy">{Number(progress?.xp ?? 0).toLocaleString()}</p>
+                  <p className="text-xs text-rich-black/60">total XP</p>
+                </div>
+              </div>
+
+              {/* Overall % */}
+              <div className="flex items-center gap-3 p-3 bg-light-teal/50 rounded-lg border border-teal/20">
+                <CircularProgress
+                  value={progress.overallPercentage || 0}
+                  size={40}
+                  strokeWidth={4}
+                  color="teal"
+                />
+                <div>
+                  <p className="text-2xl font-bold text-navy">{progress.overallPercentage || 0}%</p>
+                  <p className="text-xs text-rich-black/60">complete</p>
+                </div>
+              </div>
+
+              {/* Longest Streak Info */}
+              {streak.longestStreak > streak.currentStreak && (
+                <div className="pt-3 border-t border-grey/20">
+                  <p className="text-xs text-rich-black/60">
+                    Longest streak: <span className="font-semibold text-navy">{streak.longestStreak} days</span>
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </Section>
+
+        {/* Learning Path Preview */}
+        <Section delay={0.15} className="lg:col-span-2">
+          <Card variant="elevated" padding="lg" className="bg-white h-full">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg">Learning Path Preview</CardTitle>
+              <CardDescription>Your next lessons</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {upcomingLessons.map((lesson, index) => (
+                  <motion.div
+                    key={lesson.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.2 + index * 0.05 }}
+                  >
+                    <LessonPreviewCard
+                      title={lesson.title}
+                      module={lesson.module}
+                      status={lesson.status}
+                      estimatedMinutes={lesson.estimatedMinutes}
+                      isCurrent={lesson.status === 'current'}
+                    />
+                  </motion.div>
+                ))}
+              </div>
+            </CardContent>
           </Card>
         </Section>
       </div>
@@ -373,7 +494,9 @@ export default function DashboardPage() {
       <Section delay={0.5}>
         <Card variant="outlined" padding="lg" className="bg-light-teal/30 border-teal/20">
           <div className="flex items-start gap-4">
-            <Character character="owl" mood={isNewUser ? 'encouraging' : 'celebrating'} size="md" />
+            <div className="w-12 h-12 bg-teal rounded-xl flex items-center justify-center flex-shrink-0">
+              <MessageCircle size={24} className="text-white" />
+            </div>
             <div className="flex-1">
               <h3 className="font-semibold text-navy mb-1">Coach&apos;s Tip</h3>
               <p className="text-rich-black/70">
@@ -417,6 +540,84 @@ export default function DashboardPage() {
           Working offline
         </div>
       )}
+    </div>
+  );
+}
+
+// Lesson Preview Card Component
+function LessonPreviewCard({
+  title,
+  module,
+  status,
+  estimatedMinutes,
+  isCurrent,
+}: {
+  title: string;
+  module: string;
+  status: 'completed' | 'current' | 'locked';
+  estimatedMinutes: number;
+  isCurrent: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        'p-4 rounded-lg border-2 transition-all duration-200',
+        status === 'completed'
+          ? 'bg-success-light border-success'
+          : isCurrent
+          ? 'bg-light-teal border-teal shadow-sm'
+          : 'bg-light-grey/30 border-grey/30'
+      )}
+    >
+      <div className="flex items-center gap-3">
+        {/* Status Icon */}
+        <div
+          className={cn(
+            'w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0',
+            status === 'completed'
+              ? 'bg-success text-white'
+              : isCurrent
+              ? 'bg-teal text-white'
+              : 'bg-grey/30 text-grey'
+          )}
+        >
+          {status === 'completed' ? (
+            <CheckCircle size={20} />
+          ) : status === 'locked' ? (
+            <Lock size={18} />
+          ) : (
+            <Play size={18} />
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <h4
+            className={cn(
+              'font-semibold text-sm truncate',
+              status === 'locked' ? 'text-grey' : 'text-navy'
+            )}
+          >
+            {title}
+          </h4>
+          <div className="flex items-center gap-3 mt-1">
+            <span className="text-xs text-rich-black/60 truncate">{module}</span>
+            <span className="text-xs text-rich-black/60">•</span>
+            <span className="text-xs text-rich-black/60">{estimatedMinutes} min</span>
+          </div>
+        </div>
+
+        {/* Status Text */}
+        <div className="text-right flex-shrink-0">
+          {status === 'completed' ? (
+            <span className="text-xs font-semibold text-success uppercase tracking-wide">Done</span>
+          ) : isCurrent ? (
+            <span className="text-xs font-semibold text-teal uppercase tracking-wide">Current</span>
+          ) : (
+            <span className="text-xs text-grey uppercase tracking-wide">Locked</span>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -534,9 +735,9 @@ function CourseCard({
         {/* Status */}
         <div className="text-right">
           {isCompleted ? (
-            <InlineBadge variant="success">Complete</InlineBadge>
+            <span className="text-sm font-semibold text-success">Complete</span>
           ) : isCurrent ? (
-            <InlineBadge variant="teal">{progress}%</InlineBadge>
+            <span className="text-sm font-bold text-teal">{progress}%</span>
           ) : isLocked ? (
             <span className="text-xs text-grey">Locked</span>
           ) : (

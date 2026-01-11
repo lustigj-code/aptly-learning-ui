@@ -313,7 +313,7 @@ export default function SettingsPage() {
       {/* Version Info */}
       <Section delay={0.5}>
         <p className="text-center text-sm text-rich-black/40">
-          Aptly v1.0.0 • Made with ❤️ for learners
+          Aptly v1.0.0 • Made for learners
         </p>
       </Section>
 

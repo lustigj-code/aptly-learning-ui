@@ -6,7 +6,6 @@ import { ExternalLink, BookOpen, Check, Clock } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { useTimeTracking, formatTimeMMSS } from '@/hooks/useTimeTracking';
 import { post } from '@/lib/api/client';
@@ -132,18 +131,14 @@ export function ReadingAtom({ atom, onComplete, isLoading = false }: ReadingAtom
 
         {/* Markdown Content */}
         <motion.div
-          className="prose prose-sm max-w-none space-y-4"
+          className="prose prose-lg max-w-none prose-headings:text-navy prose-headings:font-bold prose-p:text-rich-black prose-p:leading-relaxed prose-a:text-teal prose-a:hover:underline prose-strong:text-navy prose-code:bg-light-grey prose-code:px-2 prose-code:py-1 prose-code:rounded prose-code:text-sm prose-code:text-rich-black"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.1 }}
         >
-          <Card variant="default" padding="lg" className="space-y-4">
-            <div className="prose prose-sm max-w-none prose-headings:text-navy prose-headings:font-bold prose-p:text-navy prose-p:leading-relaxed prose-a:text-teal prose-a:hover:underline prose-strong:text-navy prose-code:bg-light-grey prose-code:px-2 prose-code:py-1 prose-code:rounded prose-code:text-sm prose-code:text-rich-black">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {content.body}
-              </ReactMarkdown>
-            </div>
-          </Card>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {content.body}
+          </ReactMarkdown>
         </motion.div>
 
         {/* Related Resources Section */}
@@ -152,41 +147,39 @@ export function ReadingAtom({ atom, onComplete, isLoading = false }: ReadingAtom
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.2 }}
+            className="mt-8 pt-8 border-t border-light-grey"
           >
-            <Card variant="outlined" padding="lg" className="space-y-4">
-              <div className="flex items-center gap-2">
-                <BookOpen size={20} className="text-teal" />
-                <h3 className="text-lg font-semibold text-navy">Related Resources</h3>
-              </div>
-              <div className="space-y-2">
-                {relatedResources.map((resource, idx) => (
-                  <motion.a
-                    key={idx}
-                    href={resource.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block p-3 rounded-lg bg-light-grey hover:bg-light-teal/30 transition-colors duration-200 group"
-                    whileHover={{ x: 4 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-navy group-hover:text-teal transition-colors">
-                          {resource.title}
-                        </p>
-                        <p className="text-xs text-rich-black/60 mt-1">
-                          {resource.type.charAt(0).toUpperCase() + resource.type.slice(1)}
-                        </p>
-                      </div>
-                      <ExternalLink
-                        size={16}
-                        className="text-teal flex-shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                      />
+            <div className="flex items-center gap-2 mb-4">
+              <BookOpen size={20} className="text-teal" />
+              <h3 className="text-lg font-semibold text-navy">Related Resources</h3>
+            </div>
+            <div className="space-y-2">
+              {relatedResources.map((resource, idx) => (
+                <motion.a
+                  key={idx}
+                  href={resource.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block p-3 rounded-lg hover:bg-light-teal/20 transition-colors duration-150 group"
+                  whileHover={{ x: 4 }}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-navy group-hover:text-teal transition-colors">
+                        {resource.title}
+                      </p>
+                      <p className="text-xs text-rich-black/60 mt-1">
+                        {resource.type.charAt(0).toUpperCase() + resource.type.slice(1)}
+                      </p>
                     </div>
-                  </motion.a>
-                ))}
-              </div>
-            </Card>
+                    <ExternalLink
+                      size={16}
+                      className="text-teal flex-shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    />
+                  </div>
+                </motion.a>
+              ))}
+            </div>
           </motion.div>
         )}
 

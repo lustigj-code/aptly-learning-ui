@@ -1,40 +1,61 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   ArrowRight,
-  Play,
-  Pause,
-  Volume2,
-  VolumeX,
-  Maximize,
-  ChevronDown,
-  ChevronUp,
   MessageCircle,
-  BookOpen,
   CheckCircle,
   X,
+  BookOpen,
+  Brain,
+  Sparkles,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { SkeletonLearnPage } from '@/components/ui/Skeleton';
-import { QuizOption, QuizProgress } from '@/components/learning/QuizOption';
-import { Character } from '@/components/characters/Character';
 import { FloatingXP } from '@/components/ui/Badge';
 import { Breadcrumb } from '@/components/layout/Header';
+import { CoachChat } from '@/components/coach/CoachChat';
+import { ProactivePrompt } from '@/components/coach/ProactivePrompt';
+
+// Import proper learning components
+import { VideoAtom } from '@/components/learning/VideoAtom';
+import { ReadingAtom } from '@/components/learning/ReadingAtom';
+import { QuizAtom } from '@/components/learning/QuizAtom';
+import { PracticeAtom } from '@/components/learning/PracticeAtom';
+import { ReviewTab } from '@/components/learning/ReviewTab';
+import AdaptiveSessionView, {
+  AdaptiveReasoningBanner,
+  PretestOffer,
+  SkipSuccessMessage,
+} from '@/components/learning/AdaptiveSessionView';
+import type { LearningSession, SessionItem } from '@/lib/adaptive/sessionBuilder';
+
 import { useUser } from '@/store/unifiedStore';
-import { post } from '@/lib/api/client';
-import { useCoach } from '@/hooks/useCoach';
+import { useProactiveCoach, type Intervention } from '@/hooks/useProactiveCoach';
+import { post, get } from '@/lib/api/client';
 import { useToast } from '@/components/ui/Toast';
 import { COURSES, COURSE_1_MODULE_1, COURSE_3_MODULE_1 } from '@/data/mockData';
 import { checkAndGetNewBadges } from '@/lib/api/badgeApi';
-import { cn, formatTime } from '@/lib/utils';
+import { useAdaptiveContent } from '@/hooks/useAdaptiveContent';
+import { CompletionOverlay } from '@/components/learning/CompletionOverlay';
+import { getLessonById } from '@/data/aiAtWorkCourse';
+import { cn } from '@/lib/utils';
+import { MasteryGate } from '@/components/mastery/MasteryGate';
+import {
+  getPrerequisitesForLesson,
+  areLessonPrerequisitesMet,
+  getConceptsForLesson,
+} from '@/data/courseToConceptMap';
+import { getSkillsForLesson, getSkillName } from '@/data/skillMap';
+import type { ConceptId } from '@/lib/mastery/knowledgeGraph';
 import type { Atom, VideoContent, ReadingContent, QuizContent, PracticeContent } from '@/types';
+
+type ActiveTab = 'learn' | 'review' | 'adaptive';
 
 export default function LearnPage() {
   const router = useRouter();
@@ -82,13 +103,151 @@ export default function LearnPage() {
   const atoms = lesson.atoms;
 
   const [currentAtomIndex, setCurrentAtomIndex] = useState(0);
-  const [showCoachPanel, setShowCoachPanel] = useState(true);
+  const [showCoachPanel, setShowCoachPanel] = useState(false);
   const [showFloatingXP, setShowFloatingXP] = useState(false);
   const [earnedXP, setEarnedXP] = useState(0);
   const [isCompletingLesson, setIsCompletingLesson] = useState(false);
+  const [activeTab, setActiveTab] = useState<ActiveTab>('learn');
+  const [reviewDueCount, setReviewDueCount] = useState(0);
+  const [masteryLevels, setMasteryLevels] = useState<Record<ConceptId, number>>({});
+  const [isCheckingPrereqs, setIsCheckingPrereqs] = useState(true);
+
+  // Adaptive learning state
+  const [showPretestOffer, setShowPretestOffer] = useState(false);
+  const [pretestSkipped, setPretestSkipped] = useState(false);
+  const [adaptiveReason, setAdaptiveReason] = useState<string | null>(null);
+
+  // Session-based adaptive flow state
+  const [learningMode, setLearningMode] = useState<'adaptive' | 'linear'>('adaptive');
+  const [activeSession, setActiveSession] = useState<LearningSession | null>(null);
+  const [sessionItemIndex, setSessionItemIndex] = useState(0);
+
+  // Completion overlay state
+  const [showCompletionOverlay, setShowCompletionOverlay] = useState(false);
+  const [completionXP, setCompletionXP] = useState(0);
+
+  // Get current session item for adaptive content loading
+  const currentSessionItem: SessionItem | null = activeSession?.items[sessionItemIndex] || null;
+
+  // Load content based on current session item
+  const adaptiveContent = useAdaptiveContent(currentSessionItem);
 
   const currentAtom = atoms[currentAtomIndex];
   const progress = ((currentAtomIndex + 1) / atoms.length) * 100;
+
+  // Get primary skill for current lesson (for struggle tracking)
+  const lessonSkills = getSkillsForLesson(lesson.id);
+  const currentSkillId = lessonSkills[0] || '';
+
+  // Map atom type for proactive coach (handle all types)
+  const coachAtomType = (['video', 'reading', 'quiz', 'practice'] as const).includes(
+    currentAtom.type as 'video' | 'reading' | 'quiz' | 'practice'
+  ) ? currentAtom.type as 'video' | 'reading' | 'quiz' | 'practice' : 'reading';
+
+  // Proactive coach hook with struggle detection
+  const {
+    prompt: coachPrompt,
+    dismissPrompt,
+    recordWrongAnswer,
+    recordCorrectAnswer,
+    acceptIntervention,
+  } = useProactiveCoach({
+    atomId: currentAtom.id,
+    atomType: coachAtomType,
+    skillId: currentSkillId,
+    onInterventionAccept: handleInterventionAccept,
+  });
+
+  // Handle intervention acceptance from proactive coach
+  function handleInterventionAccept(intervention: Intervention) {
+    console.log('[LearnPage] Intervention accepted:', intervention.type);
+
+    switch (intervention.type) {
+      case 'alternative_explanation':
+        // Show coach panel with context
+        setShowCoachPanel(true);
+        break;
+      case 'prerequisite_review':
+        // Switch to review tab
+        setActiveTab('review');
+        break;
+      case 'simpler_practice':
+        // Could load simpler content variant here
+        toast.info('Simpler practice', 'Loading easier questions...');
+        break;
+      case 'coach_session':
+        setShowCoachPanel(true);
+        break;
+      case 'break_suggestion':
+        toast.info('Take a break', 'A short break can help concepts click!');
+        break;
+    }
+  }
+
+  // Check if prerequisites are met for current lesson
+  const prerequisitesMet = areLessonPrerequisitesMet(lesson.id, masteryLevels);
+
+  // Fetch mastery levels for prerequisite checking
+  const fetchMasteryLevels = useCallback(async () => {
+    if (!user?.id) {
+      setIsCheckingPrereqs(false);
+      return;
+    }
+
+    setIsCheckingPrereqs(true);
+    try {
+      // Get all prerequisite concepts for this lesson
+      const prereqs = getPrerequisitesForLesson(lesson.id);
+
+      if (prereqs.length === 0) {
+        // No prerequisites needed
+        setIsCheckingPrereqs(false);
+        return;
+      }
+
+      // Fetch mastery for each prerequisite
+      type ReviewDueResponse = {
+        success: boolean;
+        items: Array<{ conceptId: string; masteryLevel: number }>;
+        dueCount: number;
+      };
+      const response = await get<ReviewDueResponse>('/api/review/due?limit=100');
+      if (response.success && response.data?.items) {
+        const levels: Record<ConceptId, number> = {};
+        for (const item of response.data.items) {
+          levels[item.conceptId as ConceptId] = item.masteryLevel || 0;
+        }
+        setMasteryLevels(levels);
+      }
+    } catch (error) {
+      console.error('Failed to fetch mastery levels:', error);
+    } finally {
+      setIsCheckingPrereqs(false);
+    }
+  }, [user?.id, lesson.id]);
+
+  useEffect(() => {
+    fetchMasteryLevels();
+  }, [fetchMasteryLevels]);
+
+  // Fetch review due count
+  const fetchReviewDueCount = useCallback(async () => {
+    if (!user?.id) return;
+
+    try {
+      type ReviewDueResponse = { success: boolean; dueCount: number };
+      const response = await get<ReviewDueResponse>('/api/review/due?limit=50');
+      if (response.success && response.data) {
+        setReviewDueCount(response.data.dueCount || 0);
+      }
+    } catch (error) {
+      console.error('Failed to fetch review count:', error);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchReviewDueCount();
+  }, [fetchReviewDueCount]);
 
   const handleAtomComplete = async (xp: number = 10) => {
     setEarnedXP(xp);
@@ -108,17 +267,12 @@ export default function LearnPage() {
 
     setTimeout(() => setShowFloatingXP(false), 1000);
 
-    // Sync with backend API and check for new badges
-    try {
-      await post('/api/progress/complete-atom', {
-        lessonId: lesson.id,
-        atomId: currentAtom.id,
-        moduleId: lesson.id.split('_')[0],
-        courseId: lesson.id.split('_')[0],
-        timeSpentSeconds: 60, // TODO: Track actual time
-      });
+    // Note: Atom components (VideoAtom, ReadingAtom, QuizAtom, PracticeAtom)
+    // handle their own API calls with proper time tracking via useTimeTracking hook.
+    // We only handle local state and badge checking here.
 
-      // Check for newly earned badges
+    // Check for newly earned badges
+    try {
       if (user?.id) {
         const newBadges = await checkAndGetNewBadges(user.id);
         for (const badge of newBadges) {
@@ -127,8 +281,11 @@ export default function LearnPage() {
         }
       }
     } catch (error) {
-      console.error('Failed to sync atom completion:', error);
+      console.error('Failed to check badges:', error);
     }
+
+    // Refresh review due count after completion (FSRS may schedule new reviews)
+    fetchReviewDueCount();
   };
 
   const goToNextAtom = () => {
@@ -208,10 +365,134 @@ export default function LearnPage() {
 
   if (!user) return <SkeletonLearnPage />;
 
+  // Type-cast atoms for proper component rendering
+  const renderAtom = () => {
+    switch (currentAtom.type) {
+      case 'video':
+        return (
+          <VideoAtom
+            atom={currentAtom as Atom & { type: 'video'; content: VideoContent }}
+            onComplete={() => handleAtomComplete(15)}
+          />
+        );
+      case 'reading':
+        return (
+          <ReadingAtom
+            atom={currentAtom as Atom & { type: 'reading'; content: ReadingContent }}
+            onComplete={() => handleAtomComplete(10)}
+          />
+        );
+      case 'quiz':
+        return (
+          <QuizAtom
+            atom={currentAtom as Atom & { type: 'quiz'; content: QuizContent }}
+            onComplete={(score) => handleAtomComplete(25)}
+          />
+        );
+      case 'practice':
+        return (
+          <PracticeAtom
+            atom={currentAtom as Atom & { type: 'practice'; content: PracticeContent }}
+            onComplete={() => handleAtomComplete(20)}
+          />
+        );
+      default:
+        return <div>Unknown atom type</div>;
+    }
+  };
+
+  // Render atom from adaptive content (session-based)
+  const renderAdaptiveAtom = () => {
+    if (adaptiveContent.isLoading) {
+      return <div className="animate-pulse bg-gray-100 h-64 rounded-lg" />;
+    }
+
+    if (adaptiveContent.error) {
+      return (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+          <p className="text-red-700">{adaptiveContent.error}</p>
+          <Button variant="ghost" onClick={() => router.push('/dashboard')} className="mt-4">
+            Back to Dashboard
+          </Button>
+        </div>
+      );
+    }
+
+    const atomToRender = adaptiveContent.currentAtom;
+    if (!atomToRender) {
+      return <div className="text-center text-gray-500">No content available</div>;
+    }
+
+    switch (atomToRender.type) {
+      case 'video':
+        return (
+          <VideoAtom
+            atom={atomToRender as Atom & { type: 'video'; content: VideoContent }}
+            onComplete={() => handleAdaptiveAtomComplete(15)}
+          />
+        );
+      case 'reading':
+        return (
+          <ReadingAtom
+            atom={atomToRender as Atom & { type: 'reading'; content: ReadingContent }}
+            onComplete={() => handleAdaptiveAtomComplete(10)}
+          />
+        );
+      case 'quiz':
+        return (
+          <QuizAtom
+            atom={atomToRender as Atom & { type: 'quiz'; content: QuizContent }}
+            onComplete={(score) => handleAdaptiveAtomComplete(25)}
+          />
+        );
+      case 'practice':
+        return (
+          <PracticeAtom
+            atom={atomToRender as Atom & { type: 'practice'; content: PracticeContent }}
+            onComplete={() => handleAdaptiveAtomComplete(20)}
+          />
+        );
+      default:
+        return <div>Unknown atom type</div>;
+    }
+  };
+
+  // Handle atom completion in adaptive mode
+  const handleAdaptiveAtomComplete = (xp: number) => {
+    handleAtomComplete(xp);
+
+    // If this is the last atom in the current lesson, advance to next session item
+    if (adaptiveContent.isLastAtom) {
+      // Show completion overlay
+      setCompletionXP(xp);
+      setShowCompletionOverlay(true);
+    } else {
+      // Move to next atom within current lesson
+      adaptiveContent.nextAtom();
+    }
+  };
+
+  // Handle continue from completion overlay
+  const handleCompletionContinue = () => {
+    setShowCompletionOverlay(false);
+    if (activeSession && sessionItemIndex < activeSession.items.length - 1) {
+      setSessionItemIndex(prev => prev + 1);
+    } else {
+      // Session complete
+      router.push('/dashboard');
+    }
+  };
+
+  // Handle going to reviews from completion overlay
+  const handleGoToReviews = () => {
+    setShowCompletionOverlay(false);
+    setActiveTab('review');
+  };
+
   return (
     <div className="min-h-[calc(100vh-80px)] flex flex-col">
       {/* Header */}
-      <div className="bg-white border-b border-light-grey px-6 py-4">
+      <div className="bg-white border-b border-light-grey px-4 sm:px-6 py-4">
         <div className="max-w-5xl mx-auto">
           <div className="flex items-center justify-between mb-4">
             <Breadcrumb
@@ -227,104 +508,279 @@ export default function LearnPage() {
               leftIcon={<X size={18} />}
               onClick={() => router.push('/dashboard')}
             >
-              Exit
+              <span className="hidden sm:inline">Exit</span>
             </Button>
           </div>
 
-          <div className="flex items-center gap-4">
-            <ProgressBar
-              value={progress}
-              size="sm"
-              color="teal"
-              className="flex-1"
-            />
-            <span className="text-sm font-medium text-navy">
-              {currentAtomIndex + 1}/{atoms.length}
-            </span>
+          {/* Tab Navigation */}
+          <div className="flex items-center gap-4 mb-4">
+            <div className="flex gap-1 bg-light-grey rounded-lg p-1">
+              <button
+                onClick={() => setActiveTab('learn')}
+                className={cn(
+                  'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors',
+                  activeTab === 'learn'
+                    ? 'bg-white text-navy shadow-sm'
+                    : 'text-grey hover:text-navy'
+                )}
+              >
+                <BookOpen size={16} />
+                Learn
+              </button>
+              <button
+                onClick={() => setActiveTab('review')}
+                className={cn(
+                  'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors relative',
+                  activeTab === 'review'
+                    ? 'bg-white text-navy shadow-sm'
+                    : 'text-grey hover:text-navy'
+                )}
+              >
+                <Brain size={16} />
+                Review
+                {reviewDueCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-5 h-5 px-1 text-xs font-bold text-white bg-teal rounded-full">
+                    {reviewDueCount > 99 ? '99+' : reviewDueCount}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {activeTab === 'learn' && (
+              <div className="flex items-center gap-4 flex-1">
+                <ProgressBar
+                  value={progress}
+                  size="sm"
+                  color="teal"
+                  className="flex-1"
+                />
+                <span className="text-sm font-medium text-navy">
+                  {currentAtomIndex + 1}/{atoms.length}
+                </span>
+
+                {/* Mode Toggle - for testing adaptive vs linear */}
+                <div className="flex gap-1 bg-light-grey rounded-md p-0.5 ml-2">
+                  <button
+                    onClick={() => setLearningMode('adaptive')}
+                    className={cn(
+                      'px-2 py-1 rounded text-xs font-medium transition-colors',
+                      learningMode === 'adaptive'
+                        ? 'bg-teal text-white'
+                        : 'text-grey hover:text-navy'
+                    )}
+                  >
+                    <Sparkles size={12} className="inline mr-1" />
+                    Adaptive
+                  </button>
+                  <button
+                    onClick={() => setLearningMode('linear')}
+                    className={cn(
+                      'px-2 py-1 rounded text-xs font-medium transition-colors',
+                      learningMode === 'linear'
+                        ? 'bg-navy text-white'
+                        : 'text-grey hover:text-navy'
+                    )}
+                  >
+                    Linear
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex">
+      <div className="flex-1 flex relative">
         {/* Learning Content Area */}
         <div className={cn(
-          'flex-1 p-6 transition-all duration-300',
-          showCoachPanel ? 'mr-[350px]' : ''
+          'flex-1 p-4 sm:p-6 transition-all duration-300',
+          showCoachPanel ? 'lg:mr-[350px]' : ''
         )}>
-          <div className="max-w-3xl mx-auto">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentAtom.id}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
-              >
-                {currentAtom.type === 'video' && (
-                  <VideoAtom
-                    atom={currentAtom}
-                    onComplete={() => handleAtomComplete(15)}
-                    onNext={goToNextAtom}
-                  />
-                )}
-
-                {currentAtom.type === 'reading' && (
-                  <ReadingAtom
-                    atom={currentAtom}
-                    onComplete={() => handleAtomComplete(10)}
-                    onNext={goToNextAtom}
-                  />
-                )}
-
-                {currentAtom.type === 'practice' && (
-                  <PracticeAtom
-                    atom={currentAtom}
-                    onComplete={() => handleAtomComplete(20)}
-                    onNext={goToNextAtom}
-                  />
-                )}
-
-                {currentAtom.type === 'quiz' && (
-                  <QuizAtom
-                    atom={currentAtom}
-                    onComplete={() => handleAtomComplete(25)}
-                    onNext={goToNextAtom}
-                  />
-                )}
-              </motion.div>
-            </AnimatePresence>
-
-            {/* Navigation */}
-            <div className="flex justify-between mt-8 pt-6 border-t border-light-grey">
-              <Button
-                variant="ghost"
-                leftIcon={<ArrowLeft size={18} />}
-                onClick={goToPreviousAtom}
-                disabled={currentAtomIndex === 0}
-              >
-                Previous
-              </Button>
-
-              {currentAtomIndex < atoms.length - 1 ? (
-                <Button
-                  rightIcon={<ArrowRight size={18} />}
-                  onClick={goToNextAtom}
-                >
-                  Next
-                </Button>
-              ) : (
-                <Button
-                  variant="celebration"
-                  rightIcon={<CheckCircle size={18} />}
-                  onClick={handleLessonComplete}
-                  disabled={isCompletingLesson}
-                >
-                  {isCompletingLesson ? 'Completing...' : 'Complete Lesson'}
-                </Button>
-              )}
+          {activeTab === 'review' ? (
+            <ReviewTab />
+          ) : isCheckingPrereqs ? (
+            // Loading state while checking prerequisites
+            <div className="max-w-3xl mx-auto">
+              <div className="animate-pulse space-y-4">
+                <div className="h-6 bg-gray-200 rounded w-1/3"></div>
+                <div className="h-32 bg-gray-200 rounded"></div>
+              </div>
             </div>
-          </div>
+          ) : !prerequisitesMet ? (
+            // Show mastery gate if prerequisites not met
+            <div className="max-w-3xl mx-auto">
+              {(() => {
+                const conceptsForLesson = getConceptsForLesson(lesson.id);
+                const targetConceptId = conceptsForLesson[0] || 'smm-fundamentals';
+                return (
+                  <MasteryGate
+                    conceptId={targetConceptId}
+                    masteryLevels={masteryLevels}
+                    onReviewPrerequisite={(conceptId) => {
+                      // Switch to review tab to practice the prerequisite
+                      setActiveTab('review');
+                    }}
+                    onProceed={() => {
+                      // Refresh prerequisites check
+                      fetchMasteryLevels();
+                    }}
+                  >
+                    {/* This won't render since prerequisites aren't met */}
+                    <div />
+                  </MasteryGate>
+                );
+              })()}
+            </div>
+          ) : learningMode === 'adaptive' && !activeSession ? (
+            // Adaptive mode: Show session overview
+            <div className="max-w-3xl mx-auto">
+              <AdaptiveSessionView
+                userId={user.id}
+                availableMinutes={30}
+                onStartSession={(session) => {
+                  console.log('[LearnPage] Starting session with', session.items.length, 'items');
+                  setActiveSession(session);
+                  setSessionItemIndex(0);
+                }}
+onItemComplete={(item) => {
+                  console.log('[LearnPage] Item complete:', item.skillId);
+                  handleAtomComplete(15);
+                  // Note: Session navigation is handled in the activeSession branch
+                }}
+              />
+            </div>
+          ) : learningMode === 'adaptive' && activeSession ? (
+            // Adaptive mode: Show current session item with content loaded from session
+            <div className="max-w-3xl mx-auto">
+              <AdaptiveReasoningBanner
+                reason={activeSession.items[sessionItemIndex]?.reason || 'Personalized for you'}
+                skillName={activeSession.items[sessionItemIndex]?.skillId || 'Learning'}
+                type={activeSession.items[sessionItemIndex]?.type === 'review' ? 'review' : 'learn'}
+              />
+
+              {/* Show lesson title from adaptive content */}
+              {adaptiveContent.lesson && (
+                <div className="mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900">{adaptiveContent.lesson.title}</h2>
+                  {adaptiveContent.atoms.length > 1 && (
+                    <p className="text-sm text-gray-500">
+                      Part {adaptiveContent.currentAtomIndex + 1} of {adaptiveContent.atoms.length}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={`${activeSession.items[sessionItemIndex]?.itemId}-${adaptiveContent.currentAtomIndex}`}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {renderAdaptiveAtom()}
+                </motion.div>
+              </AnimatePresence>
+
+              {/* Atom Navigation within lesson */}
+              <div className="flex justify-between mt-8 pt-6 border-t border-light-grey">
+                <Button
+                  variant="ghost"
+                  leftIcon={<ArrowLeft size={18} />}
+                  onClick={() => {
+                    if (!adaptiveContent.isFirstAtom) {
+                      adaptiveContent.previousAtom();
+                    } else if (sessionItemIndex > 0) {
+                      setSessionItemIndex(prev => prev - 1);
+                    }
+                  }}
+                  disabled={adaptiveContent.isFirstAtom && sessionItemIndex === 0}
+                >
+                  <span className="hidden sm:inline">Previous</span>
+                </Button>
+
+                {!adaptiveContent.isLastAtom ? (
+                  // More atoms in current lesson
+                  <Button
+                    rightIcon={<ArrowRight size={18} />}
+                    onClick={() => adaptiveContent.nextAtom()}
+                  >
+                    <span className="hidden sm:inline">Next</span>
+                  </Button>
+                ) : sessionItemIndex < activeSession.items.length - 1 ? (
+                  // Last atom but more session items
+                  <Button
+                    variant="celebration"
+                    rightIcon={<CheckCircle size={18} />}
+                    onClick={() => {
+                      setCompletionXP(15);
+                      setShowCompletionOverlay(true);
+                    }}
+                  >
+                    Complete & Continue
+                  </Button>
+                ) : (
+                  // Last atom of last session item
+                  <Button
+                    variant="celebration"
+                    rightIcon={<CheckCircle size={18} />}
+                    onClick={() => {
+                      setCompletionXP(15);
+                      setShowCompletionOverlay(true);
+                    }}
+                  >
+                    Complete Session
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : (
+            // Linear mode: Traditional atom-by-atom navigation
+            <div className="max-w-3xl mx-auto">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentAtom.id}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {renderAtom()}
+                </motion.div>
+              </AnimatePresence>
+
+              {/* Navigation */}
+              <div className="flex justify-between mt-8 pt-6 border-t border-light-grey">
+                <Button
+                  variant="ghost"
+                  leftIcon={<ArrowLeft size={18} />}
+                  onClick={goToPreviousAtom}
+                  disabled={currentAtomIndex === 0}
+                >
+                  <span className="hidden sm:inline">Previous</span>
+                </Button>
+
+                {currentAtomIndex < atoms.length - 1 ? (
+                  <Button
+                    rightIcon={<ArrowRight size={18} />}
+                    onClick={goToNextAtom}
+                  >
+                    <span className="hidden sm:inline">Next</span>
+                  </Button>
+                ) : (
+                  <Button
+                    variant="celebration"
+                    rightIcon={<CheckCircle size={18} />}
+                    onClick={handleLessonComplete}
+                    disabled={isCompletingLesson}
+                  >
+                    {isCompletingLesson ? 'Completing...' : 'Complete Lesson'}
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Floating XP */}
           <AnimatePresence>
@@ -336,645 +792,121 @@ export default function LearnPage() {
           </AnimatePresence>
         </div>
 
-        {/* Coach Panel */}
+        {/* Coach Panel - Desktop */}
         <AnimatePresence>
           {showCoachPanel && (
             <motion.div
-              className="fixed right-0 top-[128px] bottom-0 w-[350px] bg-white border-l border-light-grey flex flex-col"
+              className="hidden lg:flex fixed right-0 top-[128px] bottom-0 w-[350px] bg-white border-l border-light-grey flex-col z-30"
               initial={{ x: 350 }}
               animate={{ x: 0 }}
               exit={{ x: 350 }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             >
-              <CoachPanel atomType={currentAtom.type} atomTitle={currentAtom.title} />
+              <CoachChat
+                isOpen={showCoachPanel}
+                onClose={() => setShowCoachPanel(false)}
+                lessonContext={{
+                  currentCourse: currentModule.courseId,
+                  currentModule: currentModule.title,
+                  currentLesson: lesson.title,
+                  atomType: currentAtom.type,
+                }}
+              />
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Toggle Coach Panel */}
+        {/* Coach Panel - Mobile (Bottom Sheet) */}
+        <AnimatePresence>
+          {showCoachPanel && (
+            <motion.div
+              className="lg:hidden fixed inset-x-0 bottom-0 h-[70vh] bg-white rounded-t-3xl shadow-2xl z-40"
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            >
+              {/* Handle */}
+              <div className="flex justify-center pt-3 pb-2">
+                <div className="w-10 h-1 bg-grey/50 rounded-full" />
+              </div>
+              <CoachChat
+                isOpen={showCoachPanel}
+                onClose={() => setShowCoachPanel(false)}
+                lessonContext={{
+                  currentCourse: currentModule.courseId,
+                  currentModule: currentModule.title,
+                  currentLesson: lesson.title,
+                  atomType: currentAtom.type,
+                }}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Mobile overlay when coach is open */}
+        <AnimatePresence>
+          {showCoachPanel && (
+            <motion.div
+              className="lg:hidden fixed inset-0 bg-black/50 z-30"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowCoachPanel(false)}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Toggle Coach Panel Button */}
         <button
           onClick={() => setShowCoachPanel(!showCoachPanel)}
           className={cn(
             'fixed right-4 bottom-4 w-14 h-14 rounded-full bg-teal text-white shadow-lg z-40',
-            'flex items-center justify-center hover:bg-teal-dark transition-colors'
+            'flex items-center justify-center hover:bg-teal-dark transition-colors',
+            showCoachPanel && 'lg:hidden'
           )}
+          aria-label="Toggle coach panel"
         >
           <MessageCircle size={24} />
         </button>
-      </div>
-    </div>
-  );
-}
 
-// Video Atom Component
-function VideoAtom({
-  atom,
-  onComplete,
-  onNext,
-}: {
-  atom: Atom;
-  onComplete: () => void;
-  onNext: () => void;
-}) {
-  const content = atom.content as VideoContent;
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [showChapters, setShowChapters] = useState(false);
-
-  const progress = (currentTime / content.duration) * 100;
-
-  useEffect(() => {
-    // Simulate video progress
-    if (isPlaying && currentTime < content.duration) {
-      const timer = setInterval(() => {
-        setCurrentTime((t) => Math.min(t + 1, content.duration));
-      }, 1000);
-      return () => clearInterval(timer);
-    }
-    if (currentTime >= content.duration) {
-      onComplete();
-    }
-  }, [isPlaying, currentTime, content.duration, onComplete]);
-
-  return (
-    <div>
-      <h2 className="h3 text-navy mb-4">{atom.title}</h2>
-
-      {/* Video Player Placeholder */}
-      <Card variant="elevated" padding="none" className="mb-6 overflow-hidden">
-        <div className="aspect-video bg-navy relative flex items-center justify-center">
-          <div className="text-white text-center">
-            <Play size={64} className="mx-auto mb-4 opacity-50" />
-            <p className="text-white/70">Video Player Placeholder</p>
-            <p className="text-sm text-white/50">({formatTime(content.duration)})</p>
-          </div>
-
-          {/* Video Controls */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-            <ProgressBar
-              value={progress}
-              size="sm"
-              color="teal"
-              className="mb-3"
-            />
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setIsPlaying(!isPlaying)}
-                  className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
-                >
-                  {isPlaying ? <Pause size={20} /> : <Play size={20} />}
-                </button>
-
-                <button
-                  onClick={() => setIsMuted(!isMuted)}
-                  className="p-2 rounded-full hover:bg-white/20 transition-colors"
-                >
-                  {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                </button>
-
-                <span className="text-sm text-white/80">
-                  {formatTime(currentTime)} / {formatTime(content.duration)}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowChapters(!showChapters)}
-                  className="px-3 py-1 rounded text-sm bg-white/20 hover:bg-white/30 transition-colors"
-                >
-                  Chapters
-                </button>
-                <button className="p-2 rounded-full hover:bg-white/20 transition-colors">
-                  <Maximize size={18} />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Chapters */}
-        <AnimatePresence>
-          {showChapters && (
-            <motion.div
-              initial={{ height: 0 }}
-              animate={{ height: 'auto' }}
-              exit={{ height: 0 }}
-              className="overflow-hidden border-t border-light-grey"
-            >
-              <div className="p-4 space-y-2">
-                {content.chapters.map((chapter, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setCurrentTime(chapter.time)}
-                    className={cn(
-                      'w-full flex items-center gap-3 p-2 rounded-lg text-left transition-colors',
-                      currentTime >= chapter.time
-                        ? 'bg-light-teal text-teal'
-                        : 'hover:bg-light-grey'
-                    )}
-                  >
-                    <span className="text-sm text-rich-black/60">{formatTime(chapter.time)}</span>
-                    <span className="font-medium">{chapter.title}</span>
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </Card>
-
-      {/* Key Takeaways */}
-      <Card variant="outlined" padding="lg" className="bg-light-teal/30 border-teal/20">
-        <h3 className="font-semibold text-navy mb-3 flex items-center gap-2">
-          <BookOpen size={18} className="text-teal" />
-          Key Takeaways
-        </h3>
-        <ul className="space-y-2">
-          {content.keyTakeaways.map((takeaway, i) => (
-            <li key={i} className="flex items-start gap-2">
-              <CheckCircle size={16} className="text-teal mt-0.5 flex-shrink-0" />
-              <span className="text-rich-black/80">{takeaway}</span>
-            </li>
-          ))}
-        </ul>
-      </Card>
-    </div>
-  );
-}
-
-// Reading Atom Component
-function ReadingAtom({
-  atom,
-  onComplete,
-  onNext,
-}: {
-  atom: Atom;
-  onComplete: () => void;
-  onNext: () => void;
-}) {
-  const content = atom.content as ReadingContent;
-  const [readProgress, setReadProgress] = useState(0);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollPercent = (window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100;
-      setReadProgress(Math.min(scrollPercent, 100));
-
-      if (scrollPercent > 80) {
-        onComplete();
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [onComplete]);
-
-  // Simple markdown-like rendering
-  const renderContent = (body: string) => {
-    const lines = body.split('\n');
-    return lines.map((line, i) => {
-      if (line.startsWith('# ')) {
-        return <h2 key={i} className="h3 text-navy mb-4 mt-8">{line.slice(2)}</h2>;
-      }
-      if (line.startsWith('## ')) {
-        return <h3 key={i} className="h4 text-navy mb-3 mt-6">{line.slice(3)}</h3>;
-      }
-      if (line.startsWith('**') && line.endsWith('**')) {
-        return <p key={i} className="font-semibold text-navy mb-2">{line.slice(2, -2)}</p>;
-      }
-      if (line.startsWith('> ')) {
-        return (
-          <blockquote key={i} className="border-l-4 border-teal pl-4 py-2 my-4 bg-light-teal/20 rounded-r-lg">
-            <p className="text-navy italic">{line.slice(2)}</p>
-          </blockquote>
-        );
-      }
-      if (line.startsWith('- ')) {
-        return (
-          <li key={i} className="flex items-start gap-2 mb-2">
-            <span className="w-2 h-2 bg-teal rounded-full mt-2 flex-shrink-0" />
-            <span>{line.slice(2)}</span>
-          </li>
-        );
-      }
-      if (line.trim() === '') {
-        return <br key={i} />;
-      }
-      return <p key={i} className="mb-4 text-rich-black/80 leading-relaxed">{line}</p>;
-    });
-  };
-
-  return (
-    <div>
-      <h2 className="h3 text-navy mb-6">{atom.title}</h2>
-
-      {/* Reading progress indicator */}
-      <div className="fixed top-0 left-0 right-0 z-40">
-        <ProgressBar value={readProgress} size="xs" color="teal" animated={false} />
-      </div>
-
-      {/* Highlights Card */}
-      {content.highlights.length > 0 && (
-        <Card variant="elevated" padding="lg" className="mb-8 bg-yellow/10 border border-yellow/30">
-          <h3 className="font-semibold text-navy mb-3">Key Points</h3>
-          <ul className="space-y-2">
-            {content.highlights.map((highlight, i) => (
-              <li key={i} className="flex items-center gap-2">
-                <span className="text-lg">💡</span>
-                <span className="font-medium text-navy">{highlight}</span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
-
-      {/* Main Content */}
-      <Card variant="outlined" padding="lg" className="prose max-w-none">
-        {renderContent(content.body)}
-      </Card>
-
-      {/* Continue Button */}
-      <div className="mt-8 text-center">
-        <Button size="lg" onClick={() => { onComplete(); onNext(); }}>
-          I&apos;ve read this
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// Practice Atom Component
-function PracticeAtom({
-  atom,
-  onComplete,
-  onNext,
-}: {
-  atom: Atom;
-  onComplete: () => void;
-  onNext: () => void;
-}) {
-  const content = atom.content as PracticeContent;
-  const [answer, setAnswer] = useState('');
-  const [submitted, setSubmitted] = useState(false);
-  const [feedback, setFeedback] = useState('');
-
-  const handleSubmit = () => {
-    setSubmitted(true);
-    // Simulate AI feedback
-    setFeedback(
-      "Great attempt! You've touched on the key points. Remember, ROI is specifically about measuring the profitability of your investment. Your answer shows good understanding of why it matters for marketing decisions."
-    );
-    onComplete();
-  };
-
-  return (
-    <div>
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-xl bg-purple/10 flex items-center justify-center">
-          <span className="text-xl">✍️</span>
-        </div>
-        <div>
-          <span className="label text-purple">Practice</span>
-          <h2 className="h4 text-navy">{atom.title}</h2>
-        </div>
-      </div>
-
-      <Card variant="outlined" padding="lg" className="mb-6">
-        <p className="text-navy leading-relaxed">{content.prompt}</p>
-      </Card>
-
-      {!submitted ? (
-        <>
-          <textarea
-            value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
-            placeholder="Type your answer here..."
-            className="w-full h-40 p-4 border-2 border-grey rounded-xl focus:border-teal focus:ring-2 focus:ring-teal/20 outline-none resize-none"
-          />
-
-          <div className="flex justify-end mt-4">
-            <Button
-              onClick={handleSubmit}
-              disabled={!answer.trim()}
-            >
-              Submit Answer
-            </Button>
-          </div>
-        </>
-      ) : (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <Card variant="elevated" padding="lg" className="bg-success-light border border-success/30">
-            <div className="flex items-start gap-4">
-              <Character character="owl" mood="proud" size="sm" />
-              <div>
-                <h4 className="font-semibold text-navy mb-2">Coach&apos;s Feedback</h4>
-                <p className="text-rich-black/80">{feedback}</p>
-
-                <Button
-                  className="mt-4"
-                  rightIcon={<ArrowRight size={18} />}
-                  onClick={onNext}
-                >
-                  Continue
-                </Button>
-              </div>
-            </div>
-          </Card>
-        </motion.div>
-      )}
-    </div>
-  );
-}
-
-// Quiz Atom Component
-function QuizAtom({
-  atom,
-  onComplete,
-  onNext,
-}: {
-  atom: Atom;
-  onComplete: () => void;
-  onNext: () => void;
-}) {
-  const content = atom.content as QuizContent;
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
-  const [isAnswered, setIsAnswered] = useState(false);
-  const [score, setScore] = useState(0);
-  const [isComplete, setIsComplete] = useState(false);
-
-  const question = content.questions[currentQuestionIndex];
-  const isCorrect = selectedAnswer === question.correctAnswer;
-
-  const handleCheckAnswer = () => {
-    setIsAnswered(true);
-    if (isCorrect) {
-      setScore(score + 1);
-      confetti({
-        particleCount: 30,
-        spread: 50,
-        origin: { y: 0.6 },
-        colors: ['#21A8B0', '#FFDE00'],
-      });
-    }
-  };
-
-  const handleNext = () => {
-    if (currentQuestionIndex < content.questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setSelectedAnswer(null);
-      setIsAnswered(false);
-    } else {
-      setIsComplete(true);
-      onComplete();
-    }
-  };
-
-  if (isComplete) {
-    const percentage = Math.round((score / content.questions.length) * 100);
-    const passed = percentage >= content.passingScore;
-
-    return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="text-center py-12"
-      >
-        <Character
-          character={passed ? 'cat' : 'dog'}
-          mood={passed ? 'celebrating' : 'encouraging'}
-          size="xl"
-          className="mb-6"
+        {/* Proactive Coach Prompt - Struggle Detection Integration */}
+        <ProactivePrompt
+          prompt={coachPrompt}
+          onDismiss={dismissPrompt}
+          onAction={(action) => {
+            console.log('[LearnPage] Coach action:', action);
+            setShowCoachPanel(true);
+          }}
+          onInterventionAccept={acceptIntervention}
         />
-
-        <h2 className="h2 text-navy mb-2">
-          {passed ? 'Great job!' : 'Keep practicing!'}
-        </h2>
-
-        <p className="text-xl text-rich-black/70 mb-6">
-          You scored {score}/{content.questions.length} ({percentage}%)
-        </p>
-
-        <div className="flex justify-center gap-4">
-          {!passed && (
-            <Button variant="secondary" onClick={() => {
-              setCurrentQuestionIndex(0);
-              setSelectedAnswer(null);
-              setIsAnswered(false);
-              setScore(0);
-              setIsComplete(false);
-            }}>
-              Try Again
-            </Button>
-          )}
-          <Button onClick={onNext}>
-            Continue
-          </Button>
-        </div>
-      </motion.div>
-    );
-  }
-
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-teal/10 flex items-center justify-center">
-            <span className="text-xl">❓</span>
-          </div>
-          <div>
-            <span className="label text-teal">Quiz</span>
-            <h2 className="h4 text-navy">{atom.title}</h2>
-          </div>
-        </div>
-
-        <span className="text-sm font-medium text-rich-black/60">
-          Question {currentQuestionIndex + 1} of {content.questions.length}
-        </span>
       </div>
 
-      <QuizProgress
-        currentQuestion={currentQuestionIndex + 1}
-        totalQuestions={content.questions.length}
-        className="mb-8"
+      {/* Completion Overlay */}
+      <CompletionOverlay
+        isOpen={showCompletionOverlay}
+        xpEarned={completionXP}
+        itemTitle={adaptiveContent.lesson?.title}
+        nextItemTitle={
+          activeSession?.items[sessionItemIndex + 1]
+            ? getSkillName(activeSession.items[sessionItemIndex + 1].skillId)
+            : undefined
+        }
+        hasNextItem={
+          activeSession
+            ? sessionItemIndex < activeSession.items.length - 1
+            : false
+        }
+        reviewsDue={reviewDueCount}
+        isSessionComplete={
+          activeSession
+            ? sessionItemIndex >= activeSession.items.length - 1
+            : false
+        }
+        onContinue={handleCompletionContinue}
+        onGoToReviews={handleGoToReviews}
+        onGoToDashboard={() => router.push('/dashboard')}
       />
-
-      <Card variant="elevated" padding="lg" className="mb-6">
-        <p className="text-lg font-medium text-navy">{question.question}</p>
-      </Card>
-
-      <div className="space-y-3 mb-6">
-        {question.options?.map((option, i) => (
-          <QuizOption
-            key={i}
-            label={option}
-            optionLetter={String.fromCharCode(65 + i)}
-            isSelected={selectedAnswer === i}
-            isCorrect={i === question.correctAnswer}
-            isAnswered={isAnswered}
-            onSelect={() => !isAnswered && setSelectedAnswer(i)}
-          />
-        ))}
-      </div>
-
-      {/* Explanation */}
-      <AnimatePresence>
-        {isAnswered && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-          >
-            <Card
-              variant="outlined"
-              padding="lg"
-              className={cn(
-                'mb-6',
-                isCorrect ? 'bg-success-light border-success/30' : 'bg-warning-light border-warning/30'
-              )}
-            >
-              <div className="flex items-start gap-3">
-                <Character
-                  character={isCorrect ? 'owl' : 'dog'}
-                  mood={isCorrect ? 'proud' : 'encouraging'}
-                  size="xs"
-                />
-                <div>
-                  <h4 className="font-semibold text-navy mb-1">
-                    {isCorrect ? 'Correct!' : 'Not quite...'}
-                  </h4>
-                  <p className="text-rich-black/70">{question.explanation}</p>
-                </div>
-              </div>
-            </Card>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className="flex justify-end">
-        {!isAnswered ? (
-          <Button
-            onClick={handleCheckAnswer}
-            disabled={selectedAnswer === null}
-          >
-            Check Answer
-          </Button>
-        ) : (
-          <Button onClick={handleNext}>
-            {currentQuestionIndex < content.questions.length - 1 ? 'Next Question' : 'See Results'}
-          </Button>
-        )}
-      </div>
     </div>
-  );
-}
-
-// Coach Panel Component
-function CoachPanel({ atomType, atomTitle }: { atomType: string; atomTitle: string }) {
-  const [inputMessage, setInputMessage] = useState('');
-  const { messages, sendMessage, isLoading, initializeChat } = useCoach();
-
-  // Initialize chat with welcome message
-  useEffect(() => {
-    initializeChat();
-  }, [initializeChat]);
-
-  const handleSend = async () => {
-    if (!inputMessage.trim() || isLoading) return;
-
-    const messageToSend = inputMessage;
-    setInputMessage('');
-
-    await sendMessage(messageToSend, 'chat', {
-      currentLesson: atomTitle,
-      atomType,
-    });
-  };
-
-  return (
-    <>
-      <div className="p-4 border-b border-light-grey flex items-center gap-3">
-        <Character character="owl" mood={isLoading ? 'thinking' : 'idle'} size="xs" />
-        <div>
-          <h3 className="font-semibold text-navy">Coach</h3>
-          <p className="text-xs text-rich-black/60">
-            {isLoading ? 'Thinking...' : 'Ready to help'}
-          </p>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((msg) => (
-          <motion.div
-            key={msg.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={cn(
-              'flex gap-3',
-              msg.role === 'user' && 'flex-row-reverse'
-            )}
-          >
-            {msg.role === 'assistant' && (
-              <div className="w-8 h-8 rounded-full bg-light-teal flex items-center justify-center flex-shrink-0">
-                <span className="text-sm">🦉</span>
-              </div>
-            )}
-            <div
-              className={cn(
-                'max-w-[80%] p-3 rounded-xl',
-                msg.role === 'assistant'
-                  ? 'bg-light-teal text-navy'
-                  : 'bg-teal text-white'
-              )}
-            >
-              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-            </div>
-          </motion.div>
-        ))}
-
-        {/* Loading indicator */}
-        {isLoading && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex gap-3"
-          >
-            <div className="w-8 h-8 rounded-full bg-light-teal flex items-center justify-center flex-shrink-0">
-              <span className="text-sm">🦉</span>
-            </div>
-            <div className="bg-light-teal p-3 rounded-xl">
-              <div className="flex gap-1">
-                <span className="w-2 h-2 bg-teal rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-2 h-2 bg-teal rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-2 h-2 bg-teal rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </div>
-
-      <div className="p-4 border-t border-light-grey">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-            placeholder="Ask Coach anything..."
-            disabled={isLoading}
-            className="flex-1 px-4 py-2 border border-grey rounded-full text-sm focus:border-teal focus:ring-2 focus:ring-teal/20 outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-          />
-          <Button size="sm" onClick={handleSend} disabled={isLoading || !inputMessage.trim()}>
-            Send
-          </Button>
-        </div>
-      </div>
-    </>
   );
 }

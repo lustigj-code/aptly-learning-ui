@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, Suspense } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { initPosthog, trackPageView } from '@/lib/monitoring/posthog'
 import { initSentry } from '@/lib/monitoring/sentry'
 
-export function MonitoringProvider({ children }: { children: React.ReactNode }) {
+// Inner component that uses useSearchParams (requires Suspense boundary)
+function MonitoringInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
@@ -23,4 +24,12 @@ export function MonitoringProvider({ children }: { children: React.ReactNode }) 
   }, [pathname, searchParams])
 
   return <>{children}</>
+}
+
+export function MonitoringProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<>{children}</>}>
+      <MonitoringInner>{children}</MonitoringInner>
+    </Suspense>
+  )
 }

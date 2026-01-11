@@ -173,3 +173,17 @@ export interface AuthenticatedRequest extends NextRequest {
     customClaims?: Record<string, any>
   }
 }
+
+/**
+ * Get authenticated user or null
+ * Convenience function for API routes that just need the user object
+ */
+export async function getAuthenticatedUser(request: NextRequest): Promise<{
+  uid: string
+  email?: string
+  emailVerified?: boolean
+  customClaims?: Record<string, any>
+} | null> {
+  const auth = await verifyAuth(request)
+  return auth.authenticated ? auth.user : null
+}

@@ -110,7 +110,7 @@ export type VideoContent = {
 export type ReadingContent = {
   body: string;
   highlights: string[];
-  relatedResources: Resource[];
+  relatedResources?: Resource[];
 };
 
 export type PracticeContent = {
@@ -135,8 +135,10 @@ export type Question = {
 export type QuizContent = {
   questions: Question[];
   passingScore: number;
-  allowRetakes: boolean;
-  maxAttempts: number;
+  allowRetakes?: boolean;
+  maxAttempts?: number;
+  shuffleQuestions?: boolean;
+  shuffleOptions?: boolean;
 };
 
 export type ProjectContent = {

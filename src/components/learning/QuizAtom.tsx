@@ -2,10 +2,11 @@
 
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, RotateCcw, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { ChevronRight, RotateCcw, CheckCircle, AlertCircle, Clock, TrendingUp, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { ProgressBar } from '@/components/ui/ProgressBar';
 import { QuizOption, QuizProgress } from '@/components/learning/QuizOption';
 import { useTimeTracking, formatTimeMMSS } from '@/hooks/useTimeTracking';
 import { post } from '@/lib/api/client';
@@ -15,6 +16,23 @@ type QuizAtomProps = {
   atom: Atom & { type: 'quiz'; content: QuizContent };
   onComplete: (score: number) => void;
   isSubmitting?: boolean;
+  // Struggle detection callback for proactive coach integration
+  onStruggleDetected?: (struggleData: {
+    consecutiveWrong: number;
+    skillId?: string;
+    questionId: string;
+  }) => void;
+};
+
+// Skill update from BKT
+type SkillUpdate = {
+  skillId: string;
+  skillName: string;
+  previousMastery: number;
+  newMastery: number;
+  previousMasteryPercent: string;
+  newMasteryPercent: string;
+  isMastered: boolean;
 };
 
 type QuizState = {
@@ -24,9 +42,15 @@ type QuizState = {
   isComplete: boolean;
   score: number;
   attempts: number;
+  // BKT skill tracking
+  currentSkillUpdates: SkillUpdate[];
+  allSkillUpdates: SkillUpdate[];
+  newlyMasteredSkills: string[];
+  // Struggle tracking for proactive coach
+  consecutiveWrong: number;
 };
 
-export function QuizAtom({ atom, onComplete }: QuizAtomProps) {
+export function QuizAtom({ atom, onComplete, onStruggleDetected }: QuizAtomProps) {
   const [state, setState] = useState<QuizState>({
     currentQuestionIndex: 0,
     answers: {},
@@ -34,6 +58,10 @@ export function QuizAtom({ atom, onComplete }: QuizAtomProps) {
     isComplete: false,
     score: 0,
     attempts: 0,
+    currentSkillUpdates: [],
+    allSkillUpdates: [],
+    newlyMasteredSkills: [],
+    consecutiveWrong: 0,
   });
 
   const { content } = atom;
@@ -60,10 +88,67 @@ export function QuizAtom({ atom, onComplete }: QuizAtomProps) {
   };
 
   const handleSubmitAnswer = async () => {
-    setState((prev) => ({
-      ...prev,
-      showingFeedback: true,
-    }));
+    const userAnswer = state.answers[state.currentQuestionIndex];
+    const correct = checkAnswer(currentQuestion, userAnswer);
+
+    // Track consecutive wrong answers for struggle detection
+    const newConsecutiveWrong = correct ? 0 : state.consecutiveWrong + 1;
+
+    // Trigger struggle callback if 3+ consecutive wrong answers
+    if (newConsecutiveWrong >= 3 && onStruggleDetected) {
+      const questionId = currentQuestion.id || `q${atom.lessonId}.${state.currentQuestionIndex + 1}`;
+      onStruggleDetected({
+        consecutiveWrong: newConsecutiveWrong,
+        skillId: currentQuestion.skills?.[0],
+        questionId,
+      });
+    }
+
+    // Update skill mastery via BKT
+    try {
+      // Use the question's skill mapping if available, or generate questionId from index
+      const questionId = currentQuestion.id || `q${atom.lessonId}.${state.currentQuestionIndex + 1}`;
+
+      const response = await post<{ success: boolean; updates?: SkillUpdate[] }>('/api/skills', {
+        questionId,
+        correct,
+        // Also pass skills from question if available
+        skillIds: currentQuestion.skills || undefined,
+      });
+
+      if (response.success && response.data?.updates) {
+        const updates = response.data.updates;
+
+        // Check for newly mastered skills
+        const newMastered = updates
+          .filter((u) => u.isMastered && u.previousMastery < 0.95)
+          .map((u) => u.skillName);
+
+        setState((prev) => ({
+          ...prev,
+          showingFeedback: true,
+          consecutiveWrong: newConsecutiveWrong,
+          currentSkillUpdates: updates,
+          allSkillUpdates: [...prev.allSkillUpdates, ...updates],
+          newlyMasteredSkills: [...prev.newlyMasteredSkills, ...newMastered],
+        }));
+      } else {
+        setState((prev) => ({
+          ...prev,
+          showingFeedback: true,
+          consecutiveWrong: newConsecutiveWrong,
+          currentSkillUpdates: [],
+        }));
+      }
+    } catch (error) {
+      console.error('Error updating skills:', error);
+      setState((prev) => ({
+        ...prev,
+        showingFeedback: true,
+        consecutiveWrong: newConsecutiveWrong,
+        currentSkillUpdates: [],
+      }));
+    }
   };
 
   const handleNextQuestion = () => {
@@ -190,6 +275,74 @@ export function QuizAtom({ atom, onComplete }: QuizAtomProps) {
           )}
         </Card>
 
+        {/* Newly Mastered Skills Celebration */}
+        {state.newlyMasteredSkills.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3, type: 'spring' }}
+          >
+            <Card variant="elevated" padding="lg" className="bg-gradient-to-r from-yellow/10 to-teal/10 border-2 border-yellow/30">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-yellow/20 rounded-full flex items-center justify-center">
+                  <Sparkles size={20} className="text-yellow" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-navy">Skills Mastered!</h3>
+                  <p className="text-sm text-rich-black/60">You've reached 95%+ mastery</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {state.newlyMasteredSkills.map((skillName, idx) => (
+                  <span
+                    key={idx}
+                    className="px-3 py-1 bg-success/10 text-success rounded-full text-sm font-medium"
+                  >
+                    {skillName}
+                  </span>
+                ))}
+              </div>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Skill Progress Summary */}
+        {state.allSkillUpdates.length > 0 && (
+          <Card variant="elevated" padding="lg">
+            <div className="flex items-center gap-2 mb-4">
+              <TrendingUp size={20} className="text-teal" />
+              <h3 className="font-semibold text-navy">Skill Progress Summary</h3>
+            </div>
+            <div className="space-y-3">
+              {/* Aggregate skill updates by skillId (use final value) */}
+              {Object.values(
+                state.allSkillUpdates.reduce((acc, update) => {
+                  acc[update.skillId] = update;
+                  return acc;
+                }, {} as Record<string, SkillUpdate>)
+              ).map((update) => (
+                <div key={update.skillId} className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-navy">{update.skillName}</span>
+                    <span className={cn(
+                      'text-sm font-semibold',
+                      update.isMastered ? 'text-success' : 'text-teal'
+                    )}>
+                      {update.newMasteryPercent}
+                      {update.isMastered && ' ✓'}
+                    </span>
+                  </div>
+                  <ProgressBar
+                    value={update.newMastery * 100}
+                    size="sm"
+                    color={update.isMastered ? 'success' : 'teal'}
+                  />
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
         {/* Retake Button */}
         {!passed && allowRetakes && (
           <Button
@@ -204,6 +357,10 @@ export function QuizAtom({ atom, onComplete }: QuizAtomProps) {
                 isComplete: false,
                 score: 0,
                 attempts: state.attempts,
+                currentSkillUpdates: [],
+                allSkillUpdates: [],
+                newlyMasteredSkills: [],
+                consecutiveWrong: 0,
               });
               resetTimer(); // Reset timer for new attempt
             }}
@@ -323,6 +480,36 @@ export function QuizAtom({ atom, onComplete }: QuizAtomProps) {
                       <span className="font-semibold">Correct answer: </span>
                       {options[options.indexOf(currentQuestion.correctAnswer as string)]}
                     </p>
+                  </div>
+                )}
+
+                {/* Skill Mastery Updates */}
+                {state.currentSkillUpdates.length > 0 && (
+                  <div className="border-t border-grey/20 pt-3 mt-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <TrendingUp size={16} className="text-teal" />
+                      <span className="text-sm font-semibold text-navy">Skill Progress</span>
+                    </div>
+                    <div className="space-y-2">
+                      {state.currentSkillUpdates.map((update) => (
+                        <div key={update.skillId} className="flex items-center gap-3">
+                          <span className="text-sm text-navy flex-1 truncate">{update.skillName}</span>
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="text-rich-black/60">{update.previousMasteryPercent}</span>
+                            <span className="text-rich-black/40">→</span>
+                            <span className={cn(
+                              'font-semibold',
+                              update.isMastered ? 'text-success' : 'text-teal'
+                            )}>
+                              {update.newMasteryPercent}
+                            </span>
+                            {update.isMastered && (
+                              <Sparkles size={12} className="text-yellow" />
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

@@ -12,9 +12,9 @@ import {
   Rocket,
   Sparkles,
   Heart,
+  MessageCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Character } from '@/components/characters/Character';
 import { cn } from '@/lib/utils';
 
 // ============================================
@@ -206,32 +206,18 @@ export function EmptyState({
         className
       )}
     >
-      {/* Character or Icon */}
-      {showCharacter ? (
-        <motion.div
-          initial={{ scale: 0.8 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.1, type: 'spring' }}
-        >
-          <Character
-            character="owl"
-            mood={finalCharacterMood}
-            size={size === 'lg' ? 'lg' : size === 'sm' ? 'sm' : 'md'}
-          />
-        </motion.div>
-      ) : (
-        <motion.div
-          initial={{ scale: 0.5, rotate: -10 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{ delay: 0.1, type: 'spring', bounce: 0.4 }}
-          className={cn(
-            'rounded-2xl bg-light-teal/50 flex items-center justify-center text-teal p-4',
-            sizeConfig.iconSize
-          )}
-        >
-          {finalIcon}
-        </motion.div>
-      )}
+      {/* Icon */}
+      <motion.div
+        initial={{ scale: 0.5, rotate: -10 }}
+        animate={{ scale: 1, rotate: 0 }}
+        transition={{ delay: 0.1, type: 'spring', bounce: 0.4 }}
+        className={cn(
+          'rounded-2xl bg-light-teal/50 flex items-center justify-center text-teal p-4',
+          sizeConfig.iconSize
+        )}
+      >
+        {showCharacter ? <MessageCircle size={24} /> : finalIcon}
+      </motion.div>
 
       {/* Content */}
       <div className="max-w-md">

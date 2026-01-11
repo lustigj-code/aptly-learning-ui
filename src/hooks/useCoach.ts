@@ -250,7 +250,7 @@ export function useCoach() {
           id: `assistant-error-${Date.now()}`,
           role: 'assistant',
           content:
-            "I'm having trouble connecting right now, but don't worry! Here's a quick tip: When studying social media marketing, always think about the 'why' behind each strategy. Why would this resonate with your audience? Keep learning, you're doing great! 🌟",
+            "I'm having trouble connecting right now, but don't worry! Here's a quick tip: When studying social media marketing, always think about the 'why' behind each strategy. Why would this resonate with your audience? Keep learning, you're doing great!",
           timestamp: new Date(),
         };
 
@@ -298,7 +298,7 @@ export function useCoach() {
       const welcomeMessage: Message = {
         id: 'welcome',
         role: 'assistant',
-        content: `Hey ${user?.name || 'there'}! 👋 I'm your AI learning coach. I'm here to help you master social media marketing and ace your Meta certification!
+        content: `Hey ${user?.name || 'there'}! I'm your AI learning coach. I'm here to help you master social media marketing and ace your Meta certification.
 
 Ask me anything about the content, request examples, or let me quiz you on what you've learned. What would you like to explore today?`,
         timestamp: new Date(),

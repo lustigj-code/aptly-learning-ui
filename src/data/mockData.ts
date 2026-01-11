@@ -1,4 +1,13 @@
 import type { Course, Module, Lesson, Atom, Badge, User, StreakData, UserProgress, UserPreferences } from '@/types';
+import {
+  AI_AT_WORK_COURSE,
+  AI_AT_WORK_MODULES,
+  AI_WORK_MODULE_1,
+  AI_WORK_MODULE_2,
+  AI_WORK_MODULE_3,
+  AI_WORK_MODULE_4,
+  getLessonById as getAIWorkLessonById,
+} from './aiAtWorkCourse';
 
 // ============================================
 // BADGES
@@ -623,6 +632,33 @@ Let's get started!`,
 
 // Add module to course 1
 COURSES[0].modules = [COURSE_1_MODULE_1];
+
+// ============================================
+// AI AT WORK COURSE INTEGRATION
+// ============================================
+
+// Create a complete AI at Work course entry for COURSES array
+const AI_WORK_COURSE_ENTRY: Course = {
+  ...AI_AT_WORK_COURSE,
+  id: 'ai-at-work',
+  modules: AI_AT_WORK_MODULES,
+};
+
+// Export AI at Work as the primary course
+export const AI_WORK_COURSES: Course[] = [AI_WORK_COURSE_ENTRY];
+
+// Export AI at Work modules for direct access
+export { AI_WORK_MODULE_1, AI_WORK_MODULE_2, AI_WORK_MODULE_3, AI_WORK_MODULE_4 };
+
+// Helper to get any lesson from AI at Work course
+export function getAIWorkLesson(lessonId: string): Lesson | undefined {
+  return getAIWorkLessonById(lessonId);
+}
+
+// Get all lessons from AI at Work course
+export function getAllAIWorkLessons(): Lesson[] {
+  return AI_AT_WORK_MODULES.flatMap(module => module.lessons);
+}
 
 // ============================================
 // DEMO USER DATA

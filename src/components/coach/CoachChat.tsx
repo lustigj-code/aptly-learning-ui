@@ -12,7 +12,6 @@ import {
   Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Character } from '@/components/characters/Character';
 import { useCoach } from '@/hooks/useCoach';
 import { cn } from '@/lib/utils';
 
@@ -98,7 +97,9 @@ export function CoachChat({ isOpen, onClose, lessonContext }: CoachChatProps) {
           <div className="flex items-center justify-between p-4 border-b border-grey/20 bg-gradient-to-r from-teal/10 to-purple/10">
             <div className="flex items-center gap-3">
               <div className="relative">
-                <Character character="owl" mood="encouraging" size="sm" />
+                <div className="w-10 h-10 bg-teal rounded-xl flex items-center justify-center">
+                  <MessageCircle size={20} className="text-white" />
+                </div>
                 <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-success rounded-full border-2 border-white" />
               </div>
               <div>

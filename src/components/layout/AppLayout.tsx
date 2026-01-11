@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { useUnifiedStore, useUser } from '@/store/unifiedStore';
@@ -18,6 +17,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const hydrated = useHydration();
   const { user, isLoading } = useUser();
   const isAuthenticated = useUnifiedStore((state) => state.isAuthenticated);
+  const sidebarCollapsed = useUnifiedStore((state) => state.sidebarCollapsed);
 
   // Skip layout for onboarding and root
   const isOnboarding = pathname === '/onboarding' || pathname === '/';
@@ -59,10 +59,17 @@ export function AppLayout({ children }: AppLayoutProps) {
     <div className="min-h-screen bg-light-teal/30 flex">
       <Sidebar />
 
-      <main className="flex-1 flex flex-col min-h-screen ml-[280px]">
+      <main
+        className={cn(
+          "flex-1 flex flex-col min-h-screen transition-[margin] duration-300 ease-out",
+          // No margin on mobile (sidebar is overlay), margin on lg+ based on collapse state
+          "ml-0 lg:ml-[280px]",
+          sidebarCollapsed && "lg:ml-[72px]"
+        )}
+      >
         <Header />
 
-        <div className="flex-1 p-6 overflow-auto">
+        <div className="flex-1 p-4 sm:p-6 overflow-auto">
           <div className="max-w-6xl mx-auto">
             {children}
           </div>
