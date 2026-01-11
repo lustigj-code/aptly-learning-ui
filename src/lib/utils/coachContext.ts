@@ -55,6 +55,7 @@ import {
   type ConceptComprehension,
   type ExplanationAttempt,
 } from '@/lib/services/coachService'
+import { getFlowContext } from '@/lib/services/flowController'
 
 // ============================================
 // TYPES
@@ -154,6 +155,7 @@ export type CoachContextData = {
     suggestedStrategy: string         // Next strategy to try
     strategyGuidance: string          // How to apply this strategy
   } | null
+  flowContext: string | null          // Learning flow state for coach awareness
   contextString: string
 }
 
@@ -377,6 +379,16 @@ export async function buildCoachContext(
       console.warn('[CoachContext] Pattern selection failed:', patternError)
     }
 
+    // Fetch learning flow context
+    let flowContextData: string | null = null
+    try {
+      flowContextData = await getFlowContext(userId)
+      console.log('[CoachContext] Flow context loaded')
+    } catch (flowError) {
+      // Flow context is non-critical
+      console.warn('[CoachContext] Flow context fetch failed:', flowError)
+    }
+
     // Build the comprehensive context string
     const contextString = buildContextString({
       user: userProfile,
@@ -394,6 +406,7 @@ export async function buildCoachContext(
       pedagogicalPattern,
       comprehensionState: comprehensionStateData,
       adaptiveExplanation: adaptiveExplanationData,
+      flowContext: flowContextData,
     })
 
     return {
@@ -412,6 +425,7 @@ export async function buildCoachContext(
       pedagogicalPattern,
       comprehensionState: comprehensionStateData,
       adaptiveExplanation: adaptiveExplanationData,
+      flowContext: flowContextData,
       contextString,
     }
   } catch (error) {
@@ -1024,6 +1038,12 @@ DO NOT repeat the same explanation. If the first approach didn't work, a differe
 angle is needed. Acknowledge their struggle and try the new approach.`)
   }
 
+  // Learning Flow State Section (coach awareness of session state)
+  if (data.flowContext) {
+    sections.push(`
+${data.flowContext}`)
+  }
+
   // Conversation History Section
   if (data.conversation && data.conversation.messages.length > 0) {
     sections.push(`
@@ -1123,6 +1143,7 @@ function buildMinimalContext(userId: string): CoachContextData {
     pedagogicalPattern: null,
     comprehensionState: null,
     adaptiveExplanation: null,
+    flowContext: null,
     contextString: `Student ID: ${userId}\nNo additional context available. Provide general support and guidance.`,
   }
 }
