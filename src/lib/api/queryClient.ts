@@ -1,0 +1,99 @@
+/**
+ * React Query Configuration
+ * Phase 6.1: Query Optimization - Client-side caching
+ */
+
+import { QueryClient, DefaultOptions } from '@tanstack/react-query';
+
+const queryConfig: DefaultOptions = {
+  queries: {
+    // Stale time: Data is fresh for 5 minutes
+    staleTime: 5 * 60 * 1000,
+
+    // Cache time: Keep data in cache for 30 minutes
+    gcTime: 30 * 60 * 1000,
+
+    // Retry failed requests
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+
+    // Refetch on window focus for user profile and progress
+    refetchOnWindowFocus: true,
+
+    // Refetch on reconnect
+    refetchOnReconnect: true,
+
+    // Don't refetch on mount if data is fresh
+    refetchOnMount: false,
+  },
+  mutations: {
+    // Retry mutations only for network errors
+    retry: (failureCount, error: any) => {
+      if (error?.status && error.status >= 400 && error.status < 500) {
+        return false; // Don't retry client errors
+      }
+      return failureCount < 2; // Retry network errors twice
+    },
+  },
+};
+
+export const queryClient = new QueryClient({
+  defaultOptions: queryConfig,
+});
+
+// Query keys for consistent cache management
+export const queryKeys = {
+  // User data
+  user: (uid: string) => ['user', uid] as const,
+  userProgress: (uid: string) => ['userProgress', uid] as const,
+  userAchievements: (uid: string) => ['userAchievements', uid] as const,
+
+  // Courses
+  courses: () => ['courses'] as const,
+  course: (courseId: string) => ['courses', courseId] as const,
+  courseProgress: (uid: string, courseId: string) => ['courseProgress', uid, courseId] as const,
+
+  // Lessons
+  lesson: (lessonId: string) => ['lessons', lessonId] as const,
+  module: (courseId: string, moduleId: string) => ['modules', courseId, moduleId] as const,
+
+  // Badges
+  badges: () => ['badges'] as const,
+  badgeProgress: (uid: string) => ['badgeProgress', uid] as const,
+
+  // Coach conversations
+  conversation: (conversationId: string) => ['conversation', conversationId] as const,
+  conversations: (uid: string) => ['conversations', uid] as const,
+
+  // Reviews (FSRS)
+  reviewQueue: (uid: string) => ['reviewQueue', uid] as const,
+  reviewsDue: (uid: string) => ['reviewsDue', uid] as const,
+} as const;
+
+// Pre-configured query invalidation patterns
+export const invalidateQueries = {
+  /**
+   * Invalidate all user-related queries after profile update
+   */
+  userProfile: (uid: string) => {
+    return [queryKeys.user(uid), queryKeys.userProgress(uid), queryKeys.userAchievements(uid)];
+  },
+
+  /**
+   * Invalidate progress queries after atom completion
+   */
+  progress: (uid: string, courseId?: string) => {
+    const queries: any[] = [queryKeys.userProgress(uid), queryKeys.reviewQueue(uid)];
+    if (courseId) {
+      queries.push(queryKeys.courseProgress(uid, courseId));
+    }
+    return queries;
+  },
+
+  /**
+   * Invalidate badge queries after earning a badge
+   */
+  badges: (uid: string) => {
+    return [queryKeys.badgeProgress(uid), queryKeys.userAchievements(uid)];
+  },
+};
