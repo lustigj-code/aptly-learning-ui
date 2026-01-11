@@ -9,13 +9,15 @@ import {
   Play,
   Pause,
   X,
+  CheckCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { InlineContentBlock } from '@/components/coach/InlineContentBlock'
 import { useCoach } from '@/hooks/useCoach'
 import { useUser } from '@/store/unifiedStore'
 import { cn } from '@/lib/utils'
-import type { Atom } from '@/types'
+import { COURSE_1_MODULE_1 } from '@/data/mockData'
+import type { Atom, Lesson } from '@/types'
 
 // ============================================
 // TYPES
@@ -28,18 +30,16 @@ type LearningMessage = {
   role: MessageRole
   content: string
   timestamp: Date
-  // Content block for inline learning materials
   contentBlock?: Atom
-  // Whether this content block has been completed
   contentCompleted?: boolean
-  // For comprehension check messages
   isComprehensionCheck?: boolean
-  // For video interrupt points
-  interruptData?: {
-    timestamp: number
-    question: string
-    awaitingResponse: boolean
-  }
+}
+
+type SessionState = {
+  lessonId: string
+  currentAtomIndex: number
+  completedAtomIds: string[]
+  lessonComplete: boolean
 }
 
 type CoachLearningViewProps = {
@@ -47,6 +47,49 @@ type CoachLearningViewProps = {
   courseId?: string
   onExit?: () => void
   onLessonComplete?: (lessonId: string) => void
+}
+
+// ============================================
+// SESSION STORAGE HELPERS
+// ============================================
+
+const SESSION_KEY = 'aptly_learning_session'
+
+function saveSession(state: SessionState) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(state))
+  }
+}
+
+function loadSession(): SessionState | null {
+  if (typeof window === 'undefined') return null
+  const saved = localStorage.getItem(SESSION_KEY)
+  if (saved) {
+    try {
+      return JSON.parse(saved)
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
+function clearSession() {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(SESSION_KEY)
+  }
+}
+
+// ============================================
+// GET LESSON DATA
+// ============================================
+
+function getLesson(lessonId?: string): Lesson {
+  // For now, use the first lesson from Course 1 Module 1
+  // In production, this would fetch from API based on lessonId
+  const lesson = COURSE_1_MODULE_1.lessons.find(l => l.id === lessonId)
+    || COURSE_1_MODULE_1.lessons[0]
+  return lesson
 }
 
 // ============================================
@@ -105,15 +148,12 @@ function MessageBubble({
         isCoach ? 'flex-row' : 'flex-row-reverse'
       )}
     >
-      {/* Avatar */}
       {isCoach && <OwlAvatar size="md" />}
 
-      {/* Message Content */}
       <div className={cn(
         'max-w-[80%] flex flex-col',
         isCoach ? 'items-start' : 'items-end'
       )}>
-        {/* Text content */}
         {message.content && (
           <div className={cn(
             'rounded-2xl px-4 py-3',
@@ -125,7 +165,6 @@ function MessageBubble({
           </div>
         )}
 
-        {/* Inline content block (video, reading, quiz) */}
         {message.contentBlock && (
           <div className="w-full mt-2">
             <InlineContentBlock
@@ -139,7 +178,6 @@ function MessageBubble({
           </div>
         )}
 
-        {/* Timestamp */}
         <span className="text-xs text-grey mt-1 px-1">
           {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </span>
@@ -180,16 +218,45 @@ export function CoachLearningView({
   const { user } = useUser()
   const { sendMessage, isLoading: coachLoading } = useCoach()
 
+  // Get the lesson data
+  const lesson = getLesson(lessonId)
+  const atoms = lesson.atoms
+
+  // Session state - tracks progress through the lesson
+  const [sessionState, setSessionState] = useState<SessionState>(() => {
+    // Try to restore from localStorage
+    const saved = loadSession()
+    if (saved && saved.lessonId === lesson.id) {
+      return saved
+    }
+    // Start fresh
+    return {
+      lessonId: lesson.id,
+      currentAtomIndex: 0,
+      completedAtomIds: [],
+      lessonComplete: false,
+    }
+  })
+
   const [messages, setMessages] = useState<LearningMessage[]>([])
   const [input, setInput] = useState('')
   const [isInitialized, setIsInitialized] = useState(false)
-  const [currentAtomIndex, setCurrentAtomIndex] = useState(0)
-  const [sessionPaused, setSessionPaused] = useState(false)
+  const [awaitingNextAtom, setAwaitingNextAtom] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Auto-scroll to bottom
+  // Current atom based on session state
+  const currentAtom = atoms[sessionState.currentAtomIndex]
+  const isLastAtom = sessionState.currentAtomIndex >= atoms.length - 1
+  const progress = ((sessionState.completedAtomIds.length) / atoms.length) * 100
+
+  // Save session state whenever it changes
+  useEffect(() => {
+    saveSession(sessionState)
+  }, [sessionState])
+
+  // Auto-scroll
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [])
@@ -198,7 +265,7 @@ export function CoachLearningView({
     scrollToBottom()
   }, [messages, scrollToBottom])
 
-  // Add a message helper
+  // Add message helper
   const addMessage = useCallback((
     role: MessageRole,
     content: string,
@@ -215,140 +282,205 @@ export function CoachLearningView({
     return newMessage.id
   }, [])
 
-  // Initialize learning session
+  // Present current atom to user
+  const presentAtom = useCallback((atom: Atom, isFirst: boolean = false) => {
+    const introMessages: Record<string, string[]> = {
+      video: [
+        "Let's watch this video together. I'll check in after to make sure the key points clicked.",
+        "Here's a video that covers this topic. Watch it through and we'll discuss.",
+        "Time for a video! Pay attention to the main concepts - I'll quiz you after.",
+      ],
+      reading: [
+        "Here's some reading material. Take your time with it.",
+        "Let's go through this reading together.",
+        "Read through this carefully - the concepts here are important.",
+      ],
+      quiz: [
+        "Let's test your understanding with a quick quiz.",
+        "Time to check what you've learned!",
+        "Here's a quiz to reinforce the concepts.",
+      ],
+      practice: [
+        "Now let's practice what you've learned.",
+        "Time to put your knowledge into action!",
+        "Here's a practice exercise for you.",
+      ],
+    }
+
+    const messages = introMessages[atom.type] || introMessages.reading
+    const intro = messages[Math.floor(Math.random() * messages.length)]
+
+    if (isFirst) {
+      addMessage('coach', `Alright, let's start with "${lesson.title}"!\n\n${intro}`)
+    } else {
+      addMessage('coach', intro)
+    }
+
+    // Add the content block after a short delay
+    setTimeout(() => {
+      addMessage('coach', '', { contentBlock: atom })
+    }, 500)
+  }, [addMessage, lesson.title])
+
+  // Initialize session
   useEffect(() => {
     if (isInitialized || !user) return
-
     setIsInitialized(true)
 
-    // Welcome message from coach
-    addMessage('coach', `Hey ${user.name || 'there'}! 👋 I'm your AI learning coach. Ready to dive into today's lesson?`)
+    // Check if resuming or starting fresh
+    if (sessionState.completedAtomIds.length > 0 && !sessionState.lessonComplete) {
+      // Resuming - show where they are
+      addMessage('coach', `Welcome back, ${user.name || 'there'}! You're ${Math.round(progress)}% through "${lesson.title}". Let's pick up where you left off.`)
 
-    // After a short delay, introduce the first content
-    setTimeout(() => {
-      addMessage('coach', "Let's start with a video that covers the fundamentals. Watch it through, and I'll check in with you after to make sure the key points clicked.")
-
-      // Add the first content block (mock for now - would come from lesson data)
       setTimeout(() => {
-        const mockVideoAtom: Atom = {
-          id: 'video-1',
-          lessonId: lessonId || 'lesson-1',
-          type: 'video',
-          title: 'Introduction to Social Media Marketing',
-          estimatedMinutes: 5,
-          isRequired: true,
-          masteryThreshold: 70,
-          content: {
-            videoUrl: 'https://example.com/video.mp4',
-            duration: 300,
-            keyTakeaways: [
-              'Social media marketing reaches 4.9 billion users worldwide',
-              'Paid social offers precise targeting by demographics, interests, behaviors',
-              'ROI tracking is possible through pixel-based attribution',
-            ],
-            transcript: 'Social media marketing has become essential...',
-            chapters: [],
-          },
+        if (currentAtom) {
+          presentAtom(currentAtom, false)
         }
+      }, 1500)
+    } else if (sessionState.lessonComplete) {
+      // Lesson already complete
+      addMessage('coach', `Hey ${user.name || 'there'}! You've already completed "${lesson.title}". Would you like to review it again or move to the next lesson?`)
+    } else {
+      // Fresh start
+      addMessage('coach', `Hey ${user.name || 'there'}! I'm your AI learning coach. Ready to dive into "${lesson.title}"?`)
 
-        addMessage('coach', '', { contentBlock: mockVideoAtom })
-      }, 500)
-    }, 1500)
-  }, [isInitialized, user, addMessage])
+      setTimeout(() => {
+        if (currentAtom) {
+          presentAtom(currentAtom, true)
+        }
+      }, 2000)
+    }
+  }, [isInitialized, user, sessionState, currentAtom, progress, lesson.title, addMessage, presentAtom])
+
+  // Move to next atom
+  const advanceToNextAtom = useCallback(() => {
+    const nextIndex = sessionState.currentAtomIndex + 1
+
+    if (nextIndex >= atoms.length) {
+      // Lesson complete!
+      setSessionState(prev => ({ ...prev, lessonComplete: true }))
+      addMessage('coach', `Congratulations! 🎉 You've completed "${lesson.title}"! You covered ${atoms.length} sections and built a solid foundation. Ready for the next lesson?`)
+      onLessonComplete?.(lesson.id)
+    } else {
+      // Move to next atom
+      setSessionState(prev => ({
+        ...prev,
+        currentAtomIndex: nextIndex,
+      }))
+
+      const nextAtom = atoms[nextIndex]
+      addMessage('coach', "Great work! Let's continue to the next part.")
+
+      setTimeout(() => {
+        presentAtom(nextAtom, false)
+      }, 1000)
+    }
+
+    setAwaitingNextAtom(false)
+  }, [sessionState.currentAtomIndex, atoms, lesson, addMessage, presentAtom, onLessonComplete])
 
   // Handle content completion
   const handleContentComplete = useCallback((atomId: string, score?: number) => {
-    // Mark the content as completed in messages
+    // Mark content as completed in messages
     setMessages(prev => prev.map(msg =>
       msg.contentBlock?.id === atomId
         ? { ...msg, contentCompleted: true }
         : msg
     ))
 
-    // Coach responds to completion
-    const completionResponses = [
-      "Great job watching that! Let me ask you a quick question to make sure the main ideas stuck.",
-      "Perfect! Before we move on, I want to check your understanding with a quick question.",
-      "Nice work! Now let's see if the key concepts clicked with a comprehension check.",
-    ]
+    // Add to completed atoms if not already there
+    if (!sessionState.completedAtomIds.includes(atomId)) {
+      setSessionState(prev => ({
+        ...prev,
+        completedAtomIds: [...prev.completedAtomIds, atomId],
+      }))
+    }
 
-    const response = completionResponses[Math.floor(Math.random() * completionResponses.length)]
+    // Get the atom type for appropriate response
+    const completedAtom = atoms.find(a => a.id === atomId)
 
-    setTimeout(() => {
-      addMessage('coach', response, { isComprehensionCheck: true })
-
-      // Add a quiz question after content
-      setTimeout(() => {
-        const mockQuizAtom: Atom = {
-          id: `quiz-${Date.now()}`,
-          lessonId: lessonId || 'lesson-1',
-          type: 'quiz',
-          title: 'Quick Check',
-          estimatedMinutes: 1,
-          isRequired: true,
-          masteryThreshold: 70,
-          content: {
-            questions: [
-              {
-                id: 'q1',
-                type: 'multiple-choice',
-                question: 'What is the main advantage of paid social media advertising over organic?',
-                options: [
-                  'It\'s always free',
-                  'Precise targeting by demographics and interests',
-                  'It requires no strategy',
-                  'It only works for big brands',
-                ],
-                correctAnswer: 1,
-                explanation: 'Paid social lets you target specific demographics, interests, and behaviors - something organic reach can\'t guarantee.',
-                difficulty: 2,
-                skills: ['social-media-fundamentals'],
-              },
-            ],
-            passingScore: 70,
-            allowRetakes: true,
-          },
-        }
-
-        addMessage('coach', '', { contentBlock: mockQuizAtom })
-      }, 800)
-    }, 1000)
-  }, [addMessage])
-
-  // Handle quiz answers
-  const handleQuizAnswer = useCallback((questionId: string, isCorrect: boolean, score: number) => {
-    setTimeout(() => {
-      if (isCorrect) {
-        addMessage('coach', "Exactly right! 🎉 You've got a solid grasp of this concept. Ready for the next part of the lesson?")
+    if (completedAtom?.type === 'quiz') {
+      // Quiz completed - give feedback and move on
+      const passed = score !== undefined && score >= 70
+      if (passed) {
+        addMessage('coach', `Excellent work! You scored ${score}%. You've got a solid understanding of this material.`)
       } else {
-        addMessage('coach', "Not quite, but that's okay! Let me explain it differently. The key insight here is that paid social gives you control over WHO sees your content - something organic posts can't guarantee. Want me to go deeper on this, or shall we continue?")
+        addMessage('coach', `You scored ${score}%. Don't worry - learning takes practice. Let's keep moving forward.`)
       }
-    }, 500)
-  }, [addMessage])
+
+      // Auto-advance after quiz
+      setTimeout(() => {
+        advanceToNextAtom()
+      }, 2000)
+    } else {
+      // Non-quiz content - show encouragement and advance
+      const encouragements = [
+        "Nice work! Ready for the next part?",
+        "Great job! Let's keep the momentum going.",
+        "Perfect! Moving on to the next section.",
+      ]
+      const msg = encouragements[Math.floor(Math.random() * encouragements.length)]
+      addMessage('coach', msg)
+
+      // Auto-advance after short delay
+      setTimeout(() => {
+        advanceToNextAtom()
+      }, 1500)
+    }
+  }, [sessionState.completedAtomIds, atoms, addMessage, advanceToNextAtom])
+
+  // Handle quiz answers (for per-question feedback)
+  const handleQuizAnswer = useCallback((questionId: string, isCorrect: boolean, score: number) => {
+    // This is called per-question, but we wait for full quiz completion
+    // The InlineContentBlock handles showing per-question feedback
+  }, [])
 
   // Handle user sending a message
   const handleSend = useCallback(async () => {
     const trimmedInput = input.trim()
     if (!trimmedInput || coachLoading) return
 
-    // Add user message
     addMessage('user', trimmedInput)
     setInput('')
 
-    // Get coach response
+    // Check for navigation intents
+    const lowerInput = trimmedInput.toLowerCase()
+
+    if (lowerInput.includes('continue') || lowerInput.includes('next') || lowerInput.includes('move on')) {
+      if (awaitingNextAtom) {
+        advanceToNextAtom()
+        return
+      }
+    }
+
+    if (lowerInput.includes('restart') || lowerInput.includes('start over')) {
+      clearSession()
+      setSessionState({
+        lessonId: lesson.id,
+        currentAtomIndex: 0,
+        completedAtomIds: [],
+        lessonComplete: false,
+      })
+      setMessages([])
+      setIsInitialized(false)
+      return
+    }
+
+    // Get coach response for general questions
     try {
       const response = await sendMessage(trimmedInput, 'chat', {
-        currentLesson: lessonId,
+        currentLesson: lesson.id,
         currentCourse: courseId,
+        atomType: currentAtom?.type,
       })
 
       if (response) {
         addMessage('coach', response.content)
       }
     } catch (error) {
-      addMessage('coach', "I'm here to help! What would you like to know about what we just covered?")
+      addMessage('coach', "I'm here to help! What would you like to know about what we're learning?")
     }
-  }, [input, coachLoading, addMessage, sendMessage, lessonId, courseId])
+  }, [input, coachLoading, addMessage, sendMessage, lesson.id, courseId, currentAtom, awaitingNextAtom, advanceToNextAtom])
 
   // Handle Enter key
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -360,24 +492,33 @@ export function CoachLearningView({
 
   return (
     <div className="flex flex-col h-full bg-gradient-to-b from-light-grey/30 to-white">
-      {/* Header */}
+      {/* Header with progress */}
       <header className="flex items-center justify-between px-4 py-3 bg-white border-b border-grey/20">
         <div className="flex items-center gap-3">
           <OwlAvatar size="sm" />
           <div>
-            <h1 className="font-semibold text-navy text-sm">Learning Session</h1>
-            <p className="text-xs text-grey">Your AI coach is guiding you</p>
+            <h1 className="font-semibold text-navy text-sm">{lesson.title}</h1>
+            <div className="flex items-center gap-2">
+              <div className="w-24 h-1.5 bg-grey/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-teal rounded-full transition-all duration-500"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <span className="text-xs text-grey">
+                {sessionState.completedAtomIds.length}/{atoms.length}
+              </span>
+            </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSessionPaused(!sessionPaused)}
-          >
-            {sessionPaused ? <Play size={18} /> : <Pause size={18} />}
-          </Button>
+          {sessionState.lessonComplete && (
+            <span className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
+              <CheckCircle size={14} />
+              Complete
+            </span>
+          )}
           {onExit && (
             <Button variant="ghost" size="sm" onClick={onExit}>
               <X size={18} />
@@ -440,7 +581,10 @@ export function CoachLearningView({
           </div>
 
           <p className="text-xs text-grey text-center mt-2">
-            Your coach adapts to your learning style
+            {sessionState.lessonComplete
+              ? 'Lesson complete! Ask questions or move to next lesson.'
+              : `Part ${sessionState.currentAtomIndex + 1} of ${atoms.length}`
+            }
           </p>
         </div>
       </footer>
