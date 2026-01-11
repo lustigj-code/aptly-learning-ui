@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, type ReactNode } from 'react';
+import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import {
   Send,
@@ -9,8 +9,24 @@ import {
   Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { InlineQuiz, type QuizQuestion, type Answer } from '@/components/coach/InlineQuiz';
 import { useCoach } from '@/hooks/useCoach';
 import { cn } from '@/lib/utils';
+
+// Extended message type to support inline quiz content
+type QuizContentBlock = {
+  type: 'quiz';
+  question: QuizQuestion;
+};
+
+type MessageWithQuiz = {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  contentBlock?: QuizContentBlock;
+  quizAnswered?: boolean;
+};
 
 type MainCoachChatProps = {
   onMessageSent?: () => void;
@@ -22,12 +38,19 @@ type MainCoachChatProps = {
     atomType?: string;
     atomContent?: string;
   };
+  onQuizAnswer?: (answer: Answer) => void;
+  onReady?: (api: { addQuizToChat: (question: QuizQuestion, introMessage?: string) => string }) => void;
 };
+
+// Re-export types for external use
+export type { QuizQuestion, Answer, QuizContentBlock, MessageWithQuiz };
 
 export function MainCoachChat({
   onMessageSent,
   easyStartSection,
   lessonContext,
+  onQuizAnswer,
+  onReady,
 }: MainCoachChatProps) {
   const {
     messages,
@@ -39,8 +62,57 @@ export function MainCoachChat({
   } = useCoach();
 
   const [input, setInput] = useState('');
+  const [quizMessages, setQuizMessages] = useState<Record<string, MessageWithQuiz>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Handle quiz answer submission
+  const handleQuizAnswer = useCallback(async (messageId: string, answer: Answer) => {
+    // Mark quiz as answered in local state
+    setQuizMessages(prev => ({
+      ...prev,
+      [messageId]: {
+        ...prev[messageId],
+        quizAnswered: true,
+      },
+    }));
+
+    // Notify parent of quiz answer (for flowController integration)
+    onQuizAnswer?.(answer);
+
+    // Send answer as user message
+    const answerText = answer.isCorrect
+      ? `I answered: ${answer.selected} - Correct!`
+      : `I answered: ${answer.selected}`;
+
+    // Trigger coach response based on correctness
+    await sendMessage(answerText, 'quiz_help', lessonContext);
+  }, [sendMessage, lessonContext, onQuizAnswer]);
+
+  // Add a quiz to the chat (can be called externally via ref or callback prop)
+  const addQuizToChat = useCallback((question: QuizQuestion, introMessage?: string) => {
+    const messageId = `quiz-${Date.now()}`;
+
+    // Create a quiz message entry
+    const quizMessage: MessageWithQuiz = {
+      id: messageId,
+      role: 'assistant',
+      content: introMessage || 'Let me test your understanding with a quick question:',
+      timestamp: new Date(),
+      contentBlock: {
+        type: 'quiz',
+        question,
+      },
+      quizAnswered: false,
+    };
+
+    setQuizMessages(prev => ({
+      ...prev,
+      [messageId]: quizMessage,
+    }));
+
+    return messageId;
+  }, []);
 
   // Initialize chat with welcome message on mount
   useEffect(() => {
@@ -48,6 +120,11 @@ export function MainCoachChat({
       initializeChat();
     }
   }, [messages.length, initializeChat]);
+
+  // Expose API to parent component
+  useEffect(() => {
+    onReady?.({ addQuizToChat });
+  }, [onReady, addQuizToChat]);
 
   // Focus input on mount
   useEffect(() => {
@@ -112,33 +189,50 @@ export function MainCoachChat({
 
       {/* Messages */}
       <main className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => (
-          <motion.div
-            key={message.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={cn(
-              'flex gap-3',
-              message.role === 'user' ? 'flex-row-reverse' : ''
-            )}
-          >
-            {message.role === 'assistant' && (
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-teal to-purple flex items-center justify-center">
-                <Sparkles size={18} className="text-white" />
-              </div>
-            )}
-            <div
+        {messages.map((message) => {
+          // Check if this message has quiz content (from quizMessages state or content block)
+          const quizData = quizMessages[message.id];
+          const hasQuiz = quizData?.contentBlock?.type === 'quiz';
+          const isQuizAnswered = quizData?.quizAnswered ?? false;
+
+          return (
+            <motion.div
+              key={message.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
               className={cn(
-                'max-w-[80%] rounded-2xl px-4 py-3',
-                message.role === 'user'
-                  ? 'bg-teal text-white rounded-br-md'
-                  : 'bg-light-grey text-rich-black rounded-bl-md'
+                'flex gap-3',
+                message.role === 'user' ? 'flex-row-reverse' : ''
               )}
             >
-              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-            </div>
-          </motion.div>
-        ))}
+              {message.role === 'assistant' && (
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-teal to-purple flex items-center justify-center">
+                  <Sparkles size={18} className="text-white" />
+                </div>
+              )}
+              <div className="max-w-[80%]">
+                <div
+                  className={cn(
+                    'rounded-2xl px-4 py-3',
+                    message.role === 'user'
+                      ? 'bg-teal text-white rounded-br-md'
+                      : 'bg-light-grey text-rich-black rounded-bl-md'
+                  )}
+                >
+                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                </div>
+                {/* Render InlineQuiz if message contains quiz content */}
+                {hasQuiz && quizData.contentBlock && (
+                  <InlineQuiz
+                    question={quizData.contentBlock.question}
+                    onAnswer={(answer) => handleQuizAnswer(message.id, answer)}
+                    disabled={isQuizAnswered || isLoading}
+                  />
+                )}
+              </div>
+            </motion.div>
+          );
+        })}
 
         {isLoading && (
           <motion.div

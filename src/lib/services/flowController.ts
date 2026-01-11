@@ -28,6 +28,21 @@ export type CompletionData = {
   timeSpent?: number
 }
 
+export type QuizAnswer = {
+  questionId: string
+  selected: string
+  isCorrect: boolean
+}
+
+export type QuizAnswerResult = {
+  success: boolean
+  stats: {
+    correctAnswers: number
+    totalQuestions: number
+  }
+  nextAction: 'continue' | 'encourage' | 'review'
+}
+
 export type FlowStateData = {
   state: FlowState
   session: LearningSession | null
@@ -370,6 +385,62 @@ export async function resumeFlow(userId: string): Promise<{
       success: false,
       currentItem: null,
       state: 'idle',
+    }
+  }
+}
+
+/**
+ * Record a quiz answer and update session stats
+ * Returns the updated stats and a suggestion for the coach's next action
+ */
+export async function recordQuizAnswer(
+  userId: string,
+  answer: QuizAnswer
+): Promise<QuizAnswerResult> {
+  try {
+    const flowState = await getFlowStateDoc(userId)
+
+    // Update session stats
+    const newStats = { ...flowState.sessionStats }
+    newStats.totalQuestions++
+    if (answer.isCorrect) {
+      newStats.correctAnswers++
+    }
+
+    // Save updated state
+    await saveFlowState(userId, {
+      ...flowState,
+      sessionStats: newStats,
+    })
+
+    // Determine next action based on performance
+    const accuracy = newStats.totalQuestions > 0
+      ? newStats.correctAnswers / newStats.totalQuestions
+      : 0
+
+    let nextAction: 'continue' | 'encourage' | 'review'
+    if (answer.isCorrect) {
+      nextAction = 'continue'
+    } else if (accuracy < 0.5 && newStats.totalQuestions >= 3) {
+      nextAction = 'review'
+    } else {
+      nextAction = 'encourage'
+    }
+
+    return {
+      success: true,
+      stats: {
+        correctAnswers: newStats.correctAnswers,
+        totalQuestions: newStats.totalQuestions,
+      },
+      nextAction,
+    }
+  } catch (error) {
+    console.error('[FlowController] Error recording quiz answer:', error)
+    return {
+      success: false,
+      stats: { correctAnswers: 0, totalQuestions: 0 },
+      nextAction: 'continue',
     }
   }
 }
