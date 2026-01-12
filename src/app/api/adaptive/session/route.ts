@@ -8,8 +8,16 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getNextItems, DEFAULT_SEQUENCER_CONFIG, type SequencerConfig } from '@/lib/adaptive/sequencer';
+import { getNextItems, DEFAULT_SEQUENCER_CONFIG, type SequencerConfig, fetchLearnerState } from '@/lib/adaptive/sequencer';
 import { getSkillName } from '@/data/skillMap';
+import { getSkillMap } from '@/lib/skillmap/skillMapStorage';
+import {
+  getReviewItemsForInterleaving,
+  interleaveItems as fsrsInterleaveItems,
+  shouldApplyInterleaving,
+  DEFAULT_INTERLEAVING_CONFIG,
+  type InterleavedItem,
+} from '@/lib/sequencing';
 
 // ============================================
 // TYPES
@@ -22,6 +30,11 @@ interface SessionItem {
   estimatedMinutes: number;
   reason: string;
   order: number;
+  isReviewChallenge?: boolean; // Badge indicator for FSRS-injected reviews
+  metadata?: {
+    retrievability?: number;
+    similarity?: number;
+  };
 }
 
 interface LearningSession {
@@ -187,8 +200,8 @@ async function buildSessionServer(
     }
   }
 
-  // Interleave reviews into main content for better retention
-  const interleavedItems = interleaveItems(items);
+  // Interleave reviews into main content using FSRS-based algorithm (Phase 13)
+  const interleavedItems = await interleaveItemsWithFSRS(items, userId, courseId);
 
   // Build session summary
   const skillsFocused = [...new Set(interleavedItems.map(i => i.skillId))];
@@ -232,7 +245,7 @@ function getTimeAllocations(
   };
 }
 
-function interleaveItems(items: SessionItem[]): SessionItem[] {
+function interleaveItemsSimple(items: SessionItem[]): SessionItem[] {
   const warmups = items.filter(i => i.type === 'warmup');
   const learns = items.filter(i => i.type === 'learn');
   const practices = items.filter(i => i.type === 'practice');
@@ -263,6 +276,85 @@ function interleaveItems(items: SessionItem[]): SessionItem[] {
   }
 
   return result;
+}
+
+/**
+ * Advanced FSRS-based interleaving (Phase 13)
+ *
+ * Injects review items when Retrievability < 90%
+ * Uses semantic similarity to select relevant reviews
+ */
+async function interleaveItemsWithFSRS(
+  items: SessionItem[],
+  userId: string,
+  courseId: string
+): Promise<SessionItem[]> {
+  try {
+    // Get user's mastery data
+    const learnerState = await fetchLearnerState(userId);
+
+    // Check if interleaving should be applied
+    if (!shouldApplyInterleaving(learnerState.fsrsStates, DEFAULT_INTERLEAVING_CONFIG)) {
+      return interleaveItemsSimple(items);
+    }
+
+    // Get skill map for the course
+    const skillMap = await getSkillMap(courseId);
+    if (!skillMap || !skillMap.skills) {
+      return interleaveItemsSimple(items);
+    }
+
+    // Find current skill being learned
+    const currentSkillId = items.find(i => i.type === 'learn')?.skillId || '';
+
+    // Get FSRS-based review items
+    const reviewItems = getReviewItemsForInterleaving(
+      learnerState.fsrsStates,
+      currentSkillId,
+      { skills: skillMap.skills },
+      DEFAULT_INTERLEAVING_CONFIG
+    );
+
+    if (reviewItems.length === 0) {
+      return interleaveItemsSimple(items);
+    }
+
+    // Convert session items to InterleavedItem format
+    const newItems: InterleavedItem[] = items.map(item => ({
+      type: 'new' as const,
+      itemId: item.itemId,
+      skillId: item.skillId,
+      reason: item.reason,
+      estimatedMinutes: item.estimatedMinutes,
+      isReviewChallenge: false,
+    }));
+
+    // Use FSRS interleaving algorithm
+    const interleaved = fsrsInterleaveItems(newItems, reviewItems, DEFAULT_INTERLEAVING_CONFIG);
+
+    // Convert back to SessionItem format
+    return interleaved.map((item, index) => {
+      // Find original item type
+      const originalItem = items.find(i => i.itemId === item.itemId);
+      const itemType = item.type === 'review'
+        ? 'review'
+        : originalItem?.type || 'practice';
+
+      return {
+        type: itemType,
+        itemId: item.itemId,
+        skillId: item.skillId,
+        estimatedMinutes: item.estimatedMinutes,
+        reason: item.reason,
+        order: index,
+        isReviewChallenge: item.isReviewChallenge,
+        metadata: item.metadata,
+      };
+    });
+  } catch (error) {
+    console.warn('[Session API] FSRS interleaving failed, using simple interleaving:', error);
+    return interleaveItemsSimple(items);
+  }
 }
 
 // ============================================
