@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Lock, Play, CheckCircle, AlertTriangle, Star, Zap } from 'lucide-react';
 import type { SkillNodeData, SkillNodeStatus } from './types';
+import { STATUS_COLORS, COLORS_RAW } from '@/lib/design-tokens';
 
 /**
  * Mastery Map Node Component
@@ -33,59 +34,27 @@ const NODE_SIZES = {
   lg: { outer: 80, inner: 64, stroke: 6, iconSize: 24, fontSize: 14 },
 } as const;
 
-// Status-based styling
-const STATUS_CONFIG: Record<
+// Status-based icons (colors from design-tokens)
+const STATUS_ICONS: Record<
   SkillNodeStatus,
-  {
-    bgColor: string;
-    ringColor: string;
-    progressColor: string;
-    iconColor: string;
-    glowColor: string;
-    Icon: React.ComponentType<{ className?: string; size?: number }>;
-  }
+  React.ComponentType<{ className?: string; size?: number }>
 > = {
-  locked: {
-    bgColor: '#f3f4f6',
-    ringColor: '#d1d5db',
-    progressColor: '#9ca3af',
-    iconColor: '#6b7280',
-    glowColor: 'transparent',
-    Icon: Lock,
-  },
-  available: {
-    bgColor: '#ccfbf1',
-    ringColor: '#14b8a6',
-    progressColor: '#14b8a6',
-    iconColor: '#0d9488',
-    glowColor: 'rgba(20, 184, 166, 0.3)',
-    Icon: Play,
-  },
-  active: {
-    bgColor: '#fef3c7',
-    ringColor: '#f59e0b',
-    progressColor: '#f59e0b',
-    iconColor: '#d97706',
-    glowColor: 'rgba(245, 158, 11, 0.4)',
-    Icon: Zap,
-  },
-  mastered: {
-    bgColor: '#dcfce7',
-    ringColor: '#22c55e',
-    progressColor: '#22c55e',
-    iconColor: '#16a34a',
-    glowColor: 'rgba(34, 197, 94, 0.3)',
-    Icon: CheckCircle,
-  },
-  decaying: {
-    bgColor: '#fed7aa',
-    ringColor: '#f97316',
-    progressColor: '#f97316',
-    iconColor: '#ea580c',
-    glowColor: 'rgba(249, 115, 22, 0.4)',
-    Icon: AlertTriangle,
-  },
+  locked: Lock,
+  available: Play,
+  active: Zap,
+  mastered: CheckCircle,
+  decaying: AlertTriangle,
 };
+
+// Get status config from design tokens
+const getStatusConfig = (status: SkillNodeStatus) => ({
+  bgColor: STATUS_COLORS[status].bg,
+  ringColor: STATUS_COLORS[status].ring,
+  progressColor: STATUS_COLORS[status].progress,
+  iconColor: STATUS_COLORS[status].icon,
+  glowColor: STATUS_COLORS[status].glow,
+  Icon: STATUS_ICONS[status],
+});
 
 export function MasteryMapNode({
   node,
@@ -97,7 +66,7 @@ export function MasteryMapNode({
   const [showTooltip, setShowTooltip] = useState(false);
 
   const sizeConfig = NODE_SIZES[size];
-  const statusConfig = STATUS_CONFIG[node.status];
+  const statusConfig = getStatusConfig(node.status);
   const { Icon } = statusConfig;
 
   // Calculate progress ring
@@ -179,7 +148,7 @@ export function MasteryMapNode({
       <motion.circle
         r={sizeConfig.inner / 2}
         fill={statusConfig.bgColor}
-        stroke={isSelected ? '#1e3a5f' : statusConfig.ringColor}
+        stroke={isSelected ? COLORS_RAW.navy : statusConfig.ringColor}
         strokeWidth={isSelected ? 3 : 2}
         variants={nodeVariants}
         initial="idle"
@@ -272,8 +241,8 @@ export function MasteryMapNode({
         >
           <Star
             size={14}
-            fill="#fbbf24"
-            stroke="#f59e0b"
+            fill={COLORS_RAW.yellow}
+            stroke={COLORS_RAW.yellowDark}
             strokeWidth={1.5}
           />
         </motion.g>

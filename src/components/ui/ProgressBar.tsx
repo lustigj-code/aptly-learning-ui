@@ -2,9 +2,15 @@
 
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import {
+  PROGRESS_COLORS,
+  SHADOWS_RAW,
+  SPRING,
+  COLORS_RAW,
+} from '@/lib/design-tokens';
 
 type ProgressBarSize = 'xs' | 'sm' | 'md' | 'lg';
-type ProgressBarColor = 'teal' | 'yellow' | 'success' | 'navy' | 'gradient';
+type ProgressBarColor = 'teal' | 'yellow' | 'success' | 'navy' | 'gradient' | 'purple';
 
 type ProgressBarProps = {
   value: number;
@@ -31,6 +37,7 @@ const colors: Record<ProgressBarColor, string> = {
   success: 'bg-success',
   navy: 'bg-navy',
   gradient: 'bg-gradient-to-r from-teal to-teal-light',
+  purple: 'bg-purple',
 };
 
 export function ProgressBar({
@@ -71,16 +78,11 @@ export function ProgressBar({
           className={cn(
             'h-full rounded-full relative overflow-hidden',
             colors[color],
-            percentage === 100 && 'shadow-[0_0_8px_rgba(33,168,176,0.5)]' /* Glow on completion */
+            percentage === 100 && 'shadow-glow' /* Uses --shadow-glow from design system */
           )}
           initial={animated ? { width: 0 } : { width: `${percentage}%` }}
           animate={{ width: `${percentage}%` }}
-          transition={{
-            type: 'spring',
-            stiffness: 100,
-            damping: 20,
-            mass: 1,
-          }}
+          transition={SPRING.progress}
         >
           {/* Shimmer effect - shown when prop is true OR at 100% completion */}
           {(shimmer || percentage === 100) && (
@@ -144,13 +146,8 @@ export function CircularProgress({
   const circumference = radius * 2 * Math.PI;
   const offset = circumference - (percentage / 100) * circumference;
 
-  const colorMap: Record<ProgressBarColor, string> = {
-    teal: '#21A8B0',
-    yellow: '#FFDE00',
-    success: '#88B644',
-    navy: '#0A004A',
-    gradient: '#21A8B0',
-  };
+  // Use design tokens for SVG stroke colors
+  const colorMap = PROGRESS_COLORS;
 
   return (
     <div className={cn('relative inline-flex items-center justify-center', className)}>
@@ -169,7 +166,7 @@ export function CircularProgress({
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="#E6E6E6"
+          stroke={COLORS_RAW.lightGrey}
           strokeWidth={strokeWidth}
         />
         {/* Progress circle */}
@@ -184,12 +181,7 @@ export function CircularProgress({
           strokeDasharray={circumference}
           initial={animated ? { strokeDashoffset: circumference } : { strokeDashoffset: offset }}
           animate={{ strokeDashoffset: offset }}
-          transition={{
-            type: 'spring',
-            stiffness: 100,
-            damping: 20,
-            mass: 1,
-          }}
+          transition={SPRING.progress}
         />
       </svg>
 

@@ -3,6 +3,7 @@
 import { forwardRef, type HTMLAttributes } from 'react';
 import { motion, type HTMLMotionProps } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { SHADOWS_RAW, SPRING } from '@/lib/design-tokens';
 
 type CardVariant = 'default' | 'elevated' | 'outlined' | 'interactive' | 'glass' | 'gradient';
 type CardPadding = 'none' | 'sm' | 'md' | 'lg' | 'xl';
@@ -40,11 +41,11 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
           className={cn(variants[variant], paddings[padding], className)}
           whileHover={
             variant === 'interactive'
-              ? { scale: 1.01, y: -4, boxShadow: '0 8px 24px rgba(33, 168, 176, 0.15)' }
+              ? { scale: 1.01, y: -4, boxShadow: SHADOWS_RAW.tealHover }
               : undefined
           }
           whileTap={variant === 'interactive' ? { scale: 0.99 } : undefined}
-          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+          transition={SPRING.gentle}
           {...(props as HTMLMotionProps<'div'>)}
         >
           {children}

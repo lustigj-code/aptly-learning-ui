@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Map, ChevronRight, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import type { MasteryMapData, SkillNodeStatus } from './types';
+import { MINI_NODE_COLORS } from '@/lib/design-tokens';
 
 /**
  * Mini Map Component
@@ -25,15 +26,6 @@ interface MiniMapProps {
   position?: 'left' | 'right';
   className?: string;
 }
-
-// Status colors for mini nodes
-const MINI_NODE_COLORS: Record<SkillNodeStatus, string> = {
-  locked: '#d1d5db',
-  available: '#14b8a6',
-  active: '#f59e0b',
-  mastered: '#22c55e',
-  decaying: '#f97316',
-};
 
 export function MiniMap({
   data,
