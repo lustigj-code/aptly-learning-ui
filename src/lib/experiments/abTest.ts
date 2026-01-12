@@ -23,6 +23,7 @@ export interface ExperimentConfig {
   useProactiveCoach: boolean;
   usePretests: boolean;
   useContentVariants: boolean;
+  useSocraticMode?: boolean; // v2.0: Never give direct answers, use Socratic questioning
 }
 
 export interface Experiment {
@@ -315,7 +316,7 @@ export async function isFeatureEnabled(
     if (experiment) {
       const config = experiment.variants[assignment.variant];
       if (feature in config) {
-        return config[feature];
+        return config[feature] ?? true; // Default to true if undefined
       }
     }
   }
@@ -338,6 +339,7 @@ export async function getUserExperimentConfig(
     useProactiveCoach: true,
     usePretests: true,
     useContentVariants: true,
+    useSocraticMode: false, // Default to direct answers unless in Socratic experiment
   };
 
   const experiments = await getExperiments('running');
@@ -593,6 +595,46 @@ export const INITIAL_EXPERIMENTS: Omit<Experiment, 'id' | 'createdAt' | 'updated
         useProactiveCoach: true,
         usePretests: true, // Pre-tests enabled
         useContentVariants: true,
+      },
+    },
+    allocation: {
+      control: 0.5,
+      treatment: 0.5,
+    },
+    metrics: [
+      'averageTimeToMastery',
+      'skillMasteryRate',
+      'retentionRate',
+      'contentSkipRate',
+      'pretestPassRate',
+    ],
+    sampleSize: {
+      target: 200,
+      current: { control: 0, treatment: 0 },
+    },
+  },
+  // v2.0 Experiment: Socratic Coach
+  {
+    name: 'Socratic Coach vs Direct Coach',
+    description: 'Test if Socratic questioning (never giving direct answers) improves learning outcomes vs traditional coaching',
+    status: 'draft',
+    startDate: new Date(),
+    variants: {
+      control: {
+        useAdaptiveSequencing: true,
+        useStruggleDetection: true,
+        useProactiveCoach: true,
+        usePretests: true,
+        useContentVariants: true,
+        useSocraticMode: false, // Direct answers allowed
+      },
+      treatment: {
+        useAdaptiveSequencing: true,
+        useStruggleDetection: true,
+        useProactiveCoach: true,
+        usePretests: true,
+        useContentVariants: true,
+        useSocraticMode: true, // Never gives direct answers, uses questioning
       },
     },
     allocation: {
