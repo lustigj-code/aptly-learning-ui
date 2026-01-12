@@ -60,8 +60,10 @@ export function AppLayout({ children }: AppLayoutProps) {
       <Sidebar />
 
       <main
+        id="main-content"
+        tabIndex={-1}
         className={cn(
-          "flex-1 flex flex-col min-h-screen transition-[margin] duration-300 ease-out",
+          "flex-1 flex flex-col min-h-screen transition-[margin] duration-300 ease-out outline-none",
           // No margin on mobile (sidebar is overlay), margin on lg+ based on collapse state
           "ml-0 lg:ml-[280px]",
           sidebarCollapsed && "lg:ml-[72px]"
