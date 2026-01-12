@@ -1,53 +1,23 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowRight, Clock, BookOpen, Target, Lock, CheckCircle, Zap, Play, MessageCircle, Flame } from 'lucide-react';
+import { ArrowRight, Clock, BookOpen, Target, Lock, CheckCircle, Zap, Play, MessageCircle, Flame, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/Card';
 import { ProgressBar, CircularProgress } from '@/components/ui/ProgressBar';
 import { AchievementBadge } from '@/components/ui/Badge';
 import { SkeletonDashboard } from '@/components/ui/Skeleton';
-import { StreakCounter, StreakCalendar } from '@/components/progress/StreakCounter';
 import { Section } from '@/components/layout/AppLayout';
 import { ExamReadinessWidget } from '@/components/dashboard/ExamReadinessWidget';
 import { ReviewQueueWidget } from '@/components/dashboard/ReviewQueueWidget';
+import { AIInsightsWidget } from '@/components/dashboard/AIInsightsWidget';
+import PathVisualization from '@/components/learning/PathVisualization';
 import { useUser, useSyncStatus } from '@/store/unifiedStore';
 import { useReviewQueue } from '@/hooks/useReviewQueue';
-import { Brain } from 'lucide-react';
 import { getCourse, getDefaultCourse, DEFAULT_COURSE_ID } from '@/data/courseRegistry';
 import { cn } from '@/lib/utils';
-
-// Demo user for UI testing when not authenticated
-const DEMO_USER = {
-  id: 'demo-user',
-  name: 'Demo User',
-  email: 'demo@aptly.com',
-  progress: {
-    currentCourseId: DEFAULT_COURSE_ID, // ai-at-work
-    currentModuleId: 'ai-m1',
-    currentLessonId: '1.1',
-    lessonsCompleted: [],
-    modulesCompleted: [],
-    coursesCompleted: [],
-    overallPercentage: 0,
-    totalTimeSpentMinutes: 0,
-    xp: 0,
-  },
-  streak: {
-    currentStreak: 0,
-    longestStreak: 0,
-    freezesAvailable: 2,
-    streakHistory: [],
-  },
-  badges: [],
-  preferences: {
-    dailyGoalMinutes: 15,
-    examModeEnabled: false,
-    certificationExamDate: undefined,
-    targetRetention: 0.95,
-  },
-};
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -55,12 +25,18 @@ export default function DashboardPage() {
   const { syncStatus, isSyncing } = useSyncStatus();
   const { dueCount } = useReviewQueue(authUser?.id || null);
 
-  // Use demo user if not authenticated (for UI testing)
-  const user = authUser || DEMO_USER;
-
+  // Show loading skeleton while checking auth
   if (isLoading) {
     return <SkeletonDashboard />;
   }
+
+  // Redirect to login if not authenticated - no fake data
+  if (!authUser) {
+    router.push('/login');
+    return <SkeletonDashboard />;
+  }
+
+  const user = authUser;
 
   // Get the current course from user's progress (with defensive defaults)
   const progress = user.progress || {};
@@ -99,7 +75,8 @@ export default function DashboardPage() {
   const streak = user.streak || { currentStreak: 0, longestStreak: 0, freezesAvailable: 2, streakHistory: [] };
 
   // Get next 3-4 lessons for Learning Path Preview from actual course data
-  const getUpcomingLessons = () => {
+  // Memoized to prevent recalculation on every render
+  const upcomingLessons = useMemo(() => {
     const completedLessonIds = new Set(progress.lessonsCompleted || []);
     const lessons: {
       id: string;
@@ -112,8 +89,8 @@ export default function DashboardPage() {
     let foundCurrent = false;
     let addedCount = 0;
 
-    for (const module of currentCourse.modules ?? []) {
-      for (const lesson of module.lessons ?? []) {
+    for (const courseModule of currentCourse.modules ?? []) {
+      for (const lesson of courseModule.lessons ?? []) {
         if (addedCount >= 4) break;
 
         const isCompleted = completedLessonIds.has(lesson.id);
@@ -134,7 +111,7 @@ export default function DashboardPage() {
         lessons.push({
           id: lesson.id,
           title: lesson.title,
-          module: `Module ${module.number}: ${module.title}`,
+          module: `Module ${courseModule.number}: ${courseModule.title}`,
           status,
           estimatedMinutes: lesson.estimatedMinutes ?? 15,
         });
@@ -144,9 +121,7 @@ export default function DashboardPage() {
     }
 
     return lessons;
-  };
-
-  const upcomingLessons = getUpcomingLessons();
+  }, [progress.lessonsCompleted, currentCourse.modules]);
 
   return (
     <div className="space-y-8">
@@ -165,6 +140,13 @@ export default function DashboardPage() {
             targetRetention={user.preferences.targetRetention || 0.95}
             userId={user.id}
           />
+        </Section>
+      )}
+
+      {/* AI Insights Widget - ML-driven learning insights with explanations */}
+      {!isNewUser && (
+        <Section delay={0.08}>
+          <AIInsightsWidget userId={user.id} />
         </Section>
       )}
 
@@ -298,9 +280,9 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Streak */}
-              <div className="flex items-center gap-3 p-3 bg-yellow/5 rounded-lg border border-yellow/20">
+              <div className="flex items-center gap-3 p-3 bg-yellow/5 rounded-lg">
                 <div className="w-10 h-10 bg-yellow/20 rounded-lg flex items-center justify-center">
-                  <Flame size={20} className="text-yellow" />
+                  <Flame size={20} className="text-yellow-dark" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-navy">{streak.currentStreak}</p>
@@ -309,7 +291,7 @@ export default function DashboardPage() {
               </div>
 
               {/* XP */}
-              <div className="flex items-center gap-3 p-3 bg-teal/5 rounded-lg border border-teal/20">
+              <div className="flex items-center gap-3 p-3 bg-teal/5 rounded-lg">
                 <div className="w-10 h-10 bg-teal/20 rounded-lg flex items-center justify-center">
                   <Zap size={20} className="text-teal" />
                 </div>
@@ -320,7 +302,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Overall % */}
-              <div className="flex items-center gap-3 p-3 bg-light-teal/50 rounded-lg border border-teal/20">
+              <div className="flex items-center gap-3 p-3 bg-teal/5 rounded-lg">
                 <CircularProgress
                   value={progress.overallPercentage || 0}
                   size={40}
@@ -338,7 +320,7 @@ export default function DashboardPage() {
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="flex items-center gap-3 p-3 bg-purple/5 rounded-lg border border-purple/20 cursor-pointer hover:bg-purple/10 transition-colors"
+                  className="flex items-center gap-3 p-3 bg-purple/5 rounded-lg cursor-pointer hover:bg-purple/10 transition-colors"
                   onClick={() => router.push('/review')}
                 >
                   <div className="w-10 h-10 bg-purple/20 rounded-lg flex items-center justify-center">
@@ -354,7 +336,7 @@ export default function DashboardPage() {
 
               {/* Longest Streak Info */}
               {streak.longestStreak > streak.currentStreak && (
-                <div className="pt-3 border-t border-grey/20">
+                <div className="pt-3">
                   <p className="text-xs text-rich-black/60">
                     Longest streak: <span className="font-semibold text-navy">{streak.longestStreak} days</span>
                   </p>
@@ -372,7 +354,7 @@ export default function DashboardPage() {
               <CardDescription>Your next lessons</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {upcomingLessons.map((lesson, index) => (
                   <motion.div
                     key={lesson.id}
@@ -395,71 +377,16 @@ export default function DashboardPage() {
         </Section>
       </div>
 
-      {/* Stats Row */}
-      <Section delay={0.2}>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard
-            label="Today's Progress"
-            icon={<Clock size={20} />}
-            index={0}
-          >
-            <div className="flex items-center gap-3">
-              <CircularProgress
-                value={progress.totalTimeSpentMinutes || 0}
-                max={user.preferences?.dailyGoalMinutes || 15}
-                size={60}
-                strokeWidth={6}
-                color="teal"
-              />
-              <div>
-                <p className="text-lg font-bold text-navy">{progress.totalTimeSpentMinutes || 0}/{user.preferences?.dailyGoalMinutes || 15}</p>
-                <p className="text-xs text-rich-black/60">minutes</p>
-              </div>
-            </div>
-          </StatCard>
-
-          <StatCard
-            label="Overall Progress"
-            icon={<Target size={20} />}
-            index={1}
-          >
-            <div className="flex items-center gap-3">
-              <CircularProgress
-                value={progress.overallPercentage || 0}
-                size={60}
-                strokeWidth={6}
-                color="teal"
-              />
-              <div>
-                <p className="text-lg font-bold text-navy">{progress.overallPercentage || 0}%</p>
-                <p className="text-xs text-rich-black/60">complete</p>
-              </div>
-            </div>
-          </StatCard>
-
-          <StatCard
-            label="Lessons Completed"
-            icon={<BookOpen size={20} />}
-            index={2}
-          >
-            <p className="text-3xl font-bold text-navy">
-              {completedLessons}
-            </p>
-            <p className="text-sm text-rich-black/60">of 47 lessons</p>
-          </StatCard>
-
-          <StatCard
-            label="Total XP"
-            icon={<Zap size={20} className="text-yellow" />}
-            index={3}
-          >
-            <p className="text-3xl font-bold text-navy">
-              {Number(progress?.xp ?? 0).toLocaleString()}
-            </p>
-            <p className="text-sm text-rich-black/60">experience points</p>
-          </StatCard>
-        </div>
+      {/* Optimized Learning Path */}
+      <Section delay={0.18}>
+        <PathVisualization
+          userId={user.id}
+          courseId={progress.currentCourseId || DEFAULT_COURSE_ID}
+          onSkillClick={(skillId) => router.push(`/learn?skill=${skillId}`)}
+          onFastTrack={() => router.push('/learn?fasttrack=true')}
+        />
       </Section>
+
 
       {/* Recent Achievements */}
       {recentBadges.length > 0 && (
@@ -501,59 +428,6 @@ export default function DashboardPage() {
           </Card>
         </Section>
       )}
-
-      {/* Course Overview - Show modules for current course */}
-      <Section delay={0.4}>
-        <Card variant="elevated" padding="lg">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Your Learning Path</CardTitle>
-              <CardDescription>{currentCourse.title}</CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-rich-black/60">{currentCourse.modules?.length ?? 0} modules</span>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4">
-              {(currentCourse.modules ?? []).map((module, index) => {
-                const modulesCompleted: string[] = progress.modulesCompleted || [];
-                const isCompleted = modulesCompleted.includes(module.id);
-                const isCurrent = progress.currentModuleId === module.id;
-                // Lock modules after the current one
-                const currentModuleIndex = currentCourse.modules?.findIndex(m => m.id === progress.currentModuleId) ?? 0;
-                const isLocked = index > currentModuleIndex && !isCompleted;
-
-                // Calculate module progress based on lessons
-                const lessonCount = module.lessons?.length ?? 0;
-                const completedLessonsCount = (progress.lessonsCompleted || []).filter(
-                  l => module.lessons?.some(ml => ml.id === l)
-                ).length;
-                const moduleProgress = isCompleted ? 100 : lessonCount > 0 ? Math.round((completedLessonsCount / lessonCount) * 100) : 0;
-
-                return (
-                  <motion.div
-                    key={module.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.45 + index * 0.05 }}
-                  >
-                    <CourseCard
-                      number={module.number}
-                      title={module.title}
-                      progress={moduleProgress}
-                      isCompleted={isCompleted}
-                      isCurrent={isCurrent}
-                      isLocked={isLocked}
-                      estimatedHours={Math.round((module.estimatedMinutes ?? 60) / 60)}
-                    />
-                  </motion.div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      </Section>
 
       {/* Coach Tip */}
       <Section delay={0.5}>
@@ -600,8 +474,8 @@ export default function DashboardPage() {
         </div>
       )}
       {syncStatus === 'offline' && !isSyncing && (
-        <div className="fixed bottom-4 left-4 bg-yellow/10 shadow-lg rounded-lg px-4 py-2 flex items-center gap-2 text-sm text-yellow border border-yellow/20">
-          <div className="w-2 h-2 bg-yellow rounded-full" />
+        <div className="fixed bottom-4 left-4 bg-yellow-light shadow-lg rounded-lg px-4 py-2 flex items-center gap-2 text-sm text-yellow-dark border border-yellow-dark/20">
+          <div className="w-2 h-2 bg-yellow-dark rounded-full" />
           Working offline
         </div>
       )}
@@ -687,129 +561,4 @@ function LessonPreviewCard({
   );
 }
 
-// Stat Card Component
-function StatCard({
-  label,
-  icon,
-  children,
-  index = 0,
-}: {
-  label: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-  index?: number;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.15 + index * 0.05 }}
-      whileHover={{ y: -4, transition: { duration: 0.2 } }}
-    >
-      <Card variant="elevated" padding="md" className="h-full hover:shadow-lg transition-shadow duration-200">
-        <div className="flex items-center gap-2 mb-3 text-rich-black/60">
-          {icon}
-          <span className="text-xs font-medium uppercase tracking-wide">{label}</span>
-        </div>
-        {children}
-      </Card>
-    </motion.div>
-  );
-}
 
-// Course Card Component
-function CourseCard({
-  number,
-  title,
-  progress,
-  isCompleted,
-  isCurrent,
-  isLocked,
-  estimatedHours,
-}: {
-  number: number;
-  title: string;
-  progress: number;
-  isCompleted: boolean;
-  isCurrent: boolean;
-  isLocked: boolean;
-  estimatedHours: number;
-}) {
-  return (
-    <motion.div
-      className={cn(
-        'p-4 rounded-xl border-2 transition-all duration-200',
-        isCompleted
-          ? 'bg-success-light border-success'
-          : isCurrent
-          ? 'bg-light-teal border-teal shadow-md'
-          : isLocked
-          ? 'bg-light-grey/50 border-grey/50 opacity-60'
-          : 'bg-white border-grey hover:border-muted-teal'
-      )}
-      whileHover={!isLocked ? { scale: 1.01, x: 4 } : undefined}
-    >
-      <div className="flex items-center gap-4">
-        {/* Number/Status Icon */}
-        <div
-          className={cn(
-            'w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg',
-            isCompleted
-              ? 'bg-success text-white'
-              : isCurrent
-              ? 'bg-teal text-white'
-              : isLocked
-              ? 'bg-grey/30 text-grey'
-              : 'bg-light-grey text-navy'
-          )}
-        >
-          {isCompleted ? (
-            <CheckCircle size={24} />
-          ) : isLocked ? (
-            <Lock size={20} />
-          ) : (
-            number
-          )}
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <h4
-            className={cn(
-              'font-semibold truncate',
-              isLocked ? 'text-grey' : 'text-navy'
-            )}
-          >
-            {title}
-          </h4>
-          <div className="flex items-center gap-4 mt-1">
-            <span className="text-sm text-rich-black/60">
-              {estimatedHours} hrs
-            </span>
-            {!isLocked && !isCompleted && (
-              <ProgressBar
-                value={progress}
-                size="sm"
-                color={isCurrent ? 'teal' : 'navy'}
-                className="flex-1 max-w-[120px]"
-              />
-            )}
-          </div>
-        </div>
-
-        {/* Status */}
-        <div className="text-right">
-          {isCompleted ? (
-            <span className="text-sm font-semibold text-success">Complete</span>
-          ) : isCurrent ? (
-            <span className="text-sm font-bold text-teal">{progress}%</span>
-          ) : isLocked ? (
-            <span className="text-xs text-grey">Locked</span>
-          ) : (
-            <span className="text-xs text-rich-black/60">Not started</span>
-          )}
-        </div>
-      </div>
-    </motion.div>
-  );
-}
