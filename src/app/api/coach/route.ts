@@ -12,6 +12,23 @@ import {
 } from '@/lib/training'
 import { getModelRouter, type GenerateRequest as SageRequest } from '@/lib/training/serving'
 import { parseCoachSuggestion, applyCoachModification } from '@/lib/coach/pathModifier'
+import { isFeatureEnabled } from '@/lib/experiments/abTest'
+import {
+  retrievePedagogicalContext,
+  formatRAGContext,
+  formatContextForPrompt,
+  buildSocraticSystemPrompt,
+  getSocraticGenerationConfig,
+  detectStruggleLevel,
+  detectEmotionalState,
+  getInterventionDirective,
+  createInterventionState,
+  advanceTier,
+  isStillStruggling,
+  type StudentContext,
+  type ActivityContext,
+  type InterventionState,
+} from '@/lib/rag'
 
 // Initialize Gemini client
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENAI_API_KEY || '')
@@ -20,6 +37,23 @@ const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
 // Feature flag for fine-tuned Sage model
 const USE_SAGE_MODEL = process.env.USE_SAGE_MODEL === 'true'
 const SAGE_AB_TEST_ENABLED = process.env.SAGE_AB_TEST === 'true'
+
+// In-memory intervention state cache (per-concept per-user)
+// In production, this should be persisted to Firestore
+const interventionStateCache = new Map<string, InterventionState>()
+
+function getOrCreateInterventionState(userId: string, conceptId: string): InterventionState {
+  const key = `${userId}_${conceptId}`
+  if (!interventionStateCache.has(key)) {
+    interventionStateCache.set(key, createInterventionState(conceptId))
+  }
+  return interventionStateCache.get(key)!
+}
+
+function updateInterventionState(userId: string, conceptId: string, state: InterventionState): void {
+  const key = `${userId}_${conceptId}`
+  interventionStateCache.set(key, state)
+}
 
 // ============================================
 // SOCRATIC SYSTEM PROMPT
@@ -170,12 +204,145 @@ type RequestBody = {
     recentPerformance?: string
     masteryLevel?: number
     practiceContext?: string // JSON string with rubric, expectedOutcomes, userResponse
+    // Socratic RAG context (Phase 12)
+    questionId?: string
+    questionText?: string
+    selectedAnswer?: string
+    consecutiveWrong?: number
+    conceptId?: string
   }
   type: 'chat' | 'practice_feedback' | 'quiz_help' | 'summary'
   conversationId?: string
   userId?: string
   lessonId?: string
   currentAtomId?: string
+}
+
+// ============================================
+// SOCRATIC RAG HANDLER (Phase 12)
+// ============================================
+
+/**
+ * Handle Socratic mode with RAG context and hierarchical interventions
+ * Based on LearnLM research: 93.8% remediation vs 64.5% for static hints
+ */
+async function handleSocraticMode(
+  userId: string,
+  message: string,
+  body: RequestBody,
+  conversationHistory: Message[]
+): Promise<{ response: string; interventionTier: number } | null> {
+  const { context } = body
+
+  try {
+    // Build student context for personalized prompts
+    const studentContext: StudentContext = {
+      name: context.userName || 'Student',
+      predictedAbility: (context.masteryLevel || 50) / 100, // Convert to 0-1
+      consecutiveWrong: context.consecutiveWrong || 0,
+      currentStruggleLevel: detectStruggleLevel(
+        context.consecutiveWrong || 0,
+        conversationHistory.length
+      ),
+      emotionalState: detectEmotionalState(message),
+    }
+
+    // Build activity context
+    const activityContext: ActivityContext = {
+      lessonTitle: context.currentLesson || 'Current Lesson',
+      atomType: (context.atomType || 'reading') as 'video' | 'reading' | 'quiz' | 'practice',
+      questionText: context.questionText,
+      studentAnswer: context.selectedAnswer,
+    }
+
+    // Retrieve RAG context (prioritizing misconceptions if wrong answer selected)
+    const ragChunks = await retrievePedagogicalContext({
+      query: message,
+      courseId: context.currentCourse || 'course-1',
+      lessonId: body.lessonId,
+      questionId: context.questionId,
+      distractorId: context.selectedAnswer, // Maps to distractor if wrong answer
+      studentAbility: studentContext.predictedAbility,
+      preferStudentFriendly: studentContext.predictedAbility < 0.5,
+      chunkTypes: context.selectedAnswer
+        ? ['misconception', 'hint', 'content']
+        : ['content', 'hint'],
+      topK: 5,
+    })
+
+    // Format RAG context for prompt injection
+    const formattedContext = formatRAGContext(
+      ragChunks.map(r => r.chunk)
+    )
+    const ragContextString = formatContextForPrompt(formattedContext)
+
+    // Get or update misconception explanation if available
+    const misconceptionChunk = ragChunks.find(r => r.chunk.chunkType === 'misconception')
+    if (misconceptionChunk) {
+      activityContext.misconceptionExplanation = misconceptionChunk.chunk.text
+    }
+
+    // Build LearnLM-style system prompt
+    const systemPrompt = buildSocraticSystemPrompt(
+      studentContext,
+      activityContext,
+      ragContextString
+    )
+
+    // Get intervention state and directive
+    const conceptId = context.conceptId || context.currentAtom || 'general'
+    const interventionState = getOrCreateInterventionState(userId, conceptId)
+    const interventionDirective = getInterventionDirective(interventionState)
+
+    // Generate response with low temperature
+    const genConfig = getSocraticGenerationConfig()
+    const socraticModel = genAI.getGenerativeModel({
+      model: 'gemini-2.0-flash',
+      generationConfig: {
+        temperature: genConfig.temperature,
+        maxOutputTokens: genConfig.maxOutputTokens,
+        topP: genConfig.topP,
+      },
+    })
+
+    // Build full prompt with intervention directive
+    const fullPrompt = `${systemPrompt}
+
+# CURRENT INTERVENTION DIRECTIVE
+${interventionDirective.instruction}
+
+Examples of appropriate responses:
+${interventionDirective.examples.slice(0, 2).map(e => `- ${e}`).join('\n')}
+
+Constraints:
+${interventionDirective.constraints.slice(0, 3).map(c => `- ${c}`).join('\n')}`
+
+    // Generate response
+    const chat = socraticModel.startChat({
+      history: conversationHistory.slice(-6).map(m => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }],
+      })),
+      systemInstruction: { role: 'user', parts: [{ text: fullPrompt }] },
+    })
+
+    const result = await chat.sendMessage(message)
+    const response = result.response.text()
+
+    // Check if student is still struggling and advance tier if needed
+    if (isStillStruggling(message, false)) {
+      const newState = advanceTier(interventionState)
+      updateInterventionState(userId, conceptId, newState)
+    }
+
+    return {
+      response,
+      interventionTier: interventionState.currentTier,
+    }
+  } catch (error) {
+    console.error('[Socratic Mode] Error:', error)
+    return null // Fall back to standard mode
+  }
 }
 
 // ============================================
@@ -265,6 +432,55 @@ export async function POST(request: NextRequest) {
     // Get the last user message content for emotional analysis
     const latestUserMsg = messages[messages.length - 1]
     const latestMessageContent = latestUserMsg?.role === 'user' ? latestUserMsg.content : undefined
+
+    // ============================================
+    // SOCRATIC RAG MODE (Phase 12)
+    // Check if user is in Socratic experiment and handle accordingly
+    // ============================================
+    const useSocraticMode = await isFeatureEnabled(userId, 'useSocraticMode')
+
+    if (useSocraticMode && latestMessageContent) {
+      console.log('[Coach API] Using Socratic RAG mode for user:', userId)
+
+      const socraticResult = await handleSocraticMode(
+        userId,
+        latestMessageContent,
+        body,
+        messages
+      )
+
+      if (socraticResult) {
+        // Record message for rate limiting
+        try {
+          await recordMessage(userId)
+        } catch (recordError) {
+          console.warn('Could not record message count:', recordError)
+        }
+
+        // Save messages to Firestore
+        try {
+          if (conversationId) {
+            await addMessage(conversationId, 'user', latestMessageContent)
+            await addMessage(conversationId, 'coach', socraticResult.response)
+          }
+        } catch (firestoreError) {
+          console.warn('Could not save conversation to Firestore:', firestoreError)
+        }
+
+        return NextResponse.json({
+          message: socraticResult.response,
+          conversationId,
+          socraticMode: true,
+          interventionTier: socraticResult.interventionTier,
+          modelInfo: {
+            model: 'gemini-socratic',
+            variant: 'socratic-rag',
+          },
+        })
+      }
+      // If Socratic mode failed, fall back to standard mode
+      console.warn('[Coach API] Socratic mode failed, falling back to standard')
+    }
 
     // Build comprehensive context using enhanced context builder
     let fullContext = SOCRATIC_SYSTEM_PROMPT

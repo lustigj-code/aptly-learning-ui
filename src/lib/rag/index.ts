@@ -57,3 +57,38 @@ export {
   deleteCoursechunks,
   verifyIndex,
 } from './contentIndexer';
+
+// Socratic Prompts (LearnLM-style)
+export type {
+  StudentContext,
+  ActivityContext,
+} from './socraticPrompts';
+
+export {
+  buildSocraticSystemPrompt,
+  buildWrongAnswerPrompt,
+  buildHelpRequestPrompt,
+  buildCorrectAnswerPrompt,
+  getSocraticGenerationConfig,
+  detectStruggleLevel,
+  detectEmotionalState,
+} from './socraticPrompts';
+
+// Intervention Manager (Three-Tier Hierarchy)
+export type {
+  InterventionTier,
+  InterventionState,
+  InterventionDirective,
+} from './interventionManager';
+
+export {
+  getInterventionDirective,
+  createInterventionState,
+  advanceTier,
+  resetInterventionState,
+  isStillStruggling,
+  serializeState,
+  deserializeState,
+  getTierDescription,
+  getInterventionSummary,
+} from './interventionManager';
