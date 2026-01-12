@@ -81,6 +81,8 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             type={inputType}
             disabled={disabled}
+            aria-invalid={!!error}
+            aria-describedby={error ? `${props.id || props.name}-error` : hint ? `${props.id || props.name}-hint` : undefined}
             className={cn(
               'w-full rounded-lg border bg-white transition-all duration-200',
               'focus:outline-none focus:ring-2 focus:border-teal',
@@ -120,6 +122,8 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         <AnimatePresence mode="wait">
           {error && (
             <motion.p
+              id={`${props.id || props.name}-error`}
+              role="alert"
               className="mt-1.5 text-sm text-error"
               initial={{ opacity: 0, y: -5 }}
               animate={{ opacity: 1, y: 0 }}
@@ -132,6 +136,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
 
           {hint && !error && (
             <motion.p
+              id={`${props.id || props.name}-hint`}
               className="mt-1.5 text-sm text-rich-black/60"
               initial={{ opacity: 0, y: -5 }}
               animate={{ opacity: 1, y: 0 }}

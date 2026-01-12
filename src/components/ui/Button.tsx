@@ -4,6 +4,7 @@ import { forwardRef } from 'react';
 import { motion, type HTMLMotionProps } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SPRING } from '@/lib/design-tokens';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'success' | 'celebration';
 type ButtonSize = 'sm' | 'md' | 'lg' | 'xl';
@@ -68,13 +69,11 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           className
         )}
         disabled={disabled}
+        aria-busy={isLoading}
+        aria-disabled={disabled}
         whileHover={!disabled ? { scale: 1.02, y: -2 } : undefined}
         whileTap={!disabled ? { scale: 0.97 } : undefined}
-        transition={{
-          type: 'spring',
-          stiffness: 400,
-          damping: 17,
-        }}
+        transition={SPRING.snappy}
         {...props}
       >
         {isLoading ? (
