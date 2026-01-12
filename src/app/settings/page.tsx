@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Section } from '@/components/layout/AppLayout';
+import { ExamModeSettings } from '@/components/settings/ExamModeSettings';
 import { useUser, useAuth, useUnifiedStore } from '@/store/unifiedStore';
 import { cn } from '@/lib/utils';
 import type { LearningPace } from '@/types';
@@ -122,6 +123,45 @@ export default function SettingsPage() {
       console.error('Failed to save profile:', error);
     } finally {
       setIsSavingProfile(false);
+    }
+  };
+
+  const handleUpdateExamMode = async (settings: {
+    certificationExamDate?: string | null;
+    targetRetention?: number;
+    examModeEnabled?: boolean;
+  }) => {
+    try {
+      await fetch('/api/users/update-profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          preferences: settings,
+        }),
+      });
+
+      // Update local store
+      setUser({
+        ...user,
+        preferences: {
+          ...user.preferences,
+          ...(settings.certificationExamDate !== undefined && {
+            certificationExamDate: settings.certificationExamDate
+              ? new Date(settings.certificationExamDate)
+              : undefined,
+          }),
+          ...(settings.targetRetention !== undefined && {
+            targetRetention: settings.targetRetention,
+          }),
+          ...(settings.examModeEnabled !== undefined && {
+            examModeEnabled: settings.examModeEnabled,
+          }),
+        },
+      });
+    } catch (error) {
+      console.error('Failed to update exam mode settings:', error);
+      throw error;
     }
   };
 
@@ -231,6 +271,17 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+      </Section>
+
+      {/* Exam Mode Settings */}
+      <Section delay={0.25}>
+        <ExamModeSettings
+          userId={user.id}
+          examDate={user.preferences.certificationExamDate || null}
+          targetRetention={user.preferences.targetRetention || 0.95}
+          examModeEnabled={user.preferences.examModeEnabled || false}
+          onUpdate={handleUpdateExamMode}
+        />
       </Section>
 
       {/* Sound & Accessibility */}
