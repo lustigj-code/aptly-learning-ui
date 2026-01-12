@@ -9,12 +9,11 @@ import {
   XCircle,
   ChevronRight,
   BookOpen,
-  FileText,
-  HelpCircle,
+  RefreshCw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import ReactMarkdown from 'react-markdown'
-import type { Atom, VideoContent, ReadingContent, QuizContent, Question } from '@/types'
+import type { Atom, VideoContent, ReadingContent, QuizContent } from '@/types'
 
 // ============================================
 // TYPES
@@ -23,6 +22,8 @@ import type { Atom, VideoContent, ReadingContent, QuizContent, Question } from '
 type ContentRendererProps = {
   atom: Atom
   onComplete: (atomId: string, score?: number) => void
+  onQuizFail?: (atomId: string, score: number) => void
+  onContinue?: () => void
   isActive?: boolean
 }
 
@@ -39,7 +40,7 @@ type QuizState = {
 // MAIN COMPONENT
 // ============================================
 
-export function ContentRenderer({ atom, onComplete, isActive = true }: ContentRendererProps) {
+export function ContentRenderer({ atom, onComplete, onQuizFail, onContinue, isActive = true }: ContentRendererProps) {
   switch (atom.type) {
     case 'video':
       return (
@@ -47,6 +48,7 @@ export function ContentRenderer({ atom, onComplete, isActive = true }: ContentRe
           atom={atom}
           content={atom.content as VideoContent}
           onComplete={onComplete}
+          onContinue={onContinue}
           isActive={isActive}
         />
       )
@@ -56,6 +58,7 @@ export function ContentRenderer({ atom, onComplete, isActive = true }: ContentRe
           atom={atom}
           content={atom.content as ReadingContent}
           onComplete={onComplete}
+          onContinue={onContinue}
           isActive={isActive}
         />
       )
@@ -65,6 +68,8 @@ export function ContentRenderer({ atom, onComplete, isActive = true }: ContentRe
           atom={atom}
           content={atom.content as QuizContent}
           onComplete={onComplete}
+          onQuizFail={onQuizFail}
+          onContinue={onContinue}
           isActive={isActive}
         />
       )
@@ -73,6 +78,7 @@ export function ContentRenderer({ atom, onComplete, isActive = true }: ContentRe
         <GenericRenderer
           atom={atom}
           onComplete={onComplete}
+          onContinue={onContinue}
           isActive={isActive}
         />
       )
@@ -80,23 +86,26 @@ export function ContentRenderer({ atom, onComplete, isActive = true }: ContentRe
 }
 
 // ============================================
-// VIDEO RENDERER - LARGE
+// VIDEO RENDERER - CLEAN
 // ============================================
 
 function VideoRenderer({
   atom,
   content,
   onComplete,
+  onContinue,
   isActive,
 }: {
   atom: Atom
   content: VideoContent
   onComplete: (atomId: string) => void
+  onContinue?: () => void
   isActive: boolean
 }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
+  const [hasCompleted, setHasCompleted] = useState(false)
 
   const togglePlay = () => {
     if (videoRef.current) {
@@ -116,183 +125,190 @@ function VideoRenderer({
     }
   }
 
+  const handleContinue = () => {
+    if (!hasCompleted) {
+      onComplete(atom.id)
+      setHasCompleted(true)
+    }
+    onContinue?.()
+  }
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-2xl shadow-sm border border-grey/20 overflow-hidden"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="h-full flex flex-col"
     >
-      {/* Video Header */}
-      <div className="flex items-center gap-4 p-4 border-b border-grey/10">
-        <div className="w-12 h-12 bg-teal/10 rounded-xl flex items-center justify-center">
-          <Play className="w-6 h-6 text-teal" />
-        </div>
-        <div className="flex-1">
-          <h2 className="font-semibold text-navy text-lg">{atom.title}</h2>
-          <p className="text-sm text-grey">
-            {Math.ceil(content.duration / 60)} minute video
-          </p>
+      {/* Video - Takes most of the space */}
+      <div className="flex-1 flex flex-col min-h-0">
+        <div className="relative rounded-lg overflow-hidden bg-black flex-1">
+          <video
+            ref={videoRef}
+            src={content.videoUrl}
+            className="w-full h-full object-contain"
+            onTimeUpdate={handleTimeUpdate}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+            onEnded={() => setIsPlaying(false)}
+            controls
+          />
+
+          {/* Play overlay */}
+          {!isPlaying && progress === 0 && (
+            <button
+              onClick={togglePlay}
+              className="absolute inset-0 flex items-center justify-center bg-black/30 hover:bg-black/40 transition-colors"
+            >
+              <div className="w-20 h-20 bg-white/90 rounded-full flex items-center justify-center shadow-lg">
+                <Play className="w-9 h-9 text-navy ml-1" />
+              </div>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Video Player - LARGE */}
-      <div className="aspect-video bg-navy/5 relative">
-        <video
-          ref={videoRef}
-          src={content.videoUrl}
-          className="w-full h-full object-contain"
-          onTimeUpdate={handleTimeUpdate}
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
-          onEnded={() => setIsPlaying(false)}
-          controls
-        />
-
-        {/* Overlay play button when paused and at start */}
-        {!isPlaying && progress === 0 && (
+      {/* Bottom bar with title and continue */}
+      <div className="flex items-center justify-between pt-4 flex-shrink-0">
+        <div>
+          <h2 className="font-medium text-navy">{atom.title}</h2>
+          <span className="text-sm text-grey">{Math.ceil(content.duration / 60)} min</span>
+        </div>
+        {isActive && (
           <button
-            onClick={togglePlay}
-            className="absolute inset-0 flex items-center justify-center bg-black/20"
+            onClick={handleContinue}
+            className="px-6 py-3 bg-teal text-white font-medium rounded-lg hover:bg-teal-dark transition-colors flex items-center gap-2"
           >
-            <div className="w-20 h-20 bg-teal rounded-full flex items-center justify-center text-white shadow-lg hover:scale-105 transition-transform">
-              <Play className="w-8 h-8 ml-1" />
-            </div>
+            Continue
+            <ChevronRight className="w-5 h-5" />
           </button>
         )}
-
-        {/* Progress bar */}
-        <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-grey/20">
-          <div
-            className="h-full bg-teal transition-all"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
       </div>
-
-      {/* Key Takeaways */}
-      {content.keyTakeaways?.length > 0 && (
-        <div className="p-4 bg-light-grey/30">
-          <h3 className="text-sm font-semibold text-navy mb-3">Key Takeaways</h3>
-          <ul className="space-y-2">
-            {content.keyTakeaways.map((takeaway, i) => (
-              <li key={i} className="flex items-start gap-3 text-sm text-rich-black/70">
-                <CheckCircle className="w-4 h-4 text-teal flex-shrink-0 mt-0.5" />
-                {takeaway}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Complete Button */}
-      {isActive && (
-        <div className="p-4 border-t border-grey/10">
-          <Button
-            variant="primary"
-            size="lg"
-            fullWidth
-            onClick={() => onComplete(atom.id)}
-          >
-            <CheckCircle className="w-5 h-5 mr-2" />
-            I've Watched This Video
-          </Button>
-        </div>
-      )}
     </motion.div>
   )
 }
 
 // ============================================
-// READING RENDERER - LARGE
+// READING RENDERER - CLEAN
 // ============================================
 
 function ReadingRenderer({
   atom,
   content,
   onComplete,
+  onContinue,
   isActive,
 }: {
   atom: Atom
   content: ReadingContent
   onComplete: (atomId: string) => void
+  onContinue?: () => void
   isActive: boolean
 }) {
+  const [hasCompleted, setHasCompleted] = useState(false)
+
+  const handleContinue = () => {
+    if (!hasCompleted) {
+      onComplete(atom.id)
+      setHasCompleted(true)
+    }
+    onContinue?.()
+  }
+
+  // Remove first H1 from content if it matches atom title (avoid duplication)
+  const cleanedBody = content.body.replace(/^#\s+.+\n+/, '')
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-xl"
+      className="h-full flex flex-col overflow-hidden"
     >
-      {/* Compact Header */}
-      <div className="flex items-center gap-3 px-6 pt-6 pb-4">
-        <BookOpen className="w-5 h-5 text-teal" />
-        <h2 className="font-semibold text-navy text-xl">{atom.title}</h2>
-        <span className="text-sm text-grey ml-auto">{atom.estimatedMinutes} min</span>
-      </div>
-
-      {/* Reading Content */}
-      <div className="px-6 pb-6">
-        <div className="text-rich-black/85 leading-relaxed
-          [&_h1]:text-xl [&_h1]:font-bold [&_h1]:text-navy [&_h1]:mt-6 [&_h1]:mb-2
-          [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-navy [&_h2]:mt-5 [&_h2]:mb-2
-          [&_h3]:text-base [&_h3]:font-medium [&_h3]:text-navy [&_h3]:mt-4 [&_h3]:mb-1
-          [&_p]:mb-4 [&_p]:leading-7
-          [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-4 [&_ul]:space-y-1
-          [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-4 [&_ol]:space-y-1
-          [&_li]:leading-7
-          [&_strong]:font-semibold
-          [&_em]:italic
-          [&_blockquote]:border-l-3 [&_blockquote]:border-teal/40 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-grey [&_blockquote]:my-4
-        ">
-          <ReactMarkdown>{content.body}</ReactMarkdown>
-        </div>
-
-        {/* Key Points inline */}
-        {content.highlights?.length > 0 && (
-          <div className="mt-6 p-4 bg-teal/5 rounded-lg">
-            <h3 className="text-sm font-semibold text-teal mb-2">Key Points</h3>
-            <ul className="space-y-1">
-              {content.highlights.map((h, i) => (
-                <li key={i} className="text-sm text-rich-black/70 flex items-start gap-2">
-                  <CheckCircle className="w-4 h-4 text-teal flex-shrink-0 mt-0.5" />
-                  {h}
-                </li>
-              ))}
-            </ul>
+      {/* Scrollable Content Area */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        {/* Article Card */}
+        <article className="max-w-3xl mx-auto bg-white rounded-xl shadow-sm border border-grey/10 overflow-hidden">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-teal/5 to-transparent px-8 py-6 border-b border-grey/10">
+            <div className="flex items-center gap-2 text-teal text-sm font-medium mb-2">
+              <BookOpen className="w-4 h-4" />
+              <span>Reading</span>
+              <span className="text-grey/50 mx-2">•</span>
+              <span className="text-grey">{atom.estimatedMinutes} min</span>
+            </div>
+            <h1 className="text-2xl font-bold text-navy">{atom.title}</h1>
           </div>
-        )}
 
-        {/* Complete Button inline */}
-        {isActive && (
-          <Button
-            variant="primary"
-            size="lg"
-            fullWidth
-            className="mt-6"
-            onClick={() => onComplete(atom.id)}
-          >
-            <CheckCircle className="w-5 h-5 mr-2" />
-            Continue
-          </Button>
-        )}
+          {/* Body */}
+          <div className="px-8 py-6">
+            <div className="prose prose-navy max-w-none
+              [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:text-navy [&_h2]:mt-8 [&_h2]:mb-4 [&_h2]:pb-2 [&_h2]:border-b [&_h2]:border-grey/10
+              [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:text-navy [&_h3]:mt-6 [&_h3]:mb-3
+              [&_h4]:text-base [&_h4]:font-semibold [&_h4]:text-teal [&_h4]:mt-4 [&_h4]:mb-2
+              [&_p]:text-rich-black/80 [&_p]:leading-7 [&_p]:mb-4
+              [&_ul]:my-4 [&_ul]:pl-5 [&_ul]:space-y-2
+              [&_ol]:my-4 [&_ol]:pl-5 [&_ol]:space-y-2
+              [&_li]:text-rich-black/80 [&_li]:leading-7
+              [&_strong]:font-semibold [&_strong]:text-navy
+              [&_em]:italic [&_em]:text-rich-black/70
+              [&_blockquote]:border-l-4 [&_blockquote]:border-teal [&_blockquote]:pl-4 [&_blockquote]:py-1 [&_blockquote]:my-4 [&_blockquote]:bg-teal/5 [&_blockquote]:rounded-r
+            ">
+              <ReactMarkdown>{cleanedBody}</ReactMarkdown>
+            </div>
+
+            {/* Key Takeaways */}
+            {content.highlights?.length > 0 && (
+              <div className="mt-8 pt-6 border-t border-grey/10">
+                <h3 className="text-sm font-semibold text-grey uppercase tracking-wide mb-4">Key Takeaways</h3>
+                <div className="grid gap-3">
+                  {content.highlights.map((h, i) => (
+                    <div key={i} className="flex items-start gap-3 p-3 bg-teal/5 rounded-lg">
+                      <CheckCircle className="w-5 h-5 text-teal flex-shrink-0 mt-0.5" />
+                      <span className="text-sm text-navy">{h}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </article>
+
+        {/* Bottom spacing for continue button */}
+        <div className="h-24" />
       </div>
+
+      {/* Continue button - Fixed at bottom */}
+      {isActive && (
+        <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent">
+          <button
+            onClick={handleContinue}
+            className="w-full max-w-3xl mx-auto py-3 bg-teal text-white font-medium rounded-lg hover:bg-teal-dark transition-colors flex items-center justify-center gap-2 shadow-lg"
+          >
+            Continue
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+      )}
     </motion.div>
   )
 }
 
 // ============================================
-// QUIZ RENDERER - LARGE & PROMINENT
+// QUIZ RENDERER - WITH ADAPTIVE LOGIC
 // ============================================
 
 function QuizRenderer({
   atom,
   content,
   onComplete,
+  onQuizFail,
+  onContinue,
   isActive,
 }: {
   atom: Atom
   content: QuizContent
   onComplete: (atomId: string, score: number) => void
+  onQuizFail?: (atomId: string, score: number) => void
+  onContinue?: () => void
   isActive: boolean
 }) {
   const [quizState, setQuizState] = useState<QuizState>({
@@ -334,7 +350,6 @@ function QuizRenderer({
 
     if (nextIndex >= totalQuestions) {
       setQuizState(prev => ({ ...prev, isComplete: true, showFeedback: false }))
-      onComplete(atom.id, quizState.score)
     } else {
       setQuizState(prev => ({
         ...prev,
@@ -342,66 +357,95 @@ function QuizRenderer({
         showFeedback: false,
       }))
     }
-  }, [quizState, totalQuestions, atom.id, onComplete])
+  }, [quizState, totalQuestions])
+
+  const handleRetry = () => {
+    setQuizState({
+      currentQuestion: 0,
+      answers: {},
+      showFeedback: false,
+      feedbackCorrect: false,
+      isComplete: false,
+      score: 0,
+    })
+  }
+
+  const handleContinueAfterQuiz = () => {
+    const passed = quizState.score >= content.passingScore
+    if (passed) {
+      onComplete(atom.id, quizState.score)
+      onContinue?.()
+    } else if (onQuizFail) {
+      onQuizFail(atom.id, quizState.score)
+    } else {
+      // Fallback: complete anyway if no fail handler
+      onComplete(atom.id, quizState.score)
+      onContinue?.()
+    }
+  }
 
   // Quiz Complete View
   if (quizState.isComplete) {
     const passed = quizState.score >= content.passingScore
     return (
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-2xl shadow-sm border border-grey/20 overflow-hidden text-center p-8"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="h-full flex flex-col items-center justify-center"
       >
-        <div className={`w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center ${
-          passed ? 'bg-green-100' : 'bg-orange-100'
-        }`}>
-          {passed ? (
-            <CheckCircle className="w-10 h-10 text-green-500" />
-          ) : (
-            <span className="text-4xl">🎯</span>
-          )}
-        </div>
-        <h2 className="text-2xl font-bold text-navy mb-2">Quiz Complete!</h2>
-        <p className={`text-4xl font-bold mb-4 ${passed ? 'text-green-600' : 'text-orange-600'}`}>
+        <div className={`text-7xl font-bold ${passed ? 'text-green-500' : 'text-orange-500'}`}>
           {quizState.score}%
+        </div>
+        <p className="text-xl text-navy font-medium mt-2">
+          {passed ? 'Great work!' : 'Keep practicing'}
         </p>
-        <p className="text-rich-black/60">
+        <p className="text-grey mt-1 mb-6 text-center">
           {passed
-            ? "Great job! You've mastered this material."
-            : "Keep learning - you're making progress!"}
+            ? "Ready for the next lesson."
+            : `Need ${content.passingScore}% to continue.`}
         </p>
+
+        {passed ? (
+          <button
+            onClick={handleContinueAfterQuiz}
+            className="px-6 py-3 bg-teal text-white font-medium rounded-lg hover:bg-teal-dark transition-colors flex items-center gap-2"
+          >
+            Continue
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        ) : (
+          <button
+            onClick={handleRetry}
+            className="px-6 py-3 border border-grey/30 text-navy font-medium rounded-lg hover:bg-light-grey/50 transition-colors flex items-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Retry
+          </button>
+        )}
       </motion.div>
     )
   }
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-2xl shadow-sm border border-grey/20 overflow-hidden"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="h-full flex flex-col"
     >
-      {/* Quiz Header */}
-      <div className="flex items-center gap-4 p-4 border-b border-grey/10 bg-blue-50">
-        <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-          <HelpCircle className="w-6 h-6 text-blue-600" />
-        </div>
-        <div className="flex-1">
-          <h2 className="font-semibold text-navy text-lg">{atom.title}</h2>
-          <p className="text-sm text-blue-600">
-            Question {quizState.currentQuestion + 1} of {totalQuestions}
-          </p>
-        </div>
-        {/* Progress dots */}
-        <div className="flex gap-1">
+      {/* Progress indicator */}
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-sm text-grey">
+          Question {quizState.currentQuestion + 1} of {totalQuestions}
+        </span>
+        <div className="flex gap-1.5">
           {content.questions.map((_, i) => (
             <div
               key={i}
-              className={`w-2 h-2 rounded-full ${
+              className={`w-2.5 h-2.5 rounded-full transition-colors ${
                 i < quizState.currentQuestion
-                  ? 'bg-green-500'
+                  ? 'bg-teal'
                   : i === quizState.currentQuestion
-                  ? 'bg-blue-500'
+                  ? 'bg-navy'
                   : 'bg-grey/30'
               }`}
             />
@@ -409,139 +453,120 @@ function QuizRenderer({
         </div>
       </div>
 
-      {/* Question - LARGE */}
-      <div className="p-6">
-        <h3 className="text-xl font-medium text-navy mb-6">{currentQ?.question}</h3>
+      {/* Question */}
+      <h3 className="text-xl font-medium text-navy mb-4">{currentQ?.question}</h3>
 
-        {/* Options */}
-        <div className="space-y-3">
-          {currentQ?.options?.map((option, index) => {
-            const isSelected = quizState.answers[currentQ.id] === index
-            const isCorrect = index === currentQ.correctAnswer
-            const showCorrect = quizState.showFeedback && isCorrect
-            const showIncorrect = quizState.showFeedback && isSelected && !isCorrect
+      {/* Options */}
+      <div className="space-y-2 flex-1">
+        {currentQ?.options?.map((option, index) => {
+          const isSelected = quizState.answers[currentQ.id] === index
+          const isCorrect = index === currentQ.correctAnswer
+          const showCorrect = quizState.showFeedback && isCorrect
+          const showIncorrect = quizState.showFeedback && isSelected && !isCorrect
 
-            return (
-              <button
-                key={index}
-                onClick={() => handleAnswer(index)}
-                disabled={quizState.showFeedback || !isActive}
-                className={`
-                  w-full p-4 rounded-xl border-2 text-left transition-all flex items-center gap-4
-                  ${isSelected && !quizState.showFeedback
-                    ? 'border-teal bg-teal/5'
-                    : 'border-grey/20 hover:border-grey/40 hover:bg-light-grey/30'}
-                  ${showCorrect ? 'border-green-500 bg-green-50' : ''}
-                  ${showIncorrect ? 'border-red-500 bg-red-50' : ''}
-                  disabled:cursor-default
-                `}
-              >
-                <span className={`
-                  w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-semibold flex-shrink-0
-                  ${showCorrect ? 'bg-green-500 border-green-500 text-white' : ''}
-                  ${showIncorrect ? 'bg-red-500 border-red-500 text-white' : ''}
-                  ${!quizState.showFeedback ? 'border-grey/40 text-rich-black/60' : ''}
-                `}>
-                  {showCorrect ? <CheckCircle className="w-5 h-5" /> :
-                   showIncorrect ? <XCircle className="w-5 h-5" /> :
-                   String.fromCharCode(65 + index)}
-                </span>
-                <span className="text-base">{option}</span>
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Feedback */}
-        {quizState.showFeedback && currentQ && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-6"
-          >
-            <div className={`
-              p-4 rounded-xl
-              ${quizState.feedbackCorrect ? 'bg-green-50 border border-green-200' : 'bg-orange-50 border border-orange-200'}
-            `}>
-              <p className={`font-semibold ${quizState.feedbackCorrect ? 'text-green-700' : 'text-orange-700'}`}>
-                {quizState.feedbackCorrect ? '✓ Correct!' : '✗ Not quite right'}
-              </p>
-              <p className="text-sm text-rich-black/70 mt-2">
-                {currentQ.explanation}
-              </p>
-            </div>
-
-            <Button
-              variant="primary"
-              size="lg"
-              fullWidth
-              className="mt-4"
-              onClick={handleNext}
+          return (
+            <button
+              key={index}
+              onClick={() => handleAnswer(index)}
+              disabled={quizState.showFeedback || !isActive}
+              className={`
+                w-full p-3 rounded-lg text-left transition-all flex items-center gap-3
+                ${isSelected && !quizState.showFeedback
+                  ? 'bg-teal/10 ring-2 ring-teal'
+                  : 'bg-light-grey/30 hover:bg-light-grey/50'}
+                ${showCorrect ? 'bg-green-50 ring-2 ring-green-500' : ''}
+                ${showIncorrect ? 'bg-red-50 ring-2 ring-red-400' : ''}
+                disabled:cursor-default
+              `}
             >
-              {quizState.currentQuestion + 1 >= totalQuestions
-                ? 'See Results'
-                : 'Next Question'}
-              <ChevronRight className="w-5 h-5 ml-1" />
-            </Button>
-          </motion.div>
-        )}
+              <span className={`
+                w-7 h-7 rounded-full flex items-center justify-center text-sm font-medium flex-shrink-0
+                ${showCorrect ? 'bg-green-500 text-white' : ''}
+                ${showIncorrect ? 'bg-red-400 text-white' : ''}
+                ${!quizState.showFeedback ? 'bg-white text-grey border border-grey/30' : ''}
+              `}>
+                {showCorrect ? <CheckCircle className="w-4 h-4" /> :
+                 showIncorrect ? <XCircle className="w-4 h-4" /> :
+                 String.fromCharCode(65 + index)}
+              </span>
+              <span className="text-sm text-navy">{option}</span>
+            </button>
+          )
+        })}
       </div>
+
+      {/* Feedback */}
+      {quizState.showFeedback && currentQ && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex-shrink-0 mt-4"
+        >
+          <div className={`p-3 rounded-lg text-sm mb-3 ${
+            quizState.feedbackCorrect ? 'bg-green-50 text-green-800' : 'bg-orange-50 text-orange-800'
+          }`}>
+            <span className="font-medium">
+              {quizState.feedbackCorrect ? 'Correct! ' : 'Not quite. '}
+            </span>
+            {currentQ.explanation}
+          </div>
+
+          <button
+            onClick={handleNext}
+            className="w-full py-3 bg-teal text-white font-medium rounded-lg hover:bg-teal-dark transition-colors flex items-center justify-center gap-2"
+          >
+            {quizState.currentQuestion + 1 >= totalQuestions ? 'See Results' : 'Next'}
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </motion.div>
+      )}
     </motion.div>
   )
 }
 
 // ============================================
-// GENERIC RENDERER (Practice, etc.)
+// GENERIC RENDERER
 // ============================================
 
 function GenericRenderer({
   atom,
   onComplete,
+  onContinue,
   isActive,
 }: {
   atom: Atom
   onComplete: (atomId: string) => void
+  onContinue?: () => void
   isActive: boolean
 }) {
+  const [hasCompleted, setHasCompleted] = useState(false)
+
+  const handleContinue = () => {
+    if (!hasCompleted) {
+      onComplete(atom.id)
+      setHasCompleted(true)
+    }
+    onContinue?.()
+  }
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-2xl shadow-sm border border-grey/20 overflow-hidden"
+      className="h-full flex flex-col items-center justify-center"
     >
-      {/* Header */}
-      <div className="flex items-center gap-4 p-4 border-b border-grey/10">
-        <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
-          <FileText className="w-6 h-6 text-orange-600" />
-        </div>
-        <div className="flex-1">
-          <h2 className="font-semibold text-navy text-lg">{atom.title}</h2>
-          <p className="text-sm text-grey capitalize">
-            {atom.type} • {atom.estimatedMinutes} minutes
-          </p>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="p-6">
-        <p className="text-rich-black/70">
-          Complete this {atom.type} activity to continue.
-        </p>
-      </div>
-
-      {/* Complete Button */}
+      <h2 className="text-2xl font-semibold text-navy mb-4">{atom.title}</h2>
+      <p className="text-grey text-lg mb-8">
+        Complete this {atom.type} activity to continue.
+      </p>
       {isActive && (
-        <div className="p-4 border-t border-grey/10">
-          <Button
-            variant="primary"
-            size="lg"
-            fullWidth
-            onClick={() => onComplete(atom.id)}
-          >
-            <CheckCircle className="w-5 h-5 mr-2" />
-            Mark as Complete
-          </Button>
-        </div>
+        <button
+          onClick={handleContinue}
+          className="px-8 py-4 bg-teal text-white font-semibold text-lg rounded-lg hover:bg-teal-dark transition-colors flex items-center gap-2"
+        >
+          Continue
+          <ChevronRight className="w-5 h-5" />
+        </button>
       )}
     </motion.div>
   )

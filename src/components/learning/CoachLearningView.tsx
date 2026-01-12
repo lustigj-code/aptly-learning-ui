@@ -33,6 +33,47 @@ type SessionState = {
   completedLessonIds: string[]
 }
 
+type LearningInsights = {
+  // Quiz Performance
+  quizAttempts: Array<{
+    lessonId: string
+    lessonTitle: string
+    score: number
+    passed: boolean
+    timestamp: number
+  }>
+  struggleAreas: string[]           // Topics user failed on
+  strongAreas: string[]             // Topics user aced (90%+)
+  totalQuizzesPassed: number
+  totalQuizzesFailed: number
+  averageQuizScore: number          // Rolling average
+
+  // Time & Engagement
+  timeSpentByType: {
+    video: number                   // Seconds watching videos
+    reading: number                 // Seconds reading
+    quiz: number                    // Seconds on quizzes
+  }
+  sessionCount: number              // How many learning sessions
+  totalTimeSpent: number            // Total seconds in learning view
+  contentRevisits: number           // How often they go back to review
+
+  // Learning Pace
+  lessonsCompletedToday: number
+  averageTimePerLesson: number      // Seconds
+  fastestQuizTime: number           // Quickest quiz completion
+  slowestQuizTime: number           // Longest quiz (may indicate struggle)
+
+  // Coach Interactions
+  coachQuestionsAsked: number       // How often they use Ask Sage
+  lastCoachQuestion?: string        // Most recent question for context
+
+  // Patterns
+  consecutiveCorrectAnswers: number // Current streak within session
+  longestCorrectStreak: number      // Best streak ever
+  preferredLearningTime?: string    // Morning/Afternoon/Evening/Night
+}
+
 type CoachLearningViewProps = {
   lessonId?: string
   courseId?: string
@@ -116,6 +157,31 @@ function getCoachTip(type: string): string {
   return tips[Math.floor(Math.random() * tips.length)]
 }
 
+// Generate personalized coach message based on context and insights
+function getPersonalizedCoachMessage(
+  atomType: string,
+  lessonTitle: string,
+  insights: LearningInsights
+): string {
+  // If user is reviewing after quiz failure
+  if (insights.struggleAreas.includes(lessonTitle) && atomType !== 'quiz') {
+    return `Let's review this together. Take your time - understanding ${lessonTitle} will help you succeed!`
+  }
+
+  // If user has been doing well
+  if (insights.totalQuizzesPassed >= 2 && atomType === 'quiz') {
+    return "You're on a roll! Let's see if you can keep the streak going."
+  }
+
+  // If this is their first quiz attempt after failures
+  if (insights.totalQuizzesFailed > 0 && atomType === 'quiz') {
+    return "Ready for another try? You've got this - I believe in you!"
+  }
+
+  // Default to standard tips
+  return getCoachTip(atomType)
+}
+
 // ============================================
 // PROGRESS SIDEBAR
 // ============================================
@@ -170,59 +236,54 @@ function ProgressSidebar({
 }
 
 // ============================================
-// COACH BAR (Minimal)
+// SMART COACH BAR
 // ============================================
 
-function CoachBar({
-  tip,
-  onContinue,
-  onAskQuestion,
+function SmartCoachBar({
+  message,
+  onAskSage,
   showContinue,
-  isLoading,
+  onContinue,
 }: {
-  tip: string
-  onContinue: () => void
-  onAskQuestion: () => void
+  message: string
+  onAskSage: () => void
   showContinue: boolean
-  isLoading: boolean
+  onContinue: () => void
 }) {
   return (
-    <div className="bg-white border-t border-grey/20 px-4 py-3">
-      <div className="max-w-3xl mx-auto flex items-center gap-4">
-        {/* Owl avatar */}
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal to-teal-dark flex items-center justify-center flex-shrink-0">
-          <span className="text-lg">🦉</span>
-        </div>
-
-        {/* Tip text */}
-        <p className="flex-1 text-sm text-rich-black/70">{tip}</p>
-
-        {/* Actions */}
-        <div className="flex gap-2 flex-shrink-0">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onAskQuestion}
-            className="text-grey hover:text-teal"
-          >
-            <MessageCircle className="w-4 h-4 mr-1" />
-            Ask Question
-          </Button>
-
-          {showContinue && (
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={onContinue}
-              disabled={isLoading}
-            >
-              Continue
-              <ChevronRight className="w-4 h-4 ml-1" />
-            </Button>
-          )}
-        </div>
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex items-center gap-4 px-4 py-3 bg-light-grey/50 rounded-xl mt-4 flex-shrink-0"
+    >
+      {/* Sage Avatar */}
+      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal to-teal-dark flex items-center justify-center flex-shrink-0">
+        <span className="text-lg">🦉</span>
       </div>
-    </div>
+
+      {/* Message */}
+      <p className="flex-1 text-sm text-navy">{message}</p>
+
+      {/* Actions */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <button
+          onClick={onAskSage}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm text-teal hover:bg-teal/10 rounded-lg transition-colors"
+        >
+          <MessageCircle className="w-4 h-4" />
+          <span>Ask Sage</span>
+        </button>
+        {showContinue && (
+          <button
+            onClick={onContinue}
+            className="flex items-center gap-1.5 px-4 py-2 bg-teal text-white text-sm font-medium rounded-lg hover:bg-teal-dark transition-colors"
+          >
+            <span>Continue</span>
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+    </motion.div>
   )
 }
 
@@ -234,21 +295,35 @@ function ChatOverlay({
   isOpen,
   onClose,
   lessonContext,
+  insights,
 }: {
   isOpen: boolean
   onClose: () => void
-  lessonContext: { lessonId: string; atomType?: string }
+  lessonContext: { lessonId: string; atomType?: string; lessonTitle: string }
+  insights: LearningInsights
 }) {
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'coach'; content: string }>>([])
   const { sendMessage, isLoading } = useCoach()
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // Generate a personalized greeting based on insights
+  const getGreeting = () => {
+    if (insights.struggleAreas.length > 0) {
+      const areas = insights.struggleAreas.slice(0, 2).join(' and ')
+      return `Hi! I noticed you're working through some challenging content. I'm here to help you master ${areas}. What would you like to know?`
+    }
+    if (insights.totalQuizzesPassed > 0) {
+      return `Great progress so far! You've passed ${insights.totalQuizzesPassed} quiz${insights.totalQuizzesPassed > 1 ? 'zes' : ''}. How can I help you continue learning?`
+    }
+    return "Hi! I'm here to help. What would you like to know about this lesson?"
+  }
+
   useEffect(() => {
     if (isOpen) {
       inputRef.current?.focus()
       if (messages.length === 0) {
-        setMessages([{ role: 'coach', content: "Hi! I'm here to help. What would you like to know about this lesson?" }])
+        setMessages([{ role: 'coach', content: getGreeting() }])
       }
     }
   }, [isOpen, messages.length])
@@ -262,7 +337,7 @@ function ChatOverlay({
 
     try {
       const response = await sendMessage(userMessage, 'chat', {
-        currentLesson: lessonContext.lessonId,
+        currentLesson: lessonContext.lessonTitle,
         atomType: lessonContext.atomType,
       })
       if (response) {
@@ -371,6 +446,25 @@ export function CoachLearningView({
   const [coachTip, setCoachTip] = useState('')
   const [showChatOverlay, setShowChatOverlay] = useState(false)
   const [contentComplete, setContentComplete] = useState(false)
+  const [learningInsights, setLearningInsights] = useState<LearningInsights>({
+    quizAttempts: [],
+    struggleAreas: [],
+    strongAreas: [],
+    totalQuizzesPassed: 0,
+    totalQuizzesFailed: 0,
+    averageQuizScore: 0,
+    timeSpentByType: { video: 0, reading: 0, quiz: 0 },
+    sessionCount: 1,
+    totalTimeSpent: 0,
+    contentRevisits: 0,
+    lessonsCompletedToday: 0,
+    averageTimePerLesson: 0,
+    fastestQuizTime: 0,
+    slowestQuizTime: 0,
+    coachQuestionsAsked: 0,
+    consecutiveCorrectAnswers: 0,
+    longestCorrectStreak: 0,
+  })
 
   // Current lesson and atom
   const currentLesson = module.lessons[sessionState.currentLessonIndex]
@@ -388,10 +482,10 @@ export function CoachLearningView({
     saveSession(sessionState)
   }, [sessionState])
 
-  // Set initial coach tip
+  // Set initial coach tip - personalized based on insights
   useEffect(() => {
-    if (currentAtom) {
-      setCoachTip(getCoachTip(currentAtom.type))
+    if (currentAtom && currentLesson) {
+      setCoachTip(getPersonalizedCoachMessage(currentAtom.type, currentLesson.title, learningInsights))
       setContentComplete(false)
     }
   }, [currentAtom])
@@ -406,9 +500,78 @@ export function CoachLearningView({
       }))
     }
 
+    // Track quiz success if this was a quiz with a passing score
+    if (currentAtom?.type === 'quiz' && score !== undefined && score >= 70) {
+      setLearningInsights(prev => {
+        const newAttempts = [...prev.quizAttempts, {
+          lessonId: currentLesson.id,
+          lessonTitle: currentLesson.title,
+          score,
+          passed: true,
+          timestamp: Date.now(),
+        }]
+
+        // Calculate new average
+        const avgScore = newAttempts.length > 0
+          ? Math.round(newAttempts.reduce((sum, a) => sum + a.score, 0) / newAttempts.length)
+          : 0
+
+        // Track strong areas (90%+ scores)
+        const newStrongAreas = score >= 90 && !prev.strongAreas.includes(currentLesson.title)
+          ? [...prev.strongAreas, currentLesson.title]
+          : prev.strongAreas
+
+        // Remove from struggle areas if they aced it
+        const newStruggleAreas = score >= 90
+          ? prev.struggleAreas.filter(area => area !== currentLesson.title)
+          : prev.struggleAreas
+
+        return {
+          ...prev,
+          quizAttempts: newAttempts,
+          totalQuizzesPassed: prev.totalQuizzesPassed + 1,
+          averageQuizScore: avgScore,
+          strongAreas: newStrongAreas,
+          struggleAreas: newStruggleAreas,
+          lessonsCompletedToday: prev.lessonsCompletedToday + 1,
+        }
+      })
+    }
+
     setContentComplete(true)
     setCoachTip(getCoachTip('complete'))
-  }, [sessionState.completedAtomIds])
+  }, [sessionState.completedAtomIds, currentAtom?.type, currentLesson])
+
+  // Handle quiz failure - send back to review material
+  const handleQuizFail = useCallback((atomId: string, score: number) => {
+    // Track the failed quiz attempt
+    setLearningInsights(prev => {
+      const newStruggleAreas = prev.struggleAreas.includes(currentLesson.title)
+        ? prev.struggleAreas
+        : [...prev.struggleAreas, currentLesson.title]
+
+      return {
+        ...prev,
+        quizAttempts: [...prev.quizAttempts, {
+          lessonId: currentLesson.id,
+          lessonTitle: currentLesson.title,
+          score,
+          passed: false,
+          timestamp: Date.now(),
+        }],
+        struggleAreas: newStruggleAreas,
+        totalQuizzesFailed: prev.totalQuizzesFailed + 1,
+      }
+    })
+
+    // Go back to the first atom of this lesson (video/reading) to review
+    setSessionState(prev => ({
+      ...prev,
+      currentAtomIndex: 0,
+    }))
+    setContentComplete(false)
+    setCoachTip(`Let's review the material. You scored ${score}% - aim for 70% to continue.`)
+  }, [currentLesson])
 
   // Handle continue button
   const handleContinue = useCallback(() => {
@@ -463,7 +626,7 @@ export function CoachLearningView({
   }
 
   return (
-    <div className="flex h-screen bg-light-grey/30">
+    <div className="flex h-screen bg-white">
       {/* Progress Sidebar */}
       <ProgressSidebar
         module={module}
@@ -473,56 +636,64 @@ export function CoachLearningView({
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <header className="bg-white border-b border-grey/20 px-4 py-3">
-          <div className="max-w-3xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-3">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Content Area - Full Screen */}
+        <div className="flex-1 flex flex-col px-8 py-6">
+          {/* Inline Header */}
+          <div className="flex items-center justify-between mb-4 flex-shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
               {onExit && (
-                <button onClick={onExit} className="p-1 hover:bg-light-grey rounded">
-                  <ArrowLeft className="w-5 h-5 text-grey" />
+                <button
+                  onClick={onExit}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm text-grey hover:text-navy hover:bg-light-grey rounded-lg transition-colors flex-shrink-0"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Exit</span>
                 </button>
               )}
-              <div>
-                <h1 className="font-semibold text-navy">{currentLesson.title}</h1>
+              <div className="min-w-0">
+                <h1 className="font-medium text-navy truncate">{currentLesson.title}</h1>
                 <p className="text-xs text-grey">
                   Part {sessionState.currentAtomIndex + 1} of {currentLesson.atoms.length}
                 </p>
               </div>
             </div>
-
-            {/* Progress bar */}
-            <div className="flex items-center gap-2">
-              <div className="w-32 h-2 bg-grey/20 rounded-full overflow-hidden">
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="w-20 h-1 bg-grey/10 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-teal rounded-full transition-all duration-500"
+                  className="h-full bg-teal rounded-full transition-all"
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
-              <span className="text-xs text-grey font-medium">{progressPercent}%</span>
+              <span className="text-xs text-grey tabular-nums">{progressPercent}%</span>
             </div>
           </div>
-        </header>
 
-        {/* Content Area - LARGE */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-3xl mx-auto">
+          {/* Content - Fills remaining space */}
+          <div className="flex-1 min-h-0 relative overflow-hidden">
             <ContentRenderer
               atom={currentAtom}
               onComplete={handleContentComplete}
+              onQuizFail={handleQuizFail}
+              onContinue={handleContinue}
               isActive={!contentComplete}
             />
           </div>
-        </div>
 
-        {/* Coach Bar */}
-        <CoachBar
-          tip={coachTip}
-          onContinue={handleContinue}
-          onAskQuestion={() => setShowChatOverlay(true)}
-          showContinue={contentComplete}
-          isLoading={false}
-        />
+          {/* Smart Coach Bar */}
+          <SmartCoachBar
+            message={coachTip}
+            onAskSage={() => {
+              setShowChatOverlay(true)
+              setLearningInsights(prev => ({
+                ...prev,
+                coachQuestionsAsked: prev.coachQuestionsAsked + 1,
+              }))
+            }}
+            showContinue={false}
+            onContinue={handleContinue}
+          />
+        </div>
       </div>
 
       {/* Chat Overlay */}
@@ -533,8 +704,10 @@ export function CoachLearningView({
             onClose={() => setShowChatOverlay(false)}
             lessonContext={{
               lessonId: currentLesson.id,
+              lessonTitle: currentLesson.title,
               atomType: currentAtom.type,
             }}
+            insights={learningInsights}
           />
         )}
       </AnimatePresence>

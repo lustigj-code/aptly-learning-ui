@@ -1,3 +1,9 @@
+/**
+ * @deprecated This store is deprecated. Use unifiedStore instead.
+ * All user state management has been consolidated into src/store/unifiedStore.ts
+ * This file is kept for reference only and will be removed in a future version.
+ */
+
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User, UserPreferences, UserProgress, StreakData, Badge } from '@/types';

@@ -19,10 +19,10 @@ export function AppLayout({ children }: AppLayoutProps) {
   const isAuthenticated = useUnifiedStore((state) => state.isAuthenticated);
   const sidebarCollapsed = useUnifiedStore((state) => state.sidebarCollapsed);
 
-  // Skip layout for onboarding and root
-  const isOnboarding = pathname === '/onboarding' || pathname === '/';
+  // Skip layout for onboarding, root, and learn (learning has its own full-screen layout)
+  const skipLayout = pathname === '/onboarding' || pathname === '/' || pathname === '/learn';
 
-  if (isOnboarding) {
+  if (skipLayout) {
     return <>{children}</>;
   }
 

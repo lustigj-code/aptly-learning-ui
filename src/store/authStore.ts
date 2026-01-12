@@ -1,3 +1,9 @@
+/**
+ * @deprecated This store is deprecated. Use unifiedStore instead.
+ * All auth functionality has been consolidated into src/store/unifiedStore.ts
+ * This file is kept for reference only and will be removed in a future version.
+ */
+
 import { create } from 'zustand'
 import { useEffect } from 'react'
 import { User as FirebaseUser, signOut as firebaseSignOut } from 'firebase/auth'

@@ -1,23 +1,40 @@
 # Aptly Learning
 
-A beautiful, gamified learning platform for professional certification. Built with Next.js 16, React, and Tailwind CSS.
+An AI-powered, gamified learning platform for professional certification. Built with Next.js 16, React 19, and Tailwind CSS.
 
-**Design Philosophy**: *"Duolingo Meets Professional Certification"* - Inspired by Headspace and Masterclass.
+**Design Philosophy**: *"Duolingo Meets Professional Certification"* - Combining proven learning science (BKT, FSRS) with engaging UX.
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?logo=typescript)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.0-38bdf8?logo=tailwindcss)
 ![Framer Motion](https://img.shields.io/badge/Framer_Motion-11-ff69b4?logo=framer)
+![Firebase](https://img.shields.io/badge/Firebase-Firestore-orange?logo=firebase)
+![Google Gemini](https://img.shields.io/badge/AI-Gemini-4285F4?logo=google)
 
 ---
 
 ## Features
 
-- **Gamified Learning** - Streaks, XP, badges, and progress tracking
-- **AI Coach** - Personalized learning assistance powered by Google Gemini
-- **Beautiful UI** - Apple-level polish with smooth animations
-- **Responsive Design** - Works seamlessly on desktop and mobile
-- **Accessible** - WCAG compliant with proper focus states
+### AI-Powered Learning
+- **Sage AI Coach** - Context-aware tutor that tracks what you struggle with, knows your quiz performance, and provides personalized guidance
+- **Smart Coach Bar** - Integrated coaching at every step with contextual messages
+- **Struggle Detection** - Automatically detects when you're stuck and offers help
+
+### Learning Science
+- **Bayesian Knowledge Tracing (BKT)** - Tracks skill mastery with proven cognitive science
+- **FSRS Spaced Repetition** - Schedules reviews based on forgetting curves
+- **Learning Insights** - Comprehensive tracking of quiz performance, time spent, and patterns
+
+### Gamification
+- **Daily Streaks** - Keep your learning momentum with streak tracking
+- **XP System** - Earn experience points for completing content
+- **Badges & Achievements** - Unlock rewards as you progress
+- **Progress Visualization** - Beautiful charts and progress bars
+
+### Design
+- **Apple-Level Polish** - Smooth Framer Motion animations throughout
+- **Responsive Design** - Full-screen learning experience on any device
+- **Accessible** - WCAG compliant with proper focus states and keyboard navigation
 
 ---
 
@@ -198,6 +215,13 @@ This project is proprietary software. All rights reserved.
 - Design inspired by [Duolingo](https://duolingo.com), [Headspace](https://headspace.com), and [Masterclass](https://masterclass.com)
 - UI components built with [shadcn/ui](https://ui.shadcn.com) patterns
 - Animations powered by [Framer Motion](https://framer.com/motion)
+
+---
+
+## Documentation
+
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Detailed technical architecture, data flows, and system design
+- **[.claude/CLAUDE.md](./.claude/CLAUDE.md)** - Development workflow and production checklist
 
 ---
 
