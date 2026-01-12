@@ -3,12 +3,12 @@
 ## Current Position
 
 **Milestone:** v1.0 Flawless Launch
-**Phase:** 4.1 of 5 (AI-Powered Dynamic Skill Map Generation)
-**Plan:** 2 of 4 in current phase
-**Status:** In progress
-**Last activity:** 2026-01-10 - Completed 4.1-02-PLAN.md
+**Phase:** 4.1 of 5 (AI-Powered Dynamic Skill Map Generation) - COMPLETE
+**Plan:** 4 of 4 in current phase (ALL COMPLETE)
+**Status:** Ready for Phase 4.2
+**Last activity:** 2026-01-11 - Completed 4.1-04-PLAN.md (Admin Interface)
 
-Progress: ██████████████░░░░░░ 50% (Phase 4.1)
+Progress: ████████████████████ 100% (Phase 4.1)
 
 ---
 
@@ -36,11 +36,14 @@ Progress: ██████████████░░░░░░ 50% (Phas
 ### Technical Context
 - Gemini API key configured in `.env.local`
 - Existing skill map: `/src/data/skillMap.ts` (41 skills for AI at Work)
-- Sequencer: `/src/lib/adaptive/sequencer.ts` (uses hardcoded skill map)
+- Sequencer: `/src/lib/adaptive/sequencer.ts` (dynamically loads skill maps per course)
 - Course content: `/src/data/mockData.ts` (Social Media Marketing courses)
 - **NEW:** Dynamic skill map types: `/src/lib/skillmap/types.ts`
 - **NEW:** Course parser: `/src/lib/skillmap/courseParser.ts`
 - **NEW:** Skill map generator: `/src/lib/skillmap/skillMapGenerator.ts` (Gemini AI)
+- **NEW:** Firestore storage: `/src/lib/skillmap/skillMapStorage.ts` (CRUD ops + caching)
+- **NEW:** Admin API: `/src/app/api/admin/skill-maps/` (list, generate, update status)
+- **NEW:** Admin UI: `/src/app/admin/skill-maps/` (list + detail pages)
 
 ---
 
@@ -57,6 +60,13 @@ Progress: ██████████████░░░░░░ 50% (Phas
 ---
 
 ## Session Notes
+
+### 2026-01-11
+- Completed Phase 4.1: AI-Powered Dynamic Skill Map Generation (ALL 4 PLANS)
+- 4.1-03: Firestore storage, sequencer update with courseId, skill map caching
+- 4.1-04: Admin interface - list/detail pages, generate/activate actions
+- Fixed auth token access using getIdToken() from firebase auth module
+- Ready for Phase 4.2 (Multi-Course & AI Integration)
 
 ### 2026-01-10 (Evening)
 - Coach-first architecture: Unified /learn page with coach as primary UI
@@ -94,10 +104,10 @@ Progress: ██████████████░░░░░░ 50% (Phas
 
 ## Session Continuity
 
-Last session: 2026-01-10
-Stopped at: Completed 4.1-02-PLAN.md
+Last session: 2026-01-11
+Stopped at: Completed Phase 4.1 (all 4 plans), ready for Phase 4.2
 Resume file: None
 
 ---
 
-*Last updated: 2026-01-10*
+*Last updated: 2026-01-11*
