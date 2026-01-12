@@ -37,6 +37,7 @@ const interactionSchema = z.object({
   pMasteryBefore: z.number().min(0).max(1),
   pMasteryAfter: z.number().min(0).max(1),
   experimentVariants: z.record(z.string(), z.string()).default({}),
+  deviceType: z.enum(['mobile', 'tablet', 'desktop']).default('desktop'),
   timestamp: z.string().datetime().optional(),
 });
 
@@ -97,6 +98,7 @@ export async function POST(request: NextRequest) {
       ...i,
       atomType: i.atomType as AtomType,
       interactionType: i.interactionType as InteractionType,
+      deviceType: i.deviceType as 'mobile' | 'tablet' | 'desktop',
       timestamp: i.timestamp ? new Date(i.timestamp) : undefined,
     }));
 

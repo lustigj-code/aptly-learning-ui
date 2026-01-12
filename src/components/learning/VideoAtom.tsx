@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { useTimeTracking, formatTimeMMSS } from '@/hooks/useTimeTracking';
+import { useInteractionLogger } from '@/hooks/useInteractionLogger';
 import { post } from '@/lib/api/client';
 import type { Atom, VideoContent } from '@/types';
 
@@ -26,15 +27,40 @@ export function VideoAtom({ atom, onComplete, isLoading = false }: VideoAtomProp
   const [isSubmitting, setIsSubmitting] = useState(false);
   const videoRef = useRef<HTMLIFrameElement>(null);
 
+  // Track view start time for logging
+  const viewStartTimeRef = useRef<number>(Date.now());
+  const hasLoggedViewRef = useRef<boolean>(false);
+
   const { content } = atom;
   const chapters = content.chapters || [];
   const keyTakeaways = content.keyTakeaways || [];
+
+  // Interaction logging for ML model training
+  const { logContentView } = useInteractionLogger();
 
   // Time tracking - pauses when video is not playing
   const { elapsedSeconds, getTimeSpent, pause, resume } = useTimeTracking({
     atomId: atom.id,
     lessonId: atom.lessonId,
   });
+
+  // Log content view when component unmounts
+  useEffect(() => {
+    // Capture the ref value at effect creation time
+    const startTime = viewStartTimeRef.current;
+
+    return () => {
+      if (!hasLoggedViewRef.current) {
+        const viewDurationMs = Date.now() - startTime;
+        logContentView({
+          atomId: atom.id,
+          atomType: 'video',
+          viewDurationMs,
+        });
+        hasLoggedViewRef.current = true;
+      }
+    };
+  }, [atom.id, logContentView]);
 
   // Sync time tracking with video play state
   useEffect(() => {
@@ -77,6 +103,17 @@ export function VideoAtom({ atom, onComplete, isLoading = false }: VideoAtomProp
   }, [watchProgress, isCompleted, submitCompletion]);
 
   const handleManualComplete = async () => {
+    // Log content view on completion
+    if (!hasLoggedViewRef.current) {
+      const viewDurationMs = Date.now() - viewStartTimeRef.current;
+      logContentView({
+        atomId: atom.id,
+        atomType: 'video',
+        viewDurationMs,
+      });
+      hasLoggedViewRef.current = true;
+    }
+
     setIsCompleted(true);
     await submitCompletion();
   };

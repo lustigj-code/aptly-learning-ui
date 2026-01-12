@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ExternalLink, BookOpen, Check, Clock, Lightbulb, Sparkles, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -8,6 +8,7 @@ import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/Button';
 import { useTimeTracking, formatTimeMMSS } from '@/hooks/useTimeTracking';
 import { useCoach } from '@/hooks/useCoach';
+import { useInteractionLogger } from '@/hooks/useInteractionLogger';
 import { post } from '@/lib/api/client';
 import type { Atom, ReadingContent } from '@/types';
 
@@ -33,8 +34,15 @@ export function ReadingAtom({ atom, onComplete, isLoading = false }: ReadingAtom
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
 
+  // Track view start time for logging
+  const viewStartTimeRef = useRef<number>(Date.now());
+  const hasLoggedViewRef = useRef<boolean>(false);
+
   // AI Coach for summary feature
   const { getSummary, isLoading: coachLoading } = useCoach();
+
+  // Interaction logging for ML model training
+  const { logContentView } = useInteractionLogger();
 
   const { content } = atom;
   const relatedResources = content.relatedResources || [];
@@ -48,6 +56,25 @@ export function ReadingAtom({ atom, onComplete, isLoading = false }: ReadingAtom
     atomId: atom.id,
     lessonId: atom.lessonId,
   });
+
+  // Log content view when component unmounts or completes
+  useEffect(() => {
+    // Capture the ref value at effect creation time
+    const startTime = viewStartTimeRef.current;
+
+    return () => {
+      // Log content view on unmount if not already logged
+      if (!hasLoggedViewRef.current) {
+        const viewDurationMs = Date.now() - startTime;
+        logContentView({
+          atomId: atom.id,
+          atomType: 'reading',
+          viewDurationMs,
+        });
+        hasLoggedViewRef.current = true;
+      }
+    };
+  }, [atom.id, logContentView]);
 
   // Calculate time-based progress
   const targetSeconds = estimatedMinutes * 60;
@@ -77,6 +104,17 @@ export function ReadingAtom({ atom, onComplete, isLoading = false }: ReadingAtom
   }, [atom.id, atom.lessonId, getTimeSpent, onComplete]);
 
   const handleManualComplete = async () => {
+    // Log content view on completion
+    if (!hasLoggedViewRef.current) {
+      const viewDurationMs = Date.now() - viewStartTimeRef.current;
+      logContentView({
+        atomId: atom.id,
+        atomType: 'reading',
+        viewDurationMs,
+      });
+      hasLoggedViewRef.current = true;
+    }
+
     setIsCompleted(true);
     await submitCompletion();
   };

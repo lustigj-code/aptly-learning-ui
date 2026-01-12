@@ -4,3 +4,5 @@ export { CohortAnalysis } from './CohortAnalysis';
 export { InterventionEffectiveness } from './InterventionEffectiveness';
 export { RetentionAnalysis } from './RetentionAnalysis';
 export { MetricsChart, BarChart, ComparisonChart } from './MetricsChart';
+export { StatisticalSignificance } from './StatisticalSignificance';
+export { CreateExperimentForm } from './CreateExperimentForm';

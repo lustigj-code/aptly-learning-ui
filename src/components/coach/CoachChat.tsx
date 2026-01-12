@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useCoach } from '@/hooks/useCoach';
+import { useInteractionLogger } from '@/hooks/useInteractionLogger';
 import { cn } from '@/lib/utils';
 
 type CoachChatProps = {
@@ -36,6 +37,9 @@ export function CoachChat({ isOpen, onClose, lessonContext }: CoachChatProps) {
     clearMessages,
     initializeChat,
   } = useCoach();
+
+  // Interaction logging for ML model training
+  const { logCoachInteraction } = useInteractionLogger();
 
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -65,6 +69,12 @@ export function CoachChat({ isOpen, onClose, lessonContext }: CoachChatProps) {
 
     const message = input.trim();
     setInput('');
+
+    // Log the coach interaction for ML model training
+    logCoachInteraction({
+      message,
+      skillId: lessonContext?.currentLesson ? `skill-${lessonContext.currentLesson}-coach` : undefined,
+    });
 
     await sendMessage(message, 'chat', lessonContext);
   };

@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, ChevronDown, Lightbulb, BookOpen, Check, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { useTimeTracking, formatTimeMMSS } from '@/hooks/useTimeTracking';
+import { useInteractionLogger } from '@/hooks/useInteractionLogger';
 import { post } from '@/lib/api/client';
 import type { Atom, PracticeContent } from '@/types';
 
@@ -35,6 +36,11 @@ export function PracticeAtom({
   const [isGettingFeedback, setIsGettingFeedback] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [attemptNumber, setAttemptNumber] = useState(1);
+
+  // Track response start time
+  const responseStartTimeRef = useRef<number>(Date.now());
+  const hintsUsedRef = useRef<number>(0);
 
   const { content } = atom;
 
@@ -44,10 +50,16 @@ export function PracticeAtom({
     lessonId: atom.lessonId,
   });
 
+  // Interaction logging for ML model training
+  const { logPracticeResponse, logHintRequest, logCoachInteraction } = useInteractionLogger();
+
   const handleGetCoachFeedback = async () => {
     if (!userResponse.trim()) return;
 
     setIsGettingFeedback(true);
+
+    // Calculate response time
+    const responseTimeMs = Date.now() - responseStartTimeRef.current;
 
     // Add user message
     const userMessage: CoachMessage = {
@@ -58,6 +70,24 @@ export function PracticeAtom({
     };
 
     setCoachMessages((prev) => [...prev, userMessage]);
+
+    // Log the coach interaction for ML training
+    const skillId = `skill-${atom.lessonId}-practice`;
+    logCoachInteraction({
+      message: userResponse,
+      skillId,
+    });
+
+    // Log the practice response for ML training
+    logPracticeResponse({
+      skillId,
+      skillName: atom.title || 'Practice Exercise',
+      isCorrect: undefined, // Practice exercises may not have binary correctness
+      responseTimeMs,
+      attemptNumber,
+      pMasteryBefore: 0.5, // TODO: Get actual mastery from BKT
+      pMasteryAfter: 0.5, // Will be updated by coach evaluation
+    });
 
     try {
       // Build structured practice context for evaluation
@@ -109,6 +139,8 @@ export function PracticeAtom({
       console.error('Error getting coach feedback:', error);
     } finally {
       setIsGettingFeedback(false);
+      setAttemptNumber((prev) => prev + 1);
+      responseStartTimeRef.current = Date.now(); // Reset for next attempt
     }
   };
 
@@ -227,7 +259,19 @@ export function PracticeAtom({
         transition={{ duration: 0.3, delay: 0.25 }}
       >
         <button
-          onClick={() => setShowHints(!showHints)}
+          onClick={() => {
+            // Log hint request when opening hints for the first time
+            if (!showHints) {
+              const skillId = `skill-${atom.lessonId}-practice`;
+              logHintRequest({
+                atomId: atom.id,
+                skillId,
+                hintsUsedBefore: hintsUsedRef.current,
+              });
+              hintsUsedRef.current += 1;
+            }
+            setShowHints(!showHints);
+          }}
           className="w-full flex items-center justify-between p-3 rounded-lg bg-light-grey hover:bg-light-teal/20 transition-colors text-navy font-semibold"
         >
           <span className="flex items-center gap-2">

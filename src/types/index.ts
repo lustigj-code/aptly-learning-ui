@@ -414,8 +414,14 @@ export interface InteractionLog {
 
   // Experiment Context
   experimentVariants: Record<string, string>;
+
+  // Device Context (for personalization)
+  deviceType: 'mobile' | 'tablet' | 'desktop';
 }
 
 export interface InteractionLogInput extends Omit<InteractionLog, 'id' | 'timestamp'> {
   timestamp?: Date;
 }
+
+// Device type detection utility
+export type DeviceType = 'mobile' | 'tablet' | 'desktop';

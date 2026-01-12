@@ -1,8 +1,31 @@
 'use client';
 
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback, useRef, useEffect, useMemo } from 'react';
 import { useUnifiedStore } from '@/store/unifiedStore';
-import type { InteractionType, InteractionLogInput, AtomType } from '@/types';
+import type { InteractionType, InteractionLogInput, AtomType, DeviceType } from '@/types';
+
+/**
+ * Detect device type based on screen width and user agent
+ * @returns 'mobile' | 'tablet' | 'desktop'
+ */
+function detectDeviceType(): DeviceType {
+  if (typeof window === 'undefined') return 'desktop';
+
+  const width = window.innerWidth;
+  const userAgent = navigator.userAgent.toLowerCase();
+
+  // Check user agent for mobile/tablet indicators
+  const isMobileUA = /iphone|ipod|android.*mobile|windows phone|blackberry/i.test(userAgent);
+  const isTabletUA = /ipad|android(?!.*mobile)|tablet/i.test(userAgent);
+
+  // Combine UA and screen width for better detection
+  if (isMobileUA || width < 640) {
+    return 'mobile';
+  } else if (isTabletUA || (width >= 640 && width < 1024)) {
+    return 'tablet';
+  }
+  return 'desktop';
+}
 
 // Types for logging functions
 type QuizAnswerParams = {
@@ -86,6 +109,9 @@ export function useInteractionLogger() {
   const user = useUnifiedStore((state) => state.user);
   const authUser = useUnifiedStore((state) => state.authUser);
 
+  // Memoize device type (only detect once per session)
+  const deviceType = useMemo(() => detectDeviceType(), []);
+
   // Get current learning context from store
   const currentCourseId = user?.progress?.currentCourseId || 'unknown';
   const currentModuleId = user?.progress?.currentModuleId || 'unknown';
@@ -120,17 +146,19 @@ export function useInteractionLogger() {
 
   // Add interaction to batch
   const addToBatch = useCallback(
-    (interaction: Omit<InteractionLogInput, 'userId' | 'sessionId' | 'experimentVariants'>) => {
-      if (!authUser?.uid) {
+    (interaction: Omit<InteractionLogInput, 'userId' | 'sessionId' | 'experimentVariants' | 'deviceType'>) => {
+      const userId = authUser?.uid;
+      if (!userId) {
         console.warn('Cannot log interaction: No authenticated user');
         return;
       }
 
       const fullInteraction: InteractionLogInput = {
         ...interaction,
-        userId: authUser.uid,
+        userId,
         sessionId: getOrCreateSessionId(),
         experimentVariants: {}, // TODO: Get from experiment store when integrated
+        deviceType,
       };
 
       batchRef.current.push(fullInteraction);
@@ -140,7 +168,7 @@ export function useInteractionLogger() {
         flushBatch();
       }
     },
-    [authUser?.uid, flushBatch]
+    [authUser, flushBatch, deviceType]
   );
 
   // Calculate time gap from last attempt on this skill

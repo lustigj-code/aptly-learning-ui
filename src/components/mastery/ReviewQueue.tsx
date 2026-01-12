@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, Clock, TrendingUp, ChevronRight, RotateCcw, CheckCircle, XCircle, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { cn } from '@/lib/utils';
+import { useInteractionLogger } from '@/hooks/useInteractionLogger';
 import {
   type ConceptMastery,
   type Concept,
@@ -56,6 +57,12 @@ export function ReviewQueue({
   const [showHint, setShowHint] = useState(false);
   const [startTime, setStartTime] = useState<number | null>(null);
 
+  // Track attempt numbers per concept
+  const attemptCountRef = useRef<Record<string, number>>({});
+
+  // Interaction logging for ML model training
+  const { logReviewAttempt, logHintRequest } = useInteractionLogger();
+
   // Build review queue on mount
   useEffect(() => {
     const dueItems = getDueForReview(masteryRecords, 15);
@@ -84,16 +91,37 @@ export function ReviewQueue({
   const handleRate = useCallback((score: number) => {
     if (!currentCard || !startTime) return;
 
-    const timeSpent = Math.floor((Date.now() - startTime) / 1000);
+    const responseTimeMs = Date.now() - startTime;
     const correct = score >= 70;
+
+    // Get or initialize attempt count for this concept
+    const conceptId = currentCard.concept.id;
+    const attemptNumber = (attemptCountRef.current[conceptId] || 0) + 1;
+    attemptCountRef.current[conceptId] = attemptNumber;
+
+    // Calculate mastery values for logging
+    const pMasteryBefore = currentCard.mastery.masteryLevel / 100;
 
     // Update mastery
     const updatedMastery = updateConceptMastery(
       currentCard.mastery,
       score,
-      timeSpent,
+      Math.floor(responseTimeMs / 1000),
       'review'
     );
+    const pMasteryAfter = updatedMastery.masteryLevel / 100;
+
+    // Log the review attempt for ML model training
+    logReviewAttempt({
+      skillId: conceptId,
+      skillName: currentCard.concept.name,
+      isCorrect: correct,
+      responseTimeMs,
+      attemptNumber,
+      pMasteryBefore,
+      pMasteryAfter,
+    });
+
     onMasteryUpdate(updatedMastery);
 
     // Update session stats
@@ -114,7 +142,7 @@ export function ReviewQueue({
       setReviewState('complete');
       onComplete?.();
     }
-  }, [currentCard, currentIndex, queue.length, startTime, onMasteryUpdate, onComplete]);
+  }, [currentCard, currentIndex, queue.length, startTime, onMasteryUpdate, onComplete, logReviewAttempt]);
 
   const resetSession = () => {
     setCurrentIndex(0);
@@ -315,7 +343,17 @@ export function ReviewQueue({
 
                   {!showHint && (
                     <button
-                      onClick={() => setShowHint(true)}
+                      onClick={() => {
+                        // Log hint request for ML training
+                        if (currentCard) {
+                          logHintRequest({
+                            atomId: `review-${currentCard.concept.id}`,
+                            skillId: currentCard.concept.id,
+                            hintsUsedBefore: 0,
+                          });
+                        }
+                        setShowHint(true);
+                      }}
                       className="text-sm text-teal hover:underline"
                     >
                       Need a hint?
