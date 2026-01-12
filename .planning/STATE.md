@@ -3,12 +3,12 @@
 ## Current Position
 
 **Milestone:** v2.0 Adaptive Learning Evolution
-**Phase:** 12 COMPLETE, ready for Phase 13 (Adaptive Interleaving)
-**Plan:** Phase 12.2 Complete - Socratic Prompts + Intervention Manager
-**Status:** Phase 12 COMPLETE - Moving to Phase 13
-**Last activity:** 2026-01-11 - Implemented Socratic RAG Coach with LearnLM research
+**Phase:** 13 COMPLETE, ready for Phase 14 (Mastery Map UX)
+**Plan:** Phase 13.2 Complete - Dynamic Queue + UI Badge
+**Status:** Phase 13 COMPLETE - Moving to Phase 14
+**Last activity:** 2026-01-11 - Implemented FSRS-based Adaptive Interleaving
 
-Progress: ████████████░░░░░░░░ 50% (v2.0 Phase 12 of 15 complete)
+Progress: ██████████████░░░░░░ 60% (v2.0 Phase 13 of 15 complete)
 
 **Previous Milestone:** v1.0 Flawless Launch - Phase 4.2 Complete
 
@@ -30,6 +30,8 @@ Progress: ████████████░░░░░░░░ 50% (v2.0
 - **[10.1]** Interaction logging captures 20+ fields per quiz/practice interaction
 - **[12.1]** Pedagogical chunking: misconception per distractor, tiered hints
 - **[12.2]** LearnLM Socratic prompts: 93.8% remediation vs 64.5% for static hints
+- **[13.1]** FSRS interleaving: inject reviews when Retrievability < 90%
+- **[13.2]** Adaptive ratio: 3:1 → 1:1 based on review backlog size
 
 ### Roadmap Evolution
 - Phase 4.1 inserted after Phase 4: AI-powered dynamic skill map generation (URGENT)
@@ -69,6 +71,22 @@ Progress: ████████████░░░░░░░░ 50% (v2.0
 ---
 
 ## Session Notes
+
+### 2026-01-11 (v2.0 Work - Phase 13)
+- **Phase 13.1 COMPLETE:** Adaptive Interleaving Algorithm
+  - Exported calculateRetrievability from fsrs.ts
+  - Added getItemsBelowRetrievability for FSRS-based review selection
+  - Created src/lib/sequencing/ directory with interleaver module
+  - Semantic similarity scoring (same lesson: 0.9, same module: 0.7)
+  - Adaptive ratio: 3:1 for small backlog, 1:1 for large backlog
+  - Commit: 3b29c88
+- **Phase 13.2 COMPLETE:** Dynamic Queue Assembly + UI
+  - Updated session API with FSRS-based interleaving
+  - Added isReviewChallenge flag to SessionItem type
+  - Created ReviewChallengeBadge component (purple badge with icon)
+  - Fallback to simple interleaving on error
+  - Commit: 652772b
+- Based on NotebookLM research: 50% improvement in discrimination ability
 
 ### 2026-01-11 (v2.0 Work - Continued)
 - **Phase 12.1 COMPLETE:** RAG Pedagogical Infrastructure
@@ -179,7 +197,7 @@ Progress: ████████████░░░░░░░░ 50% (v2.0
 ## Session Continuity
 
 Last session: 2026-01-11
-Stopped at: Completed Phase 12 (Socratic RAG Coach), ready for Phase 13 (Adaptive Interleaving)
+Stopped at: Completed Phase 13 (Adaptive Interleaving), ready for Phase 14 (Mastery Map UX)
 Resume file: None
 
 ---
