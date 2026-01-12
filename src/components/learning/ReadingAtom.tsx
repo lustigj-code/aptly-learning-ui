@@ -1,12 +1,11 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { ExternalLink, BookOpen, Check, Clock } from 'lucide-react';
+import { ExternalLink, BookOpen, Check, Clock, Lightbulb } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/Button';
-import { ProgressBar } from '@/components/ui/ProgressBar';
 import { useTimeTracking, formatTimeMMSS } from '@/hooks/useTimeTracking';
 import { post } from '@/lib/api/client';
 import type { Atom, ReadingContent } from '@/types';
@@ -17,20 +16,35 @@ type ReadingAtomProps = {
   isLoading?: boolean;
 };
 
+/**
+ * Calculate estimated reading time based on word count
+ * Average reading speed: ~200 words per minute
+ */
+function calculateReadingTime(text: string): number {
+  const words = text.trim().split(/\s+/).length;
+  return Math.max(1, Math.ceil(words / 200));
+}
+
 export function ReadingAtom({ atom, onComplete, isLoading = false }: ReadingAtomProps) {
-  const [scrollProgress, setScrollProgress] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const contentRef = useRef<HTMLDivElement>(null);
 
   const { content } = atom;
   const relatedResources = content.relatedResources || [];
+  const highlights = content.highlights || [];
+
+  // Calculate reading time from content
+  const estimatedMinutes = atom.estimatedMinutes || calculateReadingTime(content.body);
 
   // Time tracking
   const { elapsedSeconds, isActive, getTimeSpent } = useTimeTracking({
     atomId: atom.id,
     lessonId: atom.lessonId,
   });
+
+  // Calculate time-based progress
+  const targetSeconds = estimatedMinutes * 60;
+  const timeProgress = Math.min(100, Math.round((elapsedSeconds / targetSeconds) * 100));
 
   const submitCompletion = useCallback(async () => {
     setIsSubmitting(true);
@@ -55,166 +69,151 @@ export function ReadingAtom({ atom, onComplete, isLoading = false }: ReadingAtom
     }
   }, [atom.id, atom.lessonId, getTimeSpent, onComplete]);
 
-  // Track scroll progress
-  useEffect(() => {
-    const handleScroll = () => {
-      if (!contentRef.current) return;
-
-      const element = contentRef.current;
-      const scrollHeight = element.scrollHeight - element.clientHeight;
-      const scrolled = element.scrollTop;
-      const progress = scrollHeight > 0 ? (scrolled / scrollHeight) * 100 : 0;
-
-      setScrollProgress(progress);
-
-      // Auto-complete at bottom
-      if (progress >= 90 && !isCompleted) {
-        setIsCompleted(true);
-        submitCompletion();
-      }
-    };
-
-    const element = contentRef.current;
-    if (element) {
-      element.addEventListener('scroll', handleScroll);
-      return () => element.removeEventListener('scroll', handleScroll);
-    }
-  }, [isCompleted, submitCompletion]);
-
   const handleManualComplete = async () => {
     setIsCompleted(true);
     await submitCompletion();
   };
 
   return (
-    <div className="flex flex-col gap-6 max-w-4xl mx-auto h-full">
-      {/* Progress Bar - Sticky */}
+    <div className="flex flex-col h-full">
+      {/* Time-Based Progress Header - Sticky */}
       <motion.div
-        className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm rounded-lg shadow-sm p-4"
+        className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-light-grey px-4 py-3"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold text-navy">Reading Progress</span>
-          <ProgressBar
-            value={scrollProgress}
-            max={100}
-            size="sm"
-            showLabel={true}
-            labelPosition="right"
-            animated={true}
-            className="flex-1"
-          />
-          <div className="flex items-center gap-1 text-sm text-rich-black/60">
+        <div className="max-w-[680px] mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <BookOpen size={18} className="text-teal" />
+            <span className="text-sm font-medium text-navy">{estimatedMinutes} min read</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-rich-black/60">
             <Clock size={14} className={isActive ? 'text-teal' : 'text-grey'} />
             <span className="font-mono">{formatTimeMMSS(elapsedSeconds)}</span>
+            <span className="text-xs">({timeProgress}%)</span>
           </div>
         </div>
       </motion.div>
 
-      {/* Content Area */}
-      <div
-        ref={contentRef}
-        className="flex-1 overflow-y-auto pr-4 space-y-6"
-      >
-        {/* Title */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          <h1 className="text-3xl font-bold text-navy mb-2">{atom.title}</h1>
-          <p className="text-sm text-rich-black/70">
-            Estimated reading time: {atom.estimatedMinutes} minutes
-          </p>
-        </motion.div>
-
-        {/* Markdown Content */}
-        <motion.div
-          className="prose prose-lg max-w-none prose-headings:text-navy prose-headings:font-bold prose-p:text-rich-black prose-p:leading-relaxed prose-a:text-teal prose-a:hover:underline prose-strong:text-navy prose-code:bg-light-grey prose-code:px-2 prose-code:py-1 prose-code:rounded prose-code:text-sm prose-code:text-rich-black"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
-        >
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {content.body}
-          </ReactMarkdown>
-        </motion.div>
-
-        {/* Related Resources Section */}
-        {relatedResources.length > 0 && (
+      {/* Content Area - Centered, Optimal Reading Width */}
+      <div className="flex-1 overflow-y-auto px-4 py-8">
+        <div className="max-w-[680px] mx-auto space-y-8">
+          {/* Title */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.2 }}
-            className="mt-8 pt-8 border-t border-light-grey"
+            transition={{ duration: 0.3 }}
           >
-            <div className="flex items-center gap-2 mb-4">
-              <BookOpen size={20} className="text-teal" />
-              <h3 className="text-lg font-semibold text-navy">Related Resources</h3>
-            </div>
-            <div className="space-y-2">
-              {relatedResources.map((resource, idx) => (
-                <motion.a
-                  key={idx}
-                  href={resource.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block p-3 rounded-lg hover:bg-light-teal/20 transition-colors duration-150 group"
-                  whileHover={{ x: 4 }}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-navy group-hover:text-teal transition-colors">
-                        {resource.title}
-                      </p>
-                      <p className="text-xs text-rich-black/60 mt-1">
-                        {resource.type.charAt(0).toUpperCase() + resource.type.slice(1)}
-                      </p>
-                    </div>
-                    <ExternalLink
-                      size={16}
-                      className="text-teal flex-shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    />
-                  </div>
-                </motion.a>
-              ))}
-            </div>
+            <h1 className="text-3xl font-bold text-navy mb-2">{atom.title}</h1>
           </motion.div>
-        )}
 
-        {/* Spacer for bottom content */}
-        <div className="h-20" />
+          {/* Markdown Content - Optimized Typography */}
+          <motion.article
+            className="prose prose-lg prose-headings:text-navy prose-headings:font-bold prose-p:text-rich-black prose-p:leading-relaxed prose-a:text-teal prose-a:hover:underline prose-strong:text-navy prose-code:bg-light-grey prose-code:px-2 prose-code:py-1 prose-code:rounded prose-code:text-sm prose-code:text-rich-black"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
+          >
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {content.body}
+            </ReactMarkdown>
+          </motion.article>
+
+          {/* Key Takeaways Section */}
+          {highlights.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.15 }}
+              className="bg-light-teal/20 border border-teal/30 rounded-xl p-6"
+            >
+              <div className="flex items-center gap-2 mb-4">
+                <Lightbulb size={20} className="text-teal" />
+                <h3 className="text-lg font-semibold text-navy">Key Takeaways</h3>
+              </div>
+              <ul className="space-y-2">
+                {highlights.map((highlight, idx) => (
+                  <li key={idx} className="flex items-start gap-2">
+                    <Check size={16} className="text-teal mt-1 flex-shrink-0" />
+                    <span className="text-rich-black">{highlight}</span>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+          )}
+
+          {/* Related Resources Section */}
+          {relatedResources.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.2 }}
+              className="pt-6 border-t border-light-grey"
+            >
+              <div className="flex items-center gap-2 mb-4">
+                <BookOpen size={20} className="text-teal" />
+                <h3 className="text-lg font-semibold text-navy">Related Resources</h3>
+              </div>
+              <div className="space-y-2">
+                {relatedResources.map((resource, idx) => (
+                  <motion.a
+                    key={idx}
+                    href={resource.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block p-3 rounded-lg hover:bg-light-teal/20 transition-colors duration-150 group"
+                    whileHover={{ x: 4 }}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-navy group-hover:text-teal transition-colors">
+                          {resource.title}
+                        </p>
+                        <p className="text-xs text-rich-black/60 mt-1">
+                          {resource.type.charAt(0).toUpperCase() + resource.type.slice(1)}
+                        </p>
+                      </div>
+                      <ExternalLink
+                        size={16}
+                        className="text-teal flex-shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      />
+                    </div>
+                  </motion.a>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Bottom Spacing for Sticky Footer */}
+          <div className="h-24" />
+        </div>
       </div>
 
       {/* Completion Section - Sticky Bottom */}
       <motion.div
-        className="sticky bottom-0 bg-white/95 backdrop-blur-sm rounded-lg shadow-sm p-4 border-t border-light-grey"
+        className="sticky bottom-0 bg-white/95 backdrop-blur-sm border-t border-light-grey px-4 py-4"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        {isCompleted ? (
-          <div className="flex items-center justify-center gap-2 p-4 bg-success-light rounded-lg border border-success">
-            <Check size={20} className="text-success" />
-            <span className="font-semibold text-success">Completed!</span>
-          </div>
-        ) : (
-          <Button
-            variant="primary"
-            size="lg"
-            fullWidth={true}
-            onClick={handleManualComplete}
-            isLoading={isSubmitting}
-            isDisabled={isSubmitting || isLoading}
-          >
-            Mark as Complete
-          </Button>
-        )}
-        {scrollProgress < 90 && !isCompleted && (
-          <p className="text-xs text-rich-black/60 text-center mt-2">
-            Read to the bottom to auto-complete
-          </p>
-        )}
+        <div className="max-w-[680px] mx-auto">
+          {isCompleted ? (
+            <div className="flex items-center justify-center gap-2 p-4 bg-green-50 rounded-lg border border-green-200">
+              <Check size={20} className="text-green-600" />
+              <span className="font-semibold text-green-600">Completed!</span>
+            </div>
+          ) : (
+            <Button
+              variant="primary"
+              size="lg"
+              fullWidth={true}
+              onClick={handleManualComplete}
+              isLoading={isSubmitting}
+              isDisabled={isSubmitting || isLoading}
+            >
+              Mark as Complete
+            </Button>
+          )}
+        </div>
       </motion.div>
     </div>
   );
