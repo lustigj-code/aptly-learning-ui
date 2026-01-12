@@ -3,12 +3,12 @@
 ## Current Position
 
 **Milestone:** v2.0 Adaptive Learning Evolution
-**Phase:** 10 COMPLETE, ready for Phase 11 (FSRS Wiring + Exam Mode)
-**Plan:** Phase 10.2 Complete - A/B Testing Dashboard Enhancements
-**Status:** Phase 10 COMPLETE - Moving to Phase 11
-**Last activity:** 2026-01-11 - Added Socratic experiment config and data collection monitoring
+**Phase:** 11.1 COMPLETE, executing Phase 11.2 (Exam Mode)
+**Plan:** Phase 11.1 Complete - FSRS Dashboard Integration
+**Status:** Phase 11.1 COMPLETE - Executing Phase 11.2
+**Last activity:** 2026-01-11 - Added review badge to learning header
 
-Progress: ██████░░░░░░░░░░░░░░ 17% (v2.0 Phase 10 of 15 complete)
+Progress: ████████░░░░░░░░░░░░ 25% (v2.0 Phase 11.1 of 15 complete)
 
 **Previous Milestone:** v1.0 Flawless Launch - Phase 4.2 Complete
 
@@ -85,6 +85,11 @@ Progress: ██████░░░░░░░░░░░░░░ 17% (v2.0
   - Added interaction count monitoring to admin panel
   - Data collection progress bar (target: 100k for hybrid model)
   - Commits: a7889a9, 95e6097
+- **Phase 11.1 COMPLETE:** FSRS Dashboard Integration
+  - Dashboard already had review nudge banner + quick stats (verified)
+  - Added review due badge to learning header (CoachLearningView)
+  - Badge shows "N due" with Brain icon, links to /review
+  - Commit: 523f1ac
 - Data collection now active for hybrid model training
 - Target: 100k+ interactions before Phase 15
 
@@ -145,7 +150,7 @@ Progress: ██████░░░░░░░░░░░░░░ 17% (v2.0
 ## Session Continuity
 
 Last session: 2026-01-11
-Stopped at: Completed Phase 10, ready for Phase 11 (FSRS Wiring + Exam Mode)
+Stopped at: Completed Phase 11.1, executing Phase 11.2 (Exam Mode)
 Resume file: None
 
 ---
