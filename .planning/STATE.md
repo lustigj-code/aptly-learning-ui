@@ -3,12 +3,12 @@
 ## Current Position
 
 **Milestone:** v2.0 Adaptive Learning Evolution
-**Phase:** 11 COMPLETE, ready for Phase 12 (Socratic RAG Coach)
-**Plan:** Phase 11.2 Complete - Exam Mode
-**Status:** Phase 11 COMPLETE - Moving to Phase 12
-**Last activity:** 2026-01-11 - Added exam readiness calculator and dashboard widget
+**Phase:** 12 COMPLETE, ready for Phase 13 (Adaptive Interleaving)
+**Plan:** Phase 12.2 Complete - Socratic Prompts + Intervention Manager
+**Status:** Phase 12 COMPLETE - Moving to Phase 13
+**Last activity:** 2026-01-11 - Implemented Socratic RAG Coach with LearnLM research
 
-Progress: ██████████░░░░░░░░░░ 33% (v2.0 Phase 11 of 15 complete)
+Progress: ████████████░░░░░░░░ 50% (v2.0 Phase 12 of 15 complete)
 
 **Previous Milestone:** v1.0 Flawless Launch - Phase 4.2 Complete
 
@@ -25,9 +25,11 @@ Progress: ██████████░░░░░░░░░░ 33% (v2.0
 - **[4.1-01]** ParsedCourseContent as standard AI input format
 - **[v2.0]** NotebookLM research: 40 sources on adaptive learning best practices
 - **[v2.0]** Hybrid model: DKT2 + BKT dual-pathway architecture
-- **[v2.0]** Vector DB: Pinecone for RAG-based Socratic coach
+- **[v2.0]** Vector DB: Using existing Firestore vectors (Pinecone not needed)
 - **[v2.0]** Data collection started: Firestore `interactionLogs` for ML training
 - **[10.1]** Interaction logging captures 20+ fields per quiz/practice interaction
+- **[12.1]** Pedagogical chunking: misconception per distractor, tiered hints
+- **[12.2]** LearnLM Socratic prompts: 93.8% remediation vs 64.5% for static hints
 
 ### Roadmap Evolution
 - Phase 4.1 inserted after Phase 4: AI-powered dynamic skill map generation (URGENT)
@@ -68,7 +70,28 @@ Progress: ██████████░░░░░░░░░░ 33% (v2.0
 
 ## Session Notes
 
-### 2026-01-11 (v2.0 Work)
+### 2026-01-11 (v2.0 Work - Continued)
+- **Phase 12.1 COMPLETE:** RAG Pedagogical Infrastructure
+  - Created src/lib/rag/ directory with 6 modules
+  - PedagogicalChunk type with misconception/hint/example types
+  - extractMisconceptionChunks: one chunk per distractor (wrong answer)
+  - extractHintChunks: tiered hints (Tier 1, 2, 3)
+  - pedagogicalRetriever with misconception priority
+  - contentIndexer for batch embedding with Firestore
+  - Admin API: /api/admin/rag/index
+  - Commit: 6a101ae
+- **Phase 12.2 COMPLETE:** LearnLM Socratic Prompts
+  - socraticPrompts.ts: LearnLM-style system prompt builder
+  - StudentContext: ability, struggle level, emotional state
+  - ActivityContext: lesson, question, misconception
+  - Three-tier intervention hierarchy (93.8% vs 64.5% remediation)
+  - interventionManager.ts: state tracking and tier advancement
+  - Coach API integration with useSocraticMode experiment flag
+  - Low temperature (0.3) generation for focused responses
+  - Commit: e919e07
+- Decision: Use existing Firestore vectors (Pinecone not needed)
+
+### 2026-01-11 (v2.0 Work - Earlier)
 - Started v2.0 Adaptive Learning Evolution milestone
 - Source: Deep research via NotebookLM (40 academic sources)
 - Created Phase 10-15 roadmap for research-backed adaptive learning
@@ -156,7 +179,7 @@ Progress: ██████████░░░░░░░░░░ 33% (v2.0
 ## Session Continuity
 
 Last session: 2026-01-11
-Stopped at: Completed Phase 11, ready for Phase 12 (Socratic RAG Coach)
+Stopped at: Completed Phase 12 (Socratic RAG Coach), ready for Phase 13 (Adaptive Interleaving)
 Resume file: None
 
 ---
