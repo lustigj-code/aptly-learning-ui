@@ -354,3 +354,64 @@ export type PracticeEvaluation = {
   feedback: string;
   guidanceIfWrong?: string;
 };
+
+// ============================================
+// INTERACTION LOGGING TYPES (for ML Training)
+// ============================================
+
+export type InteractionType =
+  | 'quiz_answer'
+  | 'practice_response'
+  | 'content_view'
+  | 'hint_request'
+  | 'coach_interaction'
+  | 'review_attempt';
+
+export interface InteractionLog {
+  id: string;
+  userId: string;
+  sessionId: string;
+
+  // Learning Context
+  courseId: string;
+  moduleId: string;
+  lessonId: string;
+  atomId: string;
+  atomType: AtomType;
+
+  // Skill Context (for BKT/DKT)
+  skillId: string;
+  skillName: string;
+  questionId?: string;
+
+  // Response Data
+  interactionType: InteractionType;
+  isCorrect?: boolean;
+  selectedAnswer?: string;
+  correctAnswer?: string;
+
+  // Timing (for forgetting curve)
+  timestamp: Date;
+  responseTimeMs: number;
+  timeGapFromLastAttempt?: number;
+
+  // Attempt Context
+  attemptNumber: number;
+  consecutiveWrongOnSkill: number;
+  hintsUsedBefore: number;
+
+  // Difficulty Context (for Rasch model)
+  questionDifficulty?: number;
+  userAbilityEstimate?: number;
+
+  // Current Mastery State (for model training)
+  pMasteryBefore: number;
+  pMasteryAfter: number;
+
+  // Experiment Context
+  experimentVariants: Record<string, string>;
+}
+
+export interface InteractionLogInput extends Omit<InteractionLog, 'id' | 'timestamp'> {
+  timestamp?: Date;
+}

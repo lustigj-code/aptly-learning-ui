@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, RotateCcw, CheckCircle, AlertCircle, Clock, TrendingUp, Sparkles, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -11,6 +11,7 @@ import { QuizOption, QuizProgress } from '@/components/learning/QuizOption';
 import { SocraticQuizHint } from '@/components/ai/SocraticQuizHint';
 import { useTimeTracking, formatTimeMMSS } from '@/hooks/useTimeTracking';
 import { useCoach } from '@/hooks/useCoach';
+import { useInteractionLogger } from '@/hooks/useInteractionLogger';
 import { post } from '@/lib/api/client';
 import type { Atom, QuizContent, Question } from '@/types';
 import type { QuizQuestion } from '@/lib/ai/quiz-ai-integration';
@@ -95,6 +96,12 @@ export function QuizAtom({ atom, onComplete, onStruggleDetected }: QuizAtomProps
   // AI Coach for "Explain Why" feature
   const { getQuizHelp, isLoading: coachLoading } = useCoach();
 
+  // Interaction logging for ML model training
+  const { logQuizAnswer, logHintRequest } = useInteractionLogger();
+
+  // Track question start time for response time calculation
+  const questionStartTimeRef = useRef<number>(Date.now());
+
   const { content } = atom;
 
   // Time tracking
@@ -122,8 +129,28 @@ export function QuizAtom({ atom, onComplete, onStruggleDetected }: QuizAtomProps
     const userAnswer = state.answers[state.currentQuestionIndex];
     const correct = checkAnswer(currentQuestion, userAnswer);
 
+    // Calculate response time
+    const responseTimeMs = Date.now() - questionStartTimeRef.current;
+
     // Track consecutive wrong answers for struggle detection
     const newConsecutiveWrong = correct ? 0 : state.consecutiveWrong + 1;
+
+    // Log interaction for ML model training
+    const skillId = currentQuestion.skills?.[0] || `skill-${atom.lessonId}-default`;
+    const skillName = currentQuestion.skills?.[0] || 'General Knowledge';
+    logQuizAnswer({
+      questionId: currentQuestion.id || `q${atom.lessonId}.${state.currentQuestionIndex + 1}`,
+      skillId,
+      skillName,
+      isCorrect: correct,
+      selectedAnswer: String(userAnswer),
+      correctAnswer: String(currentQuestion.correctAnswer),
+      responseTimeMs,
+      attemptNumber: state.attempts + 1,
+      questionDifficulty: currentQuestion.difficulty,
+      pMasteryBefore: 0.5, // TODO: Get actual mastery from BKT state
+      pMasteryAfter: correct ? 0.6 : 0.4, // Will be updated by BKT response
+    });
 
     // Trigger struggle callback if 3+ consecutive wrong answers
     if (newConsecutiveWrong >= 3 && onStruggleDetected) {
@@ -184,6 +211,8 @@ export function QuizAtom({ atom, onComplete, onStruggleDetected }: QuizAtomProps
 
   const handleNextQuestion = () => {
     if (state.currentQuestionIndex < questions.length - 1) {
+      // Reset question start time for next question
+      questionStartTimeRef.current = Date.now();
       setState((prev) => ({
         ...prev,
         currentQuestionIndex: prev.currentQuestionIndex + 1,
@@ -251,6 +280,17 @@ export function QuizAtom({ atom, onComplete, onStruggleDetected }: QuizAtomProps
 
   // Track hint usage
   const handleHintViewed = (level: number) => {
+    const currentHintsUsed = state.hintsViewed[state.currentQuestionIndex] || 0;
+    const skillId = currentQuestion.skills?.[0] || `skill-${atom.lessonId}-default`;
+
+    // Log hint request for ML model training
+    logHintRequest({
+      atomId: atom.id,
+      skillId,
+      questionId: currentQuestion.id || `q${atom.lessonId}.${state.currentQuestionIndex + 1}`,
+      hintsUsedBefore: currentHintsUsed,
+    });
+
     setState((prev) => ({
       ...prev,
       hintsViewed: {
