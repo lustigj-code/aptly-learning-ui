@@ -49,25 +49,25 @@ const batchRequestSchema = z.object({
  * POST /api/interactions/log
  * Log learning interactions for ML model training
  * Accepts single interaction or batch of interactions
+ *
+ * SECURITY: Authentication required to prevent data poisoning attacks
  */
 export async function POST(request: NextRequest) {
   try {
-    // Get and verify Firebase ID token
+    // SECURITY: Require authentication for all requests
     const authHeader = request.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    // For sendBeacon requests, token might be in body or we allow unauthenticated logging
-    // (since we validate userId against session)
-    let userId: string | null = null;
+    const idToken = authHeader.slice(7);
+    let userId: string;
 
-    if (authHeader?.startsWith('Bearer ')) {
-      const idToken = authHeader.slice(7);
-      try {
-        const decodedToken = await adminAuth.verifyIdToken(idToken);
-        userId = decodedToken.uid;
-      } catch (error) {
-        console.error('Token verification failed:', error);
-        // Continue without auth - we'll validate userId matches session
-      }
+    try {
+      const decodedToken = await adminAuth.verifyIdToken(idToken);
+      userId = decodedToken.uid;
+    } catch {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
     // Parse and validate input
@@ -83,15 +83,13 @@ export async function POST(request: NextRequest) {
 
     const { interactions } = validation.data;
 
-    // If authenticated, verify all interactions belong to this user
-    if (userId) {
-      const unauthorized = interactions.filter((i) => i.userId !== userId);
-      if (unauthorized.length > 0) {
-        return NextResponse.json(
-          { error: 'Cannot log interactions for other users' },
-          { status: 403 }
-        );
-      }
+    // SECURITY: Verify ALL interactions belong to the authenticated user
+    const unauthorized = interactions.filter((i) => i.userId !== userId);
+    if (unauthorized.length > 0) {
+      return NextResponse.json(
+        { error: 'Cannot log interactions for other users' },
+        { status: 403 }
+      );
     }
 
     // Convert to InteractionLogInput format

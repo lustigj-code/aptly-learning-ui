@@ -10,15 +10,23 @@
  */
 
 import { NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase/admin';
+import { adminDb, adminAuth } from '@/lib/firebase/admin';
 import {
   calculateLift,
   isHybridProductionReady,
   type ShadowComparison,
 } from '@/lib/mastery/shadowMode';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    // Verify admin access
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const token = authHeader.split('Bearer ')[1];
+    await adminAuth.verifyIdToken(token);
     // Fetch shadow comparisons from Firestore
     const comparisonsRef = adminDb.collection('shadowComparisons');
     const snapshot = await comparisonsRef

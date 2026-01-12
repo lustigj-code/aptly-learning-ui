@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { TrendingUp, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
+import { get, isSuccess } from '@/lib/api/client';
 
 interface HybridStatus {
   sampleSize: number;
@@ -21,20 +22,31 @@ export function HybridModelStatus() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
     async function fetchStatus() {
       try {
-        const response = await fetch('/api/admin/hybrid-status');
-        if (response.ok) {
-          const data = await response.json();
-          setStatus(data);
+        // Use API client which automatically injects auth token
+        const response = await get<HybridStatus>('/api/admin/hybrid-status');
+        if (mounted && isSuccess(response)) {
+          setStatus(response.data);
         }
       } catch (error) {
-        console.error('Failed to fetch hybrid status:', error);
+        if (mounted) {
+          console.error('Failed to fetch hybrid status:', error);
+        }
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     }
+
     fetchStatus();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   if (loading) {

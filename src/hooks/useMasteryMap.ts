@@ -1,7 +1,20 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { get, isSuccess } from '@/lib/api/client';
 import type { MasteryMapData } from '@/components/mastery/types';
+
+interface MasteryMapResponse {
+  success: boolean;
+  data: MasteryMapData;
+  stats: {
+    totalSkills: number;
+    mastered: number;
+    available: number;
+    locked: number;
+    decaying: number;
+  };
+}
 
 /**
  * Hook to fetch mastery map data
@@ -27,17 +40,17 @@ export function useMasteryMap(userId: string | null, courseId: string = 'ai-at-w
     setError(null);
 
     try {
-      const response = await fetch(
+      // Use API client which automatically injects auth token
+      const response = await get<MasteryMapResponse>(
         `/api/mastery/map?userId=${userId}&courseId=${courseId}`
       );
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch mastery map');
+      if (isSuccess(response)) {
+        setData(response.data.data);
+        setStats(response.data.stats);
+      } else {
+        setError(response.error.message);
       }
-
-      const result = await response.json();
-      setData(result.data);
-      setStats(result.stats);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -46,8 +59,44 @@ export function useMasteryMap(userId: string | null, courseId: string = 'ai-at-w
   }, [userId, courseId]);
 
   useEffect(() => {
-    fetchMapData();
-  }, [fetchMapData]);
+    let mounted = true;
+
+    const fetch = async () => {
+      if (!userId) return;
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const response = await get<MasteryMapResponse>(
+          `/api/mastery/map?userId=${userId}&courseId=${courseId}`
+        );
+
+        if (mounted) {
+          if (isSuccess(response)) {
+            setData(response.data.data);
+            setStats(response.data.stats);
+          } else {
+            setError(response.error.message);
+          }
+        }
+      } catch (err) {
+        if (mounted) {
+          setError(err instanceof Error ? err.message : 'Unknown error');
+        }
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetch();
+
+    return () => {
+      mounted = false;
+    };
+  }, [userId, courseId]);
 
   return {
     data,
