@@ -499,4 +499,190 @@ Phase 6 → Phase 7 → Phase 8 → Phase 9
 
 ---
 
+---
+
+## Milestone: v2.0 Adaptive Learning Evolution
+
+**Objective:** Transform platform from "courses + chatbot" into research-backed adaptive learning system that solves the "90% don't complete" problem through intelligent personalization.
+
+**Source:** NotebookLM deep research (40 sources) + academic literature review
+
+**Depends on:** v1.0 Flawless Launch complete (Phase 5)
+
+---
+
+## Phase 10: Data Collection + A/B Enhancement
+
+**Priority:** Critical (enables all subsequent ML features)
+
+**Goal:** Build interaction logging infrastructure for hybrid model training + complete A/B testing UI
+
+### 10.1 Interaction Logging Infrastructure
+- Create InteractionLog type with full context
+- Build logging service for all learning events
+- Store to Firestore `interactionLogs` collection
+- Include: questionId, skillId, isCorrect, responseTimeMs, attemptNumber
+
+### 10.2 A/B Testing Dashboard UI
+- Build admin UI for experiment management
+- Show live experiment results with statistical significance
+- Create experiment variant configuration interface
+- First experiment: Socratic Sage vs current coach
+
+**Success Criteria:**
+- All quiz/practice interactions logged with full context
+- Admin can create/monitor experiments via UI
+- Data pipeline ready for hybrid model training
+
+---
+
+## Phase 11: FSRS Wiring + Exam Mode
+
+**Priority:** High (certification focus is core value)
+
+**Goal:** Wire existing FSRS to learning flow, add Exam Mode scheduling
+
+### 11.1 FSRS Integration
+- After atom completion → schedule review via FSRS
+- Create review queue widget on dashboard
+- Insert review items into learning sessions
+
+### 11.2 Exam Mode
+- User inputs certification exam date
+- System calculates workload for 95% retention by date
+- Daily review schedule adjusts automatically
+- Show exam readiness projection
+
+**Success Criteria:**
+- Completed atoms automatically scheduled for FSRS review
+- Review tab shows due items sorted by priority
+- Exam Mode drives personalized study schedule
+
+---
+
+## Phase 12: Socratic RAG Coach
+
+**Priority:** High (93.8% remediation vs 64.5% for static hints)
+
+**Goal:** Evolve Sage into Socratic tutor with RAG-grounded responses
+
+### 12.1 Content Indexing Pipeline
+- Set up Pinecone vector database
+- Create embedding pipeline for course content
+- Index: video transcripts, readings, quiz questions, misconceptions
+
+### 12.2 Socratic Prompt Architecture
+- Implement LearnLM-based prompting
+- Hierarchical intervention: question → hint → worked example
+- Never give direct answers until Tier 3
+
+### 12.3 RAG Retrieval Integration
+- Query Pinecone on each student question/error
+- Include BKT state + struggle level in context
+- Ground all responses in course content
+
+**Success Criteria:**
+- Coach answers grounded in course content (no hallucination)
+- Socratic method applied consistently
+- Measurable improvement in quiz remediation rates
+
+---
+
+## Phase 13: Adaptive Interleaving
+
+**Priority:** Medium-High (50% improvement in discrimination ability)
+
+**Goal:** Dynamic content sequencing that interleaves review with new learning
+
+### 13.1 Interleaving Algorithm
+- Query FSRS for due items (Retrievability < 0.90)
+- Filter by semantic similarity to current lesson
+- Construct dynamic queue mixing new + review
+
+### 13.2 Dynamic Queue Assembly
+- Keep instruction atoms blocked (new material)
+- Interleave practice atoms with reviews
+- Add "Review Challenge" badge to interleaved items
+
+**Success Criteria:**
+- Review items appear naturally during sessions
+- Interleaving based on semantic relevance
+- Clear UI distinction for review items
+
+---
+
+## Phase 14: Mastery Map UX
+
+**Priority:** Medium (prevents disorientation in adaptive system)
+
+**Goal:** Visual skill prerequisite graph showing progress
+
+### 14.1 Mastery Map Component
+- Build node-link diagram of skills
+- Nodes light up as P(mastery) increases
+- Show: current position, completed, locked
+
+### 14.2 Integration
+- Always visible during learning (sidebar/overlay)
+- Click node to see skill details
+- Navigation to related content
+
+**Success Criteria:**
+- Visual progress across skill graph
+- Clear indication of prerequisites
+- Navigation aid for learners
+
+---
+
+## Phase 15: Hybrid Learner Model (DKT2 + BKT)
+
+**Priority:** High (8.7% AUC improvement over BKT alone)
+
+**Goal:** Dual-pathway neural network for superior mastery prediction
+
+### 15.1 Model Architecture
+- Transformer pathway (4 layers, h=8) for sequential patterns
+- Bayesian pathway (DAG) for prior knowledge
+- Cross-attention between pathways
+- Train on collected interaction data
+
+### 15.2 Integration
+- Cold-start: BKT for first 10-20 interactions
+- Hybrid: after sufficient data per user
+- Gradual rollout with A/B testing
+
+**Success Criteria:**
+- Hybrid model trained on 100k+ interactions
+- A/B test shows improved mastery prediction
+- Seamless BKT → Hybrid transition
+
+---
+
+## v2.0 Execution Order
+
+```
+Phase 10 → Phase 11 → Phase 12 → Phase 13 → Phase 14 → Phase 15
+    ↓          ↓          ↓          ↓          ↓          ↓
+Critical    High       High      Med-High   Medium      High
+ Week 1-2   Week 2-4   Week 4-6   Week 6-8   Week 8-10  Week 10-14
+```
+
+**Data Collection Note:** Phase 10 must start immediately to collect training data for Phase 15 hybrid model.
+
+---
+
+## v2.0 Estimated Scope
+
+| Phase | Plans | Complexity |
+|-------|-------|------------|
+| Phase 10 | 2 | Medium |
+| Phase 11 | 2 | Medium |
+| Phase 12 | 3 | High (RAG pipeline) |
+| Phase 13 | 2 | Medium |
+| Phase 14 | 2 | Medium |
+| Phase 15 | 2 | High (ML model) |
+| **Total** | **13 plans** | |
+
+---
+
 *Last updated: 2026-01-11*
