@@ -408,3 +408,279 @@ export const DEFAULT_PRETRAINING_CONFIG: PretrainingConfig = {
   batchSize: 32,
   epochs: 10,
 };
+
+// ============================================================================
+// SHADOW MODE DATA EXPORT (Phase 15.2 Enhancement)
+// ============================================================================
+
+/**
+ * Export format for shadow comparison data
+ */
+export interface ShadowExportData {
+  metadata: {
+    exportedAt: string;
+    totalComparisons: number;
+    validComparisons: number;
+    dateRange: {
+      start: string;
+      end: string;
+    };
+    metrics: ShadowMetrics;
+  };
+  comparisons: ShadowComparisonExportRow[];
+}
+
+/**
+ * Single row in export data
+ */
+export interface ShadowComparisonExportRow {
+  timestamp: string;
+  userId: string;
+  skillId: string;
+  bktPrediction: number;
+  hybridPrediction: number;
+  actualOutcome: boolean | null;
+  bktError: number | null;
+  hybridError: number | null;
+  bktConfidence: number;
+  hybridConfidence: number;
+  modelUsed: string;
+}
+
+/**
+ * Export shadow comparisons to JSON format for analysis
+ */
+export function exportShadowData(comparisons: ShadowComparison[]): ShadowExportData {
+  const validComparisons = comparisons.filter(c => c.actualOutcome !== null);
+  const metrics = calculateShadowMetrics(comparisons);
+
+  // Find date range
+  const timestamps = comparisons.map(c => c.timestamp.getTime());
+  const startDate = new Date(Math.min(...timestamps));
+  const endDate = new Date(Math.max(...timestamps));
+
+  const exportRows: ShadowComparisonExportRow[] = comparisons.map(c => ({
+    timestamp: c.timestamp.toISOString(),
+    userId: c.userId,
+    skillId: c.skillId,
+    bktPrediction: c.bktPrediction.pCorrectNext,
+    hybridPrediction: c.hybridPrediction.pCorrectNext,
+    actualOutcome: c.actualOutcome,
+    bktError: c.bktError,
+    hybridError: c.hybridError,
+    bktConfidence: c.bktPrediction.confidence,
+    hybridConfidence: c.hybridPrediction.confidence,
+    modelUsed: c.hybridPrediction.modelUsed,
+  }));
+
+  return {
+    metadata: {
+      exportedAt: new Date().toISOString(),
+      totalComparisons: comparisons.length,
+      validComparisons: validComparisons.length,
+      dateRange: {
+        start: startDate.toISOString(),
+        end: endDate.toISOString(),
+      },
+      metrics,
+    },
+    comparisons: exportRows,
+  };
+}
+
+/**
+ * Export shadow data to CSV format
+ */
+export function exportShadowDataCSV(comparisons: ShadowComparison[]): string {
+  const headers = [
+    'timestamp',
+    'userId',
+    'skillId',
+    'bktPrediction',
+    'hybridPrediction',
+    'actualOutcome',
+    'bktError',
+    'hybridError',
+    'bktConfidence',
+    'hybridConfidence',
+    'modelUsed',
+  ];
+
+  const rows = comparisons.map(c => [
+    c.timestamp.toISOString(),
+    c.userId,
+    c.skillId,
+    c.bktPrediction.pCorrectNext.toFixed(4),
+    c.hybridPrediction.pCorrectNext.toFixed(4),
+    c.actualOutcome === null ? '' : c.actualOutcome ? '1' : '0',
+    c.bktError === null ? '' : c.bktError.toFixed(4),
+    c.hybridError === null ? '' : c.hybridError.toFixed(4),
+    c.bktPrediction.confidence.toFixed(4),
+    c.hybridPrediction.confidence.toFixed(4),
+    c.hybridPrediction.modelUsed,
+  ]);
+
+  return [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+}
+
+/**
+ * Generate summary statistics for shadow mode experiment
+ */
+export interface ShadowSummary {
+  status: 'collecting' | 'ready_for_evaluation' | 'ready_for_promotion' | 'needs_improvement';
+  message: string;
+  metrics: ShadowMetrics;
+  recommendations: string[];
+  progress: {
+    currentSamples: number;
+    targetSamples: number;
+    percentComplete: number;
+  };
+}
+
+/**
+ * Get shadow mode summary with recommendations
+ */
+export function getShadowModeSummary(
+  comparisons: ShadowComparison[],
+  targetSamples: number = 1000
+): ShadowSummary {
+  const validComparisons = comparisons.filter(c => c.actualOutcome !== null);
+  const metrics = calculateShadowMetrics(comparisons);
+  const { shouldPromote, reasons } = shouldPromoteHybrid(metrics);
+
+  const recommendations: string[] = [];
+  let status: ShadowSummary['status'];
+  let message: string;
+
+  const percentComplete = Math.min(100, (validComparisons.length / targetSamples) * 100);
+
+  if (validComparisons.length < 100) {
+    status = 'collecting';
+    message = 'Collecting initial data. Need at least 100 valid comparisons for preliminary analysis.';
+    recommendations.push('Continue collecting shadow mode data');
+    recommendations.push('Ensure outcome labels are being recorded');
+  } else if (validComparisons.length < targetSamples) {
+    status = 'collecting';
+    message = `Collecting data: ${validComparisons.length}/${targetSamples} comparisons (${percentComplete.toFixed(0)}% complete)`;
+
+    if (metrics.aucImprovement > 0) {
+      recommendations.push(`Preliminary results positive: +${(metrics.aucImprovement * 100).toFixed(1)}% AUC improvement`);
+    } else {
+      recommendations.push(`Preliminary results concerning: ${(metrics.aucImprovement * 100).toFixed(1)}% AUC change`);
+      recommendations.push('Consider investigating hybrid model configuration');
+    }
+  } else if (shouldPromote) {
+    status = 'ready_for_promotion';
+    message = 'Hybrid model ready for production rollout!';
+    recommendations.push('Run A/B test with gradual rollout (10% -> 50% -> 100%)');
+    recommendations.push('Monitor prediction accuracy during rollout');
+    recommendations.push('Set up alerts for accuracy degradation');
+  } else {
+    status = 'needs_improvement';
+    message = 'Hybrid model needs improvement before promotion';
+
+    if (metrics.aucImprovement < PROMOTION_CRITERIA.minAUCImprovement) {
+      recommendations.push('AUC improvement insufficient - consider model architecture changes');
+    }
+    if (metrics.brierImprovement < -PROMOTION_CRITERIA.maxBrierIncrease) {
+      recommendations.push('Calibration degraded - review probability calibration');
+    }
+    if (metrics.lift < PROMOTION_CRITERIA.minLift) {
+      recommendations.push('Error reduction insufficient - investigate feature engineering');
+    }
+  }
+
+  // Add reasons from promotion check
+  recommendations.push(...reasons.filter(r => !recommendations.includes(r)));
+
+  return {
+    status,
+    message,
+    metrics,
+    recommendations,
+    progress: {
+      currentSamples: validComparisons.length,
+      targetSamples,
+      percentComplete,
+    },
+  };
+}
+
+/**
+ * Aggregate metrics by skill for detailed analysis
+ */
+export interface SkillMetrics {
+  skillId: string;
+  sampleSize: number;
+  bktAUC: number;
+  hybridAUC: number;
+  aucImprovement: number;
+  lift: number;
+}
+
+/**
+ * Get per-skill breakdown of shadow mode performance
+ */
+export function getSkillBreakdown(comparisons: ShadowComparison[]): SkillMetrics[] {
+  // Group by skill
+  const bySkill = new Map<string, ShadowComparison[]>();
+
+  for (const comparison of comparisons) {
+    const existing = bySkill.get(comparison.skillId) || [];
+    existing.push(comparison);
+    bySkill.set(comparison.skillId, existing);
+  }
+
+  // Calculate metrics per skill
+  const skillMetrics: SkillMetrics[] = [];
+
+  for (const [skillId, skillComparisons] of bySkill) {
+    if (skillComparisons.length < 10) continue; // Skip skills with too few samples
+
+    const metrics = calculateShadowMetrics(skillComparisons);
+
+    skillMetrics.push({
+      skillId,
+      sampleSize: metrics.sampleSize,
+      bktAUC: metrics.bktAUC,
+      hybridAUC: metrics.hybridAUC,
+      aucImprovement: metrics.aucImprovement,
+      lift: metrics.lift,
+    });
+  }
+
+  // Sort by AUC improvement descending
+  skillMetrics.sort((a, b) => b.aucImprovement - a.aucImprovement);
+
+  return skillMetrics;
+}
+
+/**
+ * Identify skills where hybrid underperforms BKT
+ */
+export function getProblematicSkills(
+  comparisons: ShadowComparison[],
+  minSamples: number = 50
+): SkillMetrics[] {
+  const breakdown = getSkillBreakdown(comparisons);
+
+  return breakdown.filter(
+    skill => skill.sampleSize >= minSamples && skill.aucImprovement < 0
+  );
+}
+
+/**
+ * Identify skills where hybrid significantly outperforms BKT
+ */
+export function getHighPerformingSkills(
+  comparisons: ShadowComparison[],
+  minSamples: number = 50,
+  minImprovement: number = 0.05
+): SkillMetrics[] {
+  const breakdown = getSkillBreakdown(comparisons);
+
+  return breakdown.filter(
+    skill => skill.sampleSize >= minSamples && skill.aucImprovement >= minImprovement
+  );
+}

@@ -24,6 +24,7 @@ export interface ExperimentConfig {
   usePretests: boolean;
   useContentVariants: boolean;
   useSocraticMode?: boolean; // v2.0: Never give direct answers, use Socratic questioning
+  useHybridModel?: boolean;  // v15.2: Use hybrid learner model vs BKT only
 }
 
 export interface Experiment {
@@ -340,6 +341,7 @@ export async function getUserExperimentConfig(
     usePretests: true,
     useContentVariants: true,
     useSocraticMode: false, // Default to direct answers unless in Socratic experiment
+    useHybridModel: true,   // Default to hybrid model with cold-start handling
   };
 
   const experiments = await getExperiments('running');
@@ -649,6 +651,46 @@ export const INITIAL_EXPERIMENTS: Omit<Experiment, 'id' | 'createdAt' | 'updated
     ],
     sampleSize: {
       target: 200,
+      current: { control: 0, treatment: 0 },
+    },
+  },
+  // v15.2 Experiment: BKT vs Hybrid Model
+  {
+    name: 'BKT vs Hybrid Learner Model',
+    description: 'Test if hybrid model (SAKT-Lite + Rasch + BKT) improves prediction accuracy and learning outcomes vs BKT only',
+    status: 'draft',
+    startDate: new Date(),
+    variants: {
+      control: {
+        useAdaptiveSequencing: true,
+        useStruggleDetection: true,
+        useProactiveCoach: true,
+        usePretests: true,
+        useContentVariants: true,
+        useHybridModel: false, // BKT only
+      },
+      treatment: {
+        useAdaptiveSequencing: true,
+        useStruggleDetection: true,
+        useProactiveCoach: true,
+        usePretests: true,
+        useContentVariants: true,
+        useHybridModel: true, // Hybrid with cold-start handling
+      },
+    },
+    allocation: {
+      control: 0.5,
+      treatment: 0.5,
+    },
+    metrics: [
+      'predictionAccuracy',
+      'skillMasteryRate',
+      'averageTimeToMastery',
+      'retentionRate',
+      'modelConfidence',
+    ],
+    sampleSize: {
+      target: 500, // Need more samples for model comparison
       current: { control: 0, treatment: 0 },
     },
   },

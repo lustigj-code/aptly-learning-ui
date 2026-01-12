@@ -6,3 +6,5 @@ export { RetentionAnalysis } from './RetentionAnalysis';
 export { MetricsChart, BarChart, ComparisonChart } from './MetricsChart';
 export { StatisticalSignificance } from './StatisticalSignificance';
 export { CreateExperimentForm } from './CreateExperimentForm';
+export { HybridModelStatus } from './HybridModelStatus';
+export { ModelPerformanceWidget } from './ModelPerformanceWidget';

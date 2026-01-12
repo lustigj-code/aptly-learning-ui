@@ -204,24 +204,31 @@ export async function startLearningFlow(
 export async function getCurrentFlowState(userId: string): Promise<{
   state: FlowState
   currentItem: SessionItem | null
+  currentIndex: number
+  allItems: SessionItem[]
   progress: { completed: number; total: number; percentage: number }
   sessionStats: FlowStateData['sessionStats']
+  estimatedMinutes?: number
 }> {
   const flowState = await getFlowStateDoc(userId)
 
   const currentItem = flowState.session?.items[flowState.currentIndex] || null
-  const total = flowState.session?.items.length || 0
+  const allItems = flowState.session?.items || []
+  const total = allItems.length
   const completed = flowState.completedItems.length
 
   return {
     state: flowState.state,
     currentItem,
+    currentIndex: flowState.currentIndex,
+    allItems,
     progress: {
       completed,
       total,
       percentage: total > 0 ? Math.round((completed / total) * 100) : 0,
     },
     sessionStats: flowState.sessionStats,
+    estimatedMinutes: flowState.session?.estimatedMinutes,
   }
 }
 

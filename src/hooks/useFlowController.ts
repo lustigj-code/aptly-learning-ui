@@ -21,6 +21,8 @@ type FlowProgress = {
 type FlowStateData = {
   state: FlowState
   currentItem: SessionItem | null
+  currentIndex: number
+  allItems: SessionItem[]
   progress: FlowProgress
   sessionStats: {
     itemsCompleted: number
@@ -28,6 +30,7 @@ type FlowStateData = {
     totalQuestions: number
     totalTimeSpent: number
   }
+  estimatedMinutes?: number
 }
 
 type UseFlowControllerReturn = {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useUser } from '@/store/unifiedStore';
 import { MainCoachChat, type QuizQuestion, type Answer } from '@/components/coach/MainCoachChat';
 import { useFlowController } from '@/hooks/useFlowController';
@@ -9,6 +9,15 @@ import { motion } from 'framer-motion';
 import { Play, BookOpen, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import type { Atom } from '@/types';
+import {
+  ReviewChallengeBadge,
+  ReviewChallengeAnnouncement,
+  ReviewContextInfo,
+} from '@/components/learning/ReviewChallengeBadge';
+import {
+  SessionQueueDisplay,
+  SessionProgressBar,
+} from '@/components/learning/SessionQueueDisplay';
 
 /**
  * Coach Page with Flow-Driven Learning
@@ -26,7 +35,7 @@ export default function CoachPage() {
     startFlow,
     advanceFlow,
     recordQuizAnswer,
-    refreshState,
+    // refreshState available if needed
   } = useFlowController();
 
   const [hasStartedSession, setHasStartedSession] = useState(false);
@@ -70,13 +79,14 @@ export default function CoachPage() {
     });
 
     // If there's a current item, mark it as complete
-    if (flowState?.currentItem) {
+    const currentItem = flowState?.currentItem;
+    if (currentItem) {
       await advanceFlow({
-        atomId: flowState.currentItem.itemId || answer.questionId,
+        atomId: currentItem.itemId || answer.questionId,
         score: answer.isCorrect ? 100 : 0,
       });
     }
-  }, [recordQuizAnswer, advanceFlow, flowState?.currentItem]);
+  }, [recordQuizAnswer, advanceFlow, flowState]);
 
   // Store chat API reference
   const handleChatReady = useCallback((api: { addQuizToChat: (q: QuizQuestion, intro?: string) => string }) => {
@@ -120,6 +130,7 @@ export default function CoachPage() {
     // If session is active and we're showing content, render current content
     if (showContent && flowIsActive && flowState?.currentItem) {
       const item = flowState.currentItem;
+      const isReviewChallenge = item.isReviewChallenge || item.type === 'review';
 
       // Convert session item to atom format for InlineContentBlock
       // Map session item type to atom type (some types differ)
@@ -150,17 +161,71 @@ export default function CoachPage() {
         content: defaultContent,
       } as Atom;
 
+      // Calculate days since review from metadata (mock for now)
+      const daysSinceReview = item.metadata?.retrievability
+        ? Math.round((1 - item.metadata.retrievability) * 30) // Rough estimate
+        : undefined;
+      const lastMasteryLevel = item.metadata?.retrievability
+        ? Math.round(item.metadata.retrievability * 100)
+        : undefined;
+
       return (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           className="space-y-3"
         >
+          {/* Session Queue Display */}
+          {flowState.allItems.length > 0 && (
+            <SessionQueueDisplay
+              items={flowState.allItems}
+              currentIndex={flowState.currentIndex}
+              estimatedMinutes={flowState.estimatedMinutes}
+              defaultCollapsed={true}
+            />
+          )}
+
+          {/* Progress bar (compact) */}
+          {flowState.allItems.length > 0 && (
+            <SessionProgressBar
+              items={flowState.allItems}
+              currentIndex={flowState.currentIndex}
+            />
+          )}
+
+          {/* Review Challenge Badge and Context */}
+          {isReviewChallenge && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <ReviewChallengeBadge
+                  daysSinceReview={daysSinceReview}
+                  lastMasteryLevel={lastMasteryLevel}
+                  isExamMode={user?.preferences?.examModeEnabled}
+                  size="md"
+                />
+                <ReviewChallengeAnnouncement
+                  skillName={item.reason || 'this concept'}
+                  daysSinceReview={daysSinceReview}
+                />
+              </div>
+              <ReviewContextInfo
+                daysSinceReview={daysSinceReview}
+                lastMasteryLevel={lastMasteryLevel}
+                isExamMode={user?.preferences?.examModeEnabled}
+              />
+            </div>
+          )}
+
           {/* Progress indicator */}
           <div className="flex items-center justify-between text-xs text-rich-black/60 px-1">
-            <span>
-              Step {flowState.progress.completed + 1} of {flowState.progress.total}
-            </span>
+            <div className="flex items-center gap-2">
+              <span>
+                Step {flowState.progress.completed + 1} of {flowState.progress.total}
+              </span>
+              {isReviewChallenge && (
+                <span className="text-amber-600 font-medium">Review</span>
+              )}
+            </div>
             <span>{flowState.progress.percentage}% complete</span>
           </div>
 
@@ -168,7 +233,7 @@ export default function CoachPage() {
           <InlineContentBlock
             atom={atom}
             onComplete={handleContentComplete}
-            onQuizAnswer={(questionId, isCorrect, score) => {
+            onQuizAnswer={(questionId, isCorrect) => {
               handleQuizAnswer({
                 questionId,
                 selected: '', // Will be filled by InlineContentBlock

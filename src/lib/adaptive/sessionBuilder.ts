@@ -4,13 +4,16 @@
  * Builds personalized learning sessions that:
  * - Start with quick reviews (warm up retrieval)
  * - Include main learning block (new content)
- * - Interleave practice throughout
+ * - Interleave FSRS-based reviews throughout (Phase 13.1)
  * - End with review of what was just learned
  *
  * Note: Full sequencing requires server-side access. On client, uses API endpoint.
  */
 
 import { getSkillName } from '@/data/skillMap';
+import type { ConceptMastery } from '../mastery/knowledgeGraph';
+import type { ContentRepresentation } from './semanticSimilarity';
+import type { InterleavingConfig, InterleavingResult } from './interleavingAlgorithm';
 
 // Dynamic import for server-only sequencer
 // This prevents the adminDb import from breaking client-side builds
@@ -158,12 +161,15 @@ async function buildSessionViaAPI(
 
 /**
  * Create a mock session for development/fallback
+ * @internal Parameters reserved for future enhancement
  */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 function createMockSession(
-  userId: string,
-  availableMinutes: number,
-  preferences: SessionConfig['preferences']
+  _userId: string,
+  _availableMinutes: number,
+  _preferences: SessionConfig['preferences']
 ): LearningSession {
+  /* eslint-enable @typescript-eslint/no-unused-vars */
   const sessionId = generateSessionId();
 
   // Create simple mock items based on available time
@@ -213,7 +219,9 @@ function createMockSession(
 /**
  * Server-side session building with full sequencer
  * Note: Only called on server, but we use runtime-only import to be safe
+ * @internal Reserved for future server-side implementation
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function buildSessionDirect(
   userId: string,
   courseId: string,
@@ -453,6 +461,243 @@ export function isSessionStale(session: LearningSession, maxAgeMinutes: number =
   const ageMs = Date.now() - session.createdAt.getTime();
   const ageMinutes = ageMs / (1000 * 60);
   return ageMinutes > maxAgeMinutes;
+}
+
+// ============================================
+// INTERLEAVING INTEGRATION (Phase 13.1)
+// ============================================
+
+/**
+ * Context for interleaving reviews into a session
+ */
+export interface InterleavingContext {
+  /** User's mastery records for review items */
+  masteryRecords: ConceptMastery[];
+  /** Map of concept IDs to display names */
+  conceptNames: Record<string, string>;
+  /** Map of concept IDs to skill IDs */
+  skillMapping: Record<string, string>;
+  /** Current lesson content for similarity matching */
+  lessonContent: ContentRepresentation;
+  /** Content representations for review items */
+  reviewContents: Map<string, ContentRepresentation>;
+}
+
+/**
+ * Build session with FSRS-based review interleaving
+ *
+ * This is the primary entry point for Phase 13.1 adaptive interleaving.
+ * It combines traditional session building with intelligent review injection.
+ *
+ * @param userId - User ID
+ * @param courseId - Course ID
+ * @param availableMinutes - Session duration
+ * @param preferences - User preferences
+ * @param interleavingContext - Context for review interleaving (optional)
+ * @param interleavingConfig - Configuration for interleaving (optional)
+ */
+export async function buildSessionWithInterleaving(
+  userId: string,
+  courseId: string = 'ai-at-work',
+  availableMinutes: number = 30,
+  preferences: SessionConfig['preferences'] = DEFAULT_SESSION_CONFIG.preferences,
+  interleavingContext?: InterleavingContext,
+  interleavingConfig?: Partial<InterleavingConfig>
+): Promise<LearningSession> {
+  // Build base session
+  const baseSession = await buildSession(userId, courseId, availableMinutes, preferences);
+
+  // If no interleaving context, return base session
+  if (!interleavingContext) {
+    return baseSession;
+  }
+
+  // Dynamic import interleaving modules (server-only)
+  if (!isServer) {
+    console.warn('[SessionBuilder] Interleaving only available server-side');
+    return baseSession;
+  }
+
+  try {
+    // Import interleaving modules at runtime
+    const reviewDueQueryModule = await import('./reviewDueQuery');
+    const interleavingModule = await import('./interleavingAlgorithm');
+
+    const { queryDueReviews } = reviewDueQueryModule;
+    const { createInterleavedQueue, getAdaptiveConfig } = interleavingModule;
+
+    // Query due reviews
+    const reviewQuery = queryDueReviews(
+      interleavingContext.masteryRecords,
+      interleavingContext.conceptNames,
+      interleavingContext.skillMapping,
+      {
+        maxItems: 10,
+        relevantSkillIds: baseSession.skillsFocused,
+      }
+    );
+
+    // If no reviews due, return base session
+    if (reviewQuery.items.length === 0) {
+      return baseSession;
+    }
+
+    // Get adaptive config based on review state
+    const adaptiveConfig = getAdaptiveConfig(
+      reviewQuery.totalDueCount,
+      reviewQuery.averageRetrievability,
+      availableMinutes
+    );
+
+    // Merge with provided config
+    const finalConfig: Partial<InterleavingConfig> = {
+      ...adaptiveConfig,
+      ...interleavingConfig,
+    };
+
+    // Get new items from base session (exclude warmup/cooldown)
+    const newItems = baseSession.items.filter(
+      (item) => item.type === 'learn' || item.type === 'practice'
+    );
+
+    // Create interleaved queue
+    const interleavingResult = createInterleavedQueue(
+      newItems,
+      reviewQuery.items,
+      interleavingContext.lessonContent,
+      interleavingContext.reviewContents,
+      finalConfig
+    );
+
+    // Rebuild session with interleaved items
+    return rebuildSessionWithInterleaving(baseSession, interleavingResult);
+  } catch (error) {
+    console.error('[SessionBuilder] Interleaving error, using base session:', error);
+    return baseSession;
+  }
+}
+
+/**
+ * Rebuild session structure with interleaved items
+ */
+function rebuildSessionWithInterleaving(
+  baseSession: LearningSession,
+  interleavingResult: InterleavingResult
+): LearningSession {
+  // Get warmup and cooldown from base session
+  const warmups = baseSession.items.filter((i) => i.type === 'warmup');
+  const cooldowns = baseSession.items.filter((i) => i.type === 'cooldown');
+
+  // Build final items list
+  const finalItems: SessionItem[] = [];
+  let order = 0;
+
+  // Add warmups first
+  for (const item of warmups) {
+    finalItems.push({ ...item, order: order++ });
+  }
+
+  // Add interleaved items
+  for (const item of interleavingResult.items) {
+    finalItems.push({
+      type: item.type,
+      itemId: item.itemId,
+      skillId: item.skillId,
+      estimatedMinutes: item.estimatedMinutes,
+      reason: item.reason,
+      order: order++,
+      isReviewChallenge: item.isReviewChallenge,
+      metadata: item.metadata,
+    });
+  }
+
+  // Add cooldowns last
+  for (const item of cooldowns) {
+    finalItems.push({ ...item, order: order++ });
+  }
+
+  // Calculate new totals
+  const totalMinutes = finalItems.reduce((sum, i) => sum + i.estimatedMinutes, 0);
+  const skillsFocused = [...new Set(finalItems.map((i) => i.skillId))];
+
+  return {
+    id: baseSession.id,
+    items: finalItems,
+    estimatedMinutes: totalMinutes,
+    skillsFocused,
+    structure: {
+      warmupReviews: finalItems.filter((i) => i.type === 'warmup').length,
+      mainLearning: finalItems.filter((i) => i.type === 'learn').length,
+      practiceItems: finalItems.filter((i) => i.type === 'practice').length,
+      cooldownReview: finalItems.filter((i) => i.type === 'cooldown').length,
+      interleavedReviews: finalItems.filter((i) => i.isReviewChallenge).length,
+    },
+    createdAt: baseSession.createdAt,
+  };
+}
+
+/**
+ * Get session summary with interleaving info
+ */
+export function getSessionSummaryWithInterleaving(session: LearningSession): string {
+  const parts: string[] = [];
+
+  if (session.structure.warmupReviews > 0) {
+    parts.push(
+      `${session.structure.warmupReviews} warmup${session.structure.warmupReviews > 1 ? 's' : ''}`
+    );
+  }
+  if (session.structure.mainLearning > 0) {
+    parts.push(
+      `${session.structure.mainLearning} lesson${session.structure.mainLearning > 1 ? 's' : ''}`
+    );
+  }
+  if (session.structure.practiceItems > 0) {
+    parts.push(
+      `${session.structure.practiceItems} practice${session.structure.practiceItems > 1 ? 's' : ''}`
+    );
+  }
+  if (session.structure.interleavedReviews > 0) {
+    parts.push(
+      `${session.structure.interleavedReviews} review challenge${session.structure.interleavedReviews > 1 ? 's' : ''}`
+    );
+  }
+
+  return `Today: ${parts.join(' + ')} (~${session.estimatedMinutes} min)`;
+}
+
+/**
+ * Check if a session item is a review challenge
+ */
+export function isReviewChallengeItem(item: SessionItem): boolean {
+  return item.isReviewChallenge === true;
+}
+
+/**
+ * Get review challenge items from a session
+ */
+export function getReviewChallenges(session: LearningSession): SessionItem[] {
+  return session.items.filter((item) => item.isReviewChallenge);
+}
+
+/**
+ * Get interleaving statistics from a session
+ */
+export function getInterleavingStats(session: LearningSession): {
+  totalItems: number;
+  reviewChallenges: number;
+  interleavingRatio: number;
+  hasInterleaving: boolean;
+} {
+  const reviewChallenges = session.structure.interleavedReviews;
+  const totalItems = session.items.length;
+
+  return {
+    totalItems,
+    reviewChallenges,
+    interleavingRatio: totalItems > 0 ? reviewChallenges / totalItems : 0,
+    hasInterleaving: reviewChallenges > 0,
+  };
 }
 
 // ============================================
