@@ -685,4 +685,286 @@ Critical    High       High      Med-High   Medium      High
 
 ---
 
-*Last updated: 2026-01-11*
+---
+
+## Milestone: v2.1 UI/UX Perfection
+
+**Objective:** Transform platform UI to match research-backed best practices for online learning. "Duolingo Meets Professional Certification" - calming, encouraging, professional.
+
+**Source:** NotebookLM research (166 sources) + Aptly brand guidelines
+
+**Depends on:** v2.0 Adaptive Learning Evolution complete (Phase 15)
+
+---
+
+## Phase 16: Design Tokens Foundation
+
+**Priority:** Critical (enables all subsequent UI work)
+
+**Goal:** Create single source of truth for colors, animations, spacing, and touch targets
+
+### 16.1 Create Design Tokens Module
+- Create `src/lib/design-tokens.ts`
+- Define COLORS (navy, teal, yellow, purple, success, error)
+- Define TIMING (instant: 100ms, standard: 200ms, elaborate: 400ms)
+- Define SPRING configs for Framer Motion
+- Define TOUCH_TARGET minimums (44px, 48px)
+- Define Z_INDEX layers
+
+### 16.2 Replace Hardcoded Colors
+- Audit all components for hardcoded hex values
+- Replace with CSS variables from design tokens
+- Files: ProgressBar.tsx, MiniMap.tsx, MasteryMapNode.tsx, Card.tsx
+
+**Success Criteria:**
+- Zero hardcoded hex colors in components
+- All animations use standard timing constants
+- Touch targets meet 44px minimum
+
+---
+
+## Phase 17: Core Component Polish
+
+**Priority:** High
+
+**Goal:** Standardize Button, Card, Input, ProgressBar components
+
+### 17.1 Button Component
+- Ensure all sizes meet 44px minimum touch target
+- Standardize pressed state: scale(0.97)
+- Add shimmer loading skeleton option
+- Use SPRING.snappy consistently
+- Add aria-busy for loading state
+
+### 17.2 Card Component
+- Standardize hover: translateY(-4px) + teal border tint
+- Use SPRING.gentle for animations
+- Add dark mode support (dark: variants)
+- Remove hardcoded rgba, use CSS variables
+
+### 17.3 Input Component
+- Add teal focus glow ring
+- Add success state (green border when validated)
+- Ensure height matches button sizes
+- Add aria-invalid support
+
+### 17.4 ProgressBar Component
+- Replace hardcoded hex colors
+- Add shimmer effect on 100% completion
+- Use CSS variables for all colors
+
+**Success Criteria:**
+- All core components use design tokens
+- Consistent animation behavior
+- Accessibility attributes present
+
+---
+
+## Phase 18: Quiz Interface Enhancement
+
+**Priority:** High (core learning experience)
+
+**Goal:** Research-backed quiz UI with immediate feedback and Socratic hints
+
+### 18.1 Answer Options
+- 48px touch targets on all options
+- Keyboard navigation (Tab, Enter, Spacebar)
+- Color + icon for feedback (never color alone)
+
+### 18.2 Feedback Timing
+- Correct: Green checkmark + 200ms animation
+- Incorrect: Red indicator + shake animation
+- Streak celebration: "3 in a row!" toast
+
+### 18.3 Hint Presentation (Socratic Layering)
+- Level 1: Metacognitive prompt
+- Level 2: Guided hint
+- Level 3: Sentence frame
+- < 150ms delivery latency
+
+**Success Criteria:**
+- Quiz feedback feels instant (< 200ms)
+- Never convey meaning by color alone
+- Hint progression follows Socratic method
+
+---
+
+## Phase 19: Gamification UI Polish
+
+**Priority:** Medium-High
+
+**Goal:** Streak, XP, and badge UI following Duolingo patterns
+
+### 19.1 Streak Display
+- Flame icon with animation
+- Calendar view showing streak history
+- Streak freeze UI (safety net visualization)
+- Loss aversion notification
+
+### 19.2 XP System
+- Immediate +XP animation (200ms)
+- Variable reward amounts
+- Speed bonus for fast correct answers
+- Progress bar to next level
+
+### 19.3 Badge Display
+- Rarity hierarchy visual (common/rare/legendary glow)
+- Unlock celebration (confetti + modal)
+- Portfolio/showcase view
+- Progress to next badge indicator
+
+**Success Criteria:**
+- Streak visible and animated
+- XP rewards feel immediate
+- Badges have visual hierarchy
+
+---
+
+## Phase 20: Mastery Visualization
+
+**Priority:** Medium
+
+**Goal:** Visual skill map with "light up" effect on mastery
+
+### 20.1 Mastery Map Enhancement
+- Nodes light up with yellow (#FFDE00) on mastery
+- Color-coded probability (blue = improving, red = declining)
+- Prerequisites shown as directed edges
+- Locked nodes for unmet prerequisites
+
+### 20.2 Progress Indicators
+- Skill-by-skill progress (not just aggregate %)
+- Mastery threshold visualization (P ≥ 0.95)
+- FSRS retrievability decay visualization
+
+**Success Criteria:**
+- Visual progress across skill graph
+- Clear mastery state per node
+- FSRS decay visible
+
+---
+
+## Phase 21: Accessibility Hardening
+
+**Priority:** High (WCAG 2.1 AA compliance)
+
+**Goal:** Full keyboard navigation, screen reader support, reduced motion
+
+### 21.1 Contrast & Color
+- Verify 4.5:1 for all text
+- Verify 3:1 for UI components
+- Never convey meaning by color alone
+
+### 21.2 Keyboard Navigation
+- All interactive elements focusable
+- Visible focus indicators (teal ring)
+- Skip links on every page
+- Focus trap in modals
+
+### 21.3 Screen Readers
+- Alt text on all images
+- Semantic HTML (h1-h6 hierarchy)
+- ARIA labels on custom components
+
+### 21.4 Reduced Motion
+- prefers-reduced-motion media query
+- Disable animations for users who prefer it
+
+**Success Criteria:**
+- Lighthouse accessibility > 90
+- Full keyboard operability
+- Screen reader compatible
+
+---
+
+## Phase 22: Performance Optimization
+
+**Priority:** Medium
+
+**Goal:** Memoization, code splitting, debouncing
+
+### 22.1 Memoization
+- Add React.memo() to expensive components
+- CoachLearningView: ProgressSidebar, SmartCoachBar, ChatOverlay
+- Dashboard: LessonPreviewCard, StatCard, CourseCard
+- EnhancedMasteryMap: individual MapNode components
+
+### 22.2 useMemo for Expensive Computations
+- dashboard/page.tsx: getUpcomingLessons()
+- Other computed values in render
+
+### 22.3 Code Splitting
+- dynamic() imports for admin pages
+- dynamic() for Recharts (heavy library)
+- dynamic() for mastery page
+
+### 22.4 Debounce ResizeObserver
+- EnhancedMasteryMap: 100ms debounce
+
+**Success Criteria:**
+- No unnecessary re-renders
+- Admin pages lazy loaded
+- Smooth resize behavior
+
+---
+
+## Phase 23: Hook Extraction
+
+**Priority:** Medium (code quality)
+
+**Goal:** Extract reusable hooks from duplicated patterns
+
+### 23.1 useAtomCompletion Hook
+- Shared completion logic for all atom types
+- Extract from: QuizAtom, PracticeAtom, ReadingAtom, VideoAtom
+
+### 23.2 useContentViewLogging Hook
+- View duration tracking
+- Extract duplicated ref + useEffect pattern
+
+### 23.3 useProgressHeader Hook
+- Time + question progress display
+- Shared across learning views
+
+**Success Criteria:**
+- No duplicated completion logic
+- Consistent view logging
+- Reusable progress display
+
+---
+
+## v2.1 Execution Order
+
+```
+Phase 16 → Phase 17 → Phase 18 → Phase 19 → Phase 20 → Phase 21 → Phase 22 → Phase 23
+    ↓          ↓          ↓          ↓          ↓          ↓          ↓          ↓
+Critical    High       High      Med-High   Medium      High      Medium     Medium
+```
+
+**Thread Strategy:**
+- Phase 16-17: P-Thread (parallel - independent file territories)
+- Phase 18: Base-Thread (sequential - dependent changes)
+- Phase 19-20: P-Thread (parallel)
+- Phase 21: P-Thread (parallel across all components)
+- Phase 22: P-Thread (parallel)
+- Phase 23: Base-Thread (sequential)
+
+---
+
+## v2.1 Estimated Scope
+
+| Phase | Plans | Complexity |
+|-------|-------|------------|
+| Phase 16 | 2 | Medium |
+| Phase 17 | 4 | Medium |
+| Phase 18 | 3 | Medium-High |
+| Phase 19 | 3 | Medium |
+| Phase 20 | 2 | Medium |
+| Phase 21 | 4 | Medium |
+| Phase 22 | 4 | Low-Medium |
+| Phase 23 | 3 | Low-Medium |
+| **Total** | **25 plans** | |
+
+---
+
+*Last updated: 2026-01-12*
