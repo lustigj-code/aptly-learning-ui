@@ -10,6 +10,7 @@ import { AchievementBadge } from '@/components/ui/Badge';
 import { SkeletonDashboard } from '@/components/ui/Skeleton';
 import { StreakCounter, StreakCalendar } from '@/components/progress/StreakCounter';
 import { Section } from '@/components/layout/AppLayout';
+import { ExamReadinessWidget } from '@/components/dashboard/ExamReadinessWidget';
 import { useUser, useSyncStatus } from '@/store/unifiedStore';
 import { useReviewQueue } from '@/hooks/useReviewQueue';
 import { Brain } from 'lucide-react';
@@ -41,6 +42,9 @@ const DEMO_USER = {
   badges: [],
   preferences: {
     dailyGoalMinutes: 15,
+    examModeEnabled: false,
+    certificationExamDate: undefined,
+    targetRetention: 0.95,
   },
 };
 
@@ -93,39 +97,52 @@ export default function DashboardPage() {
   // Defensive defaults for streak
   const streak = user.streak || { currentStreak: 0, longestStreak: 0, freezesAvailable: 2, streakHistory: [] };
 
-  // Get next 3-4 lessons for Learning Path Preview
+  // Get next 3-4 lessons for Learning Path Preview from actual course data
   const getUpcomingLessons = () => {
-    // Mock data for upcoming lessons - in real app, this would come from course data
-    return [
-      {
-        id: 'c3-m1-l2',
-        title: 'Setting Your Campaign Objective',
-        module: 'Getting Started with Meta Ads',
-        status: 'current' as const,
-        estimatedMinutes: 20,
-      },
-      {
-        id: 'c3-m1-l3',
-        title: 'Understanding Ad Placements',
-        module: 'Getting Started with Meta Ads',
-        status: 'locked' as const,
-        estimatedMinutes: 15,
-      },
-      {
-        id: 'c3-m2-l1',
-        title: 'Creating Your First Campaign',
-        module: 'Campaign Creation',
-        status: 'locked' as const,
-        estimatedMinutes: 25,
-      },
-      {
-        id: 'c3-m2-l2',
-        title: 'Targeting Your Audience',
-        module: 'Campaign Creation',
-        status: 'locked' as const,
-        estimatedMinutes: 30,
-      },
-    ];
+    const completedLessonIds = new Set(progress.lessonsCompleted || []);
+    const lessons: {
+      id: string;
+      title: string;
+      module: string;
+      status: 'completed' | 'current' | 'locked';
+      estimatedMinutes: number;
+    }[] = [];
+
+    let foundCurrent = false;
+    let addedCount = 0;
+
+    for (const module of currentCourse.modules ?? []) {
+      for (const lesson of module.lessons ?? []) {
+        if (addedCount >= 4) break;
+
+        const isCompleted = completedLessonIds.has(lesson.id);
+        let status: 'completed' | 'current' | 'locked';
+
+        if (isCompleted) {
+          status = 'completed';
+        } else if (!foundCurrent) {
+          status = 'current';
+          foundCurrent = true;
+        } else {
+          status = 'locked';
+        }
+
+        // Skip completed lessons unless we haven't found current yet
+        if (isCompleted && foundCurrent) continue;
+
+        lessons.push({
+          id: lesson.id,
+          title: lesson.title,
+          module: `Module ${module.number}: ${module.title}`,
+          status,
+          estimatedMinutes: lesson.estimatedMinutes ?? 15,
+        });
+        addedCount++;
+      }
+      if (addedCount >= 4) break;
+    }
+
+    return lessons;
   };
 
   const upcomingLessons = getUpcomingLessons();
@@ -162,6 +179,17 @@ export default function DashboardPage() {
               Start Review
             </Button>
           </motion.div>
+        </Section>
+      )}
+
+      {/* Exam Readiness Widget - Only show when exam mode is enabled */}
+      {user.preferences?.examModeEnabled && user.preferences?.certificationExamDate && (
+        <Section delay={0.05}>
+          <ExamReadinessWidget
+            examDate={new Date(user.preferences.certificationExamDate)}
+            targetRetention={user.preferences.targetRetention || 0.95}
+            userId={user.id}
+          />
         </Section>
       )}
 
@@ -564,12 +592,12 @@ export default function DashboardPage() {
               <p className="text-rich-black/70">
                 {isNewUser ? (
                   <>
-                    Welcome to your learning journey, {user.name}! I&apos;m here to help you master social media marketing.
+                    Welcome to your learning journey, {user.name}! I&apos;m here to help you master {currentCourse.title}.
                     Start with your first lesson and we&apos;ll build your skills step by step. You&apos;ve got this!
                   </>
                 ) : (
                   <>
-                    You&apos;re making great progress on Meta Ads! Remember, consistency beats intensity.
+                    You&apos;re making great progress on {currentCourse.title}! Remember, consistency beats intensity.
                     {streak.currentStreak > 0
                       ? ` Your ${streak.currentStreak}-day streak shows you've got what it takes. Keep going!`
                       : ' Start a streak today by completing a lesson!'}
