@@ -13,7 +13,7 @@ import { Section } from '@/components/layout/AppLayout';
 import { useUser, useSyncStatus } from '@/store/unifiedStore';
 import { useReviewQueue } from '@/hooks/useReviewQueue';
 import { Brain } from 'lucide-react';
-import { COURSES } from '@/data/mockData';
+import { getCourse, getDefaultCourse, DEFAULT_COURSE_ID } from '@/data/courseRegistry';
 import { cn } from '@/lib/utils';
 
 // Demo user for UI testing when not authenticated
@@ -22,19 +22,19 @@ const DEMO_USER = {
   name: 'Demo User',
   email: 'demo@aptly.com',
   progress: {
-    currentCourseId: 'c1',
-    currentModuleId: 'c1-m1',
-    currentLessonId: 'c1-m1-l1',
-    lessonsCompleted: ['c1-m1-l1', 'c1-m1-l2'],
+    currentCourseId: DEFAULT_COURSE_ID, // ai-at-work
+    currentModuleId: 'ai-m1',
+    currentLessonId: '1.1',
+    lessonsCompleted: [],
     modulesCompleted: [],
     coursesCompleted: [],
-    overallPercentage: 12,
-    totalTimeSpentMinutes: 45,
-    xp: 1250,
+    overallPercentage: 0,
+    totalTimeSpentMinutes: 0,
+    xp: 0,
   },
   streak: {
-    currentStreak: 5,
-    longestStreak: 12,
+    currentStreak: 0,
+    longestStreak: 0,
     freezesAvailable: 2,
     streakHistory: [],
   },
@@ -59,18 +59,27 @@ export default function DashboardPage() {
 
   // Get the current course from user's progress (with defensive defaults)
   const progress = user.progress || {};
-  const currentCourse = COURSES.find(c => c.id === progress.currentCourseId) || COURSES[0];
+  const currentCourse = getCourse(progress.currentCourseId || DEFAULT_COURSE_ID) || getDefaultCourse();
 
   // Calculate actual lesson progress
-  const totalLessons = 47; // Total lessons in the course
+  const totalLessons = currentCourse.modules?.reduce(
+    (total, mod) => total + (mod.lessons?.length ?? 0),
+    0
+  ) ?? 0;
   const completedLessons = progress.lessonsCompleted?.length || 0;
   const lessonProgress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
+  // Get current module title
+  const currentModule = currentCourse.modules?.find(m => m.id === progress.currentModuleId);
+  const moduleTitle = currentModule
+    ? `Module ${currentModule.number}: ${currentModule.title}`
+    : 'Getting Started';
+
   // Current lesson info based on actual position
   const currentLessonInfo = {
-    id: progress.currentLessonId || 'c1-m1-l1',
-    title: completedLessons === 0 ? 'Introduction to Social Media Marketing' : currentCourse.title,
-    moduleTitle: completedLessons === 0 ? 'Getting Started' : `Module ${progress.currentModuleId?.split('-')[1]?.replace('m', '') || '1'}`,
+    id: progress.currentLessonId || '1.1',
+    title: currentCourse.title,
+    moduleTitle,
     progress: lessonProgress,
     estimatedMinutes: user.preferences?.dailyGoalMinutes || 15,
   };
@@ -184,13 +193,13 @@ export default function DashboardPage() {
                     Start with {currentCourse.title}
                   </p>
                   <p className="text-white/60 text-lg">
-                    Your first lesson: Introduction to Social Media Marketing
+                    Begin your learning journey
                   </p>
                 </>
               ) : (
                 <>
                   <p className="text-teal font-semibold uppercase tracking-wider text-sm mb-4">
-                    Course {COURSES.findIndex(c => c.id === progress.currentCourseId) + 1} &bull; {currentLessonInfo.moduleTitle}
+                    {currentLessonInfo.moduleTitle}
                   </p>
                   <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 leading-tight">
                     {currentLessonInfo.title}
@@ -490,52 +499,50 @@ export default function DashboardPage() {
         </Section>
       )}
 
-      {/* Course Overview */}
+      {/* Course Overview - Show modules for current course */}
       <Section delay={0.4}>
         <Card variant="elevated" padding="lg">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Your Learning Path</CardTitle>
-              <CardDescription>Meta Social Media Marketing Certificate</CardDescription>
+              <CardDescription>{currentCourse.title}</CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-rich-black/60">Powered by</span>
-              <span className="font-semibold text-navy">Meta</span>
+              <span className="text-sm text-rich-black/60">{currentCourse.modules?.length ?? 0} modules</span>
             </div>
           </CardHeader>
           <CardContent>
             <div className="grid gap-4">
-              {COURSES.map((course, index) => {
-                const coursesCompleted: string[] = progress.coursesCompleted || [];
+              {(currentCourse.modules ?? []).map((module, index) => {
                 const modulesCompleted: string[] = progress.modulesCompleted || [];
-                const isCompleted = coursesCompleted.includes(course.id);
-                const isCurrent = progress.currentCourseId === course.id;
-                const isLocked = !course.prerequisites.every(p =>
-                  coursesCompleted.includes(p)
-                );
+                const isCompleted = modulesCompleted.includes(module.id);
+                const isCurrent = progress.currentModuleId === module.id;
+                // Lock modules after the current one
+                const currentModuleIndex = currentCourse.modules?.findIndex(m => m.id === progress.currentModuleId) ?? 0;
+                const isLocked = index > currentModuleIndex && !isCompleted;
 
-                // Calculate course progress
-                const moduleCount = 3; // Simplified for demo
-                const completedModulesCount = modulesCompleted.filter(
-                  m => m.startsWith(`c${course.number}-`)
+                // Calculate module progress based on lessons
+                const lessonCount = module.lessons?.length ?? 0;
+                const completedLessonsCount = (progress.lessonsCompleted || []).filter(
+                  l => module.lessons?.some(ml => ml.id === l)
                 ).length;
-                const courseProgress = isCompleted ? 100 : Math.round((completedModulesCount / moduleCount) * 100);
+                const moduleProgress = isCompleted ? 100 : lessonCount > 0 ? Math.round((completedLessonsCount / lessonCount) * 100) : 0;
 
                 return (
                   <motion.div
-                    key={course.id}
+                    key={module.id}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.45 + index * 0.05 }}
                   >
                     <CourseCard
-                      number={course.number}
-                      title={course.title}
-                      progress={courseProgress}
+                      number={module.number}
+                      title={module.title}
+                      progress={moduleProgress}
                       isCompleted={isCompleted}
                       isCurrent={isCurrent}
                       isLocked={isLocked}
-                      estimatedHours={course.estimatedHours}
+                      estimatedHours={Math.round((module.estimatedMinutes ?? 60) / 60)}
                     />
                   </motion.div>
                 );

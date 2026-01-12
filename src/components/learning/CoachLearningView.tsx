@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/Button'
 import { useCoach } from '@/hooks/useCoach'
 import { useUser } from '@/store/unifiedStore'
 import { cn } from '@/lib/utils'
-import { FSM_MODULE_1 } from '@/data/fsmCourse'
+import { getCourse, getDefaultCourse, DEFAULT_COURSE_ID } from '@/data/courseRegistry'
 import type { Atom, Lesson, Module } from '@/types'
 
 // Import content renderers
@@ -120,8 +120,31 @@ function clearSession() {
 // GET MODULE DATA
 // ============================================
 
-function getModule(): Module {
-  return FSM_MODULE_1
+function getModule(courseId?: string, moduleId?: string): Module {
+  const course = getCourse(courseId || DEFAULT_COURSE_ID) || getDefaultCourse()
+
+  // If moduleId specified, find that module
+  if (moduleId && course.modules) {
+    const mod = course.modules.find(m => m.id === moduleId)
+    if (mod) return mod
+  }
+
+  // Default to first module
+  if (course.modules && course.modules.length > 0) {
+    return course.modules[0]
+  }
+
+  // Fallback empty module (should never happen with real data)
+  return {
+    id: 'empty',
+    courseId: courseId || DEFAULT_COURSE_ID,
+    number: 1,
+    title: 'No Content Available',
+    objectives: [],
+    estimatedMinutes: 0,
+    lessons: [],
+    isLocked: false,
+  }
 }
 
 // ============================================
@@ -430,7 +453,10 @@ export function CoachLearningView({
   onLessonComplete,
 }: CoachLearningViewProps) {
   const { user } = useUser()
-  const module = getModule()
+  // Get courseId from props, user progress, or default
+  const effectiveCourseId = courseId || user?.progress?.currentCourseId || DEFAULT_COURSE_ID
+  const effectiveModuleId = user?.progress?.currentModuleId
+  const module = getModule(effectiveCourseId, effectiveModuleId)
   // TODO: Re-enable when API is stable
   // const { masteryLevels } = useMasteryLevels(user?.id || null)
   // const [prerequisiteWarning, setPrerequisiteWarning] = useState<string | null>(null)

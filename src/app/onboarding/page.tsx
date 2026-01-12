@@ -26,6 +26,7 @@ import { BADGES } from '@/data/mockData';
 import { updateProfile, updatePreferences } from '@/lib/api/userApi';
 import { cn, calculateWeeksToComplete } from '@/lib/utils';
 import type { OnboardingStep, LearningPace } from '@/types';
+import { DEFAULT_COURSE_ID } from '@/data/courseRegistry';
 
 const STEPS: OnboardingStep[] = ['welcome', 'name', 'goal', 'experience', 'time', 'style', 'complete'];
 
@@ -105,13 +106,13 @@ export default function OnboardingPage() {
     newUser.goal = selectedGoal || undefined;
     newUser.experienceLevel = experienceLevel;
 
-    // Start with fresh progress - beginning of course 1
+    // Start with fresh progress - beginning of AI at Work course
     newUser.progress = {
       ...newUser.progress,
-      currentCourseId: 'course-1',
-      currentModuleId: 'c1-m1',
-      currentLessonId: 'c1-m1-l1',
-      currentAtomId: 'c1-m1-l1-a1',
+      currentCourseId: DEFAULT_COURSE_ID, // ai-at-work
+      currentModuleId: 'ai-m1',
+      currentLessonId: '1.1',
+      currentAtomId: '1.1-intro',
       overallPercentage: 0,
       coursesCompleted: [],
       modulesCompleted: [],

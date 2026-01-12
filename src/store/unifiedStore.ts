@@ -11,6 +11,7 @@ import { auth, db } from '@/lib/firebase/config';
 import { updateDocData, getDocData } from '@/lib/firebase/firestore';
 import type { User, UserPreferences, UserProgress, StreakData, Badge } from '@/types';
 import { getDateString, isToday, isYesterday } from '@/lib/utils';
+import { DEFAULT_COURSE_ID } from '@/data/courseRegistry';
 
 // ============================================
 // TYPES
@@ -109,10 +110,10 @@ const defaultPreferences: UserPreferences = {
 };
 
 const defaultProgress: UserProgress = {
-  currentCourseId: 'course-1',
-  currentModuleId: 'c1-m1',
-  currentLessonId: 'c1-m1-l1',
-  currentAtomId: 'c1-m1-l1-a1',
+  currentCourseId: DEFAULT_COURSE_ID, // ai-at-work
+  currentModuleId: 'ai-m1',
+  currentLessonId: '1.1',
+  currentAtomId: '1.1-intro',
   overallPercentage: 0,
   coursesCompleted: [],
   modulesCompleted: [],
