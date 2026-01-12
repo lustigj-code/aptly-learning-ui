@@ -6,11 +6,12 @@
 import { describe, it, expect } from 'vitest';
 import {
   SOCIAL_MEDIA_MARKETING_GRAPH,
-  getConceptById,
-  getPrerequisites,
-  checkPrerequisitesMet,
-  getDueForReview,
-  updateConceptMastery,
+  getAllPrerequisites,
+  isConceptUnlocked,
+  getReadyConcepts,
+  getDecayingConcepts,
+  getNextReviewConcept,
+  getLearningPath,
   type ConceptMastery,
 } from '../knowledgeGraph';
 
@@ -62,23 +63,7 @@ describe('Knowledge Graph', () => {
     });
   });
 
-  describe('getConceptById', () => {
-    it('returns concept when it exists', () => {
-      // Use a concept we know exists from the graph
-      const concept = getConceptById('smm-fundamentals');
-
-      expect(concept).toBeDefined();
-      expect(concept?.id).toBe('smm-fundamentals');
-    });
-
-    it('returns undefined for nonexistent concept', () => {
-      const concept = getConceptById('nonexistent-concept');
-
-      expect(concept).toBeUndefined();
-    });
-  });
-
-  describe('getPrerequisites', () => {
+  describe('getAllPrerequisites', () => {
     it('returns prerequisites for a concept', () => {
       // Find a concept with prerequisites
       const conceptWithPrereqs = Object.values(SOCIAL_MEDIA_MARKETING_GRAPH.concepts).find(
@@ -86,7 +71,10 @@ describe('Knowledge Graph', () => {
       );
 
       if (conceptWithPrereqs) {
-        const prerequisites = getPrerequisites(conceptWithPrereqs.id);
+        const prerequisites = getAllPrerequisites(
+          SOCIAL_MEDIA_MARKETING_GRAPH,
+          conceptWithPrereqs.id
+        );
 
         expect(Array.isArray(prerequisites)).toBe(true);
         expect(prerequisites.length).toBeGreaterThan(0);
@@ -99,201 +87,380 @@ describe('Knowledge Graph', () => {
       );
 
       if (basicConcept) {
-        const prerequisites = getPrerequisites(basicConcept.id);
+        const prerequisites = getAllPrerequisites(
+          SOCIAL_MEDIA_MARKETING_GRAPH,
+          basicConcept.id
+        );
 
         expect(prerequisites).toEqual([]);
       }
     });
+
+    it('returns empty array for nonexistent concept', () => {
+      const prerequisites = getAllPrerequisites(
+        SOCIAL_MEDIA_MARKETING_GRAPH,
+        'nonexistent-concept'
+      );
+
+      expect(prerequisites).toEqual([]);
+    });
+
+    it('includes transitive prerequisites', () => {
+      // Find a concept that has prerequisites with their own prerequisites
+      const concepts = Object.values(SOCIAL_MEDIA_MARKETING_GRAPH.concepts);
+      const conceptWithDeepPrereqs = concepts.find((c) => {
+        if (c.prerequisites.length === 0) return false;
+        // Check if any prerequisite has its own prerequisites
+        return c.prerequisites.some((prereqId) => {
+          const prereq = SOCIAL_MEDIA_MARKETING_GRAPH.concepts[prereqId];
+          return prereq && prereq.prerequisites.length > 0;
+        });
+      });
+
+      if (conceptWithDeepPrereqs) {
+        const allPrereqs = getAllPrerequisites(
+          SOCIAL_MEDIA_MARKETING_GRAPH,
+          conceptWithDeepPrereqs.id
+        );
+        // Should include more than just direct prerequisites
+        expect(allPrereqs.length).toBeGreaterThanOrEqual(
+          conceptWithDeepPrereqs.prerequisites.length
+        );
+      }
+    });
   });
 
-  describe('checkPrerequisitesMet', () => {
-    const mockMastery: ConceptMastery[] = [
-      {
-        conceptId: 'smm-fundamentals',
-        userId: 'test-user',
-        masteryLevel: 85,
-        lastReviewedAt: new Date(),
-        lastQuizScore: 85,
-        reviewCount: 5,
-        correctStreak: 3,
-        incorrectStreak: 0,
-        fsrsState: {
-          stability: 10,
-          difficulty: 5,
-          elapsedDays: 0,
-          scheduledDays: 7,
-          reps: 5,
-          lapses: 0,
-          state: 'review',
-        },
-        nextReviewAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        history: [],
-      },
-      {
-        conceptId: 'audience-basics',
-        userId: 'test-user',
-        masteryLevel: 60,
-        lastReviewedAt: new Date(),
-        lastQuizScore: 60,
-        reviewCount: 3,
-        correctStreak: 1,
-        incorrectStreak: 0,
-        fsrsState: {
-          stability: 5,
-          difficulty: 5,
-          elapsedDays: 0,
-          scheduledDays: 3,
-          reps: 3,
-          lapses: 0,
-          state: 'learning',
-        },
-        nextReviewAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-        history: [],
-      },
-    ];
-
+  describe('isConceptUnlocked', () => {
     it('returns true when all prerequisites are mastered', () => {
-      const result = checkPrerequisitesMet(['smm-fundamentals'], mockMastery, 70);
+      const conceptWithPrereqs = Object.values(SOCIAL_MEDIA_MARKETING_GRAPH.concepts).find(
+        (c) => c.prerequisites.length > 0
+      );
 
-      expect(result.met).toBe(true);
-      expect(result.missing).toEqual([]);
+      if (conceptWithPrereqs) {
+        // Create mastery levels that meet all thresholds
+        const masteryLevels: Record<string, number> = {};
+        for (const prereqId of conceptWithPrereqs.prerequisites) {
+          const prereq = SOCIAL_MEDIA_MARKETING_GRAPH.concepts[prereqId];
+          if (prereq) {
+            masteryLevels[prereqId] = prereq.masteryThreshold + 10; // Above threshold
+          }
+        }
+
+        const unlocked = isConceptUnlocked(
+          SOCIAL_MEDIA_MARKETING_GRAPH,
+          conceptWithPrereqs.id,
+          masteryLevels
+        );
+
+        expect(unlocked).toBe(true);
+      }
     });
 
     it('returns false when prerequisites not met', () => {
-      const result = checkPrerequisitesMet(['audience-basics'], mockMastery, 70);
+      const conceptWithPrereqs = Object.values(SOCIAL_MEDIA_MARKETING_GRAPH.concepts).find(
+        (c) => c.prerequisites.length > 0
+      );
 
-      expect(result.met).toBe(false);
-      expect(result.missing).toContain('audience-basics');
+      if (conceptWithPrereqs) {
+        // Empty mastery levels = no prerequisites met
+        const unlocked = isConceptUnlocked(
+          SOCIAL_MEDIA_MARKETING_GRAPH,
+          conceptWithPrereqs.id,
+          {}
+        );
+
+        expect(unlocked).toBe(false);
+      }
     });
 
-    it('handles custom threshold', () => {
-      const resultLow = checkPrerequisitesMet(['audience-basics'], mockMastery, 50);
-      const resultHigh = checkPrerequisitesMet(['audience-basics'], mockMastery, 70);
+    it('returns true for concepts without prerequisites', () => {
+      const basicConcept = Object.values(SOCIAL_MEDIA_MARKETING_GRAPH.concepts).find(
+        (c) => c.prerequisites.length === 0
+      );
 
-      expect(resultLow.met).toBe(true); // 60% meets 50% threshold
-      expect(resultHigh.met).toBe(false); // 60% doesn't meet 70% threshold
-    });
-  });
+      if (basicConcept) {
+        const unlocked = isConceptUnlocked(
+          SOCIAL_MEDIA_MARKETING_GRAPH,
+          basicConcept.id,
+          {}
+        );
 
-  describe('getDueForReview', () => {
-    const mockMasteryRecords: ConceptMastery[] = [
-      {
-        conceptId: 'concept-1',
-        userId: 'test-user',
-        masteryLevel: 75,
-        lastReviewedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), // 4 days ago
-        lastQuizScore: 75,
-        reviewCount: 5,
-        correctStreak: 2,
-        incorrectStreak: 0,
-        fsrsState: {
-          scheduledDays: 3, // Due 3 days after last review = 1 day overdue
-          stability: 5,
-          difficulty: 5,
-          elapsedDays: 4,
-          reps: 5,
-          lapses: 0,
-          state: 'review',
-        },
-        nextReviewAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day overdue
-        history: [],
-      },
-      {
-        conceptId: 'concept-2',
-        userId: 'test-user',
-        masteryLevel: 90,
-        lastReviewedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
-        lastQuizScore: 90,
-        reviewCount: 10,
-        correctStreak: 5,
-        incorrectStreak: 0,
-        fsrsState: {
-          scheduledDays: 30, // Not due yet
-          stability: 20,
-          difficulty: 3,
-          elapsedDays: 1,
-          reps: 10,
-          lapses: 0,
-          state: 'review',
-        },
-        nextReviewAt: new Date(Date.now() + 29 * 24 * 60 * 60 * 1000),
-        history: [],
-      },
-    ];
-
-    it('returns items due for review', () => {
-      const dueItems = getDueForReview(mockMasteryRecords, 10);
-
-      expect(Array.isArray(dueItems)).toBe(true);
-      // Should include concept-1 (overdue) but not concept-2 (not due yet)
+        expect(unlocked).toBe(true);
+      }
     });
 
-    it('respects limit parameter', () => {
-      const manyRecords = Array.from({ length: 50 }, (_, i) => ({
-        ...mockMasteryRecords[0],
-        conceptId: `concept-${i}`,
-      }));
+    it('returns false for nonexistent concept', () => {
+      const unlocked = isConceptUnlocked(
+        SOCIAL_MEDIA_MARKETING_GRAPH,
+        'nonexistent-concept',
+        {}
+      );
 
-      const dueItems = getDueForReview(manyRecords, 15);
-
-      expect(dueItems.length).toBeLessThanOrEqual(15);
-    });
-
-    it('sorts by priority (most overdue first)', () => {
-      const dueItems = getDueForReview(mockMasteryRecords, 10);
-
-      // Should be sorted by urgency
-      expect(Array.isArray(dueItems)).toBe(true);
+      expect(unlocked).toBe(false);
     });
   });
 
-  describe('updateConceptMastery', () => {
-    const baseMastery: ConceptMastery = {
-      conceptId: 'test-concept',
-      userId: 'test-user',
-      masteryLevel: 70,
-      lastReviewedAt: new Date(),
-      lastQuizScore: 70,
-      reviewCount: 5,
-      correctStreak: 2,
-      incorrectStreak: 0,
-      fsrsState: {
-        stability: 5,
-        difficulty: 5,
-        elapsedDays: 0,
-        scheduledDays: 3,
-        reps: 5,
-        lapses: 0,
-        state: 'learning',
-      },
-      nextReviewAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-      history: [],
-    };
+  describe('getReadyConcepts', () => {
+    it('returns concepts that are unlocked but not mastered', () => {
+      // Start with no mastery - should get foundational concepts
+      const ready = getReadyConcepts(SOCIAL_MEDIA_MARKETING_GRAPH, {});
 
-    it('increases mastery on good performance', () => {
-      const updated = updateConceptMastery(baseMastery, 90, 60, 'review');
-
-      expect(updated.masteryLevel).toBeGreaterThan(70);
-      expect(updated.reviewCount).toBe(6);
+      expect(Array.isArray(ready)).toBe(true);
+      // Should include concepts without prerequisites
+      ready.forEach((conceptId) => {
+        const concept = SOCIAL_MEDIA_MARKETING_GRAPH.concepts[conceptId];
+        expect(concept).toBeDefined();
+      });
     });
 
-    it('decreases mastery on poor performance', () => {
-      const updated = updateConceptMastery(baseMastery, 40, 120, 'review');
+    it('excludes already mastered concepts', () => {
+      // Master all concepts
+      const allMastered: Record<string, number> = {};
+      Object.values(SOCIAL_MEDIA_MARKETING_GRAPH.concepts).forEach((concept) => {
+        allMastered[concept.id] = 100; // Max mastery
+      });
 
-      expect(updated.masteryLevel).toBeLessThan(70);
+      const ready = getReadyConcepts(SOCIAL_MEDIA_MARKETING_GRAPH, allMastered);
+
+      expect(ready.length).toBe(0);
+    });
+  });
+
+  describe('getDecayingConcepts', () => {
+    it('returns concepts due for review', () => {
+      const now = new Date();
+      const masteryStates: Record<string, ConceptMastery> = {
+        'concept-1': {
+          conceptId: 'concept-1',
+          userId: 'test-user',
+          masteryLevel: 75,
+          lastReviewedAt: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000),
+          lastQuizScore: 75,
+          reviewCount: 5,
+          correctStreak: 2,
+          incorrectStreak: 0,
+          fsrsState: {
+            stability: 5,
+            difficulty: 5,
+            elapsedDays: 7,
+            scheduledDays: 3,
+            reps: 5,
+            lapses: 0,
+            state: 'review',
+          },
+          nextReviewAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000), // 1 day overdue
+          history: [],
+        },
+      };
+
+      const decaying = getDecayingConcepts(SOCIAL_MEDIA_MARKETING_GRAPH, masteryStates);
+
+      expect(Array.isArray(decaying)).toBe(true);
+      expect(decaying).toContain('concept-1');
     });
 
-    it('updates FSRS state', () => {
-      const updated = updateConceptMastery(baseMastery, 80, 45, 'review');
+    it('excludes concepts not yet due', () => {
+      const now = new Date();
+      const masteryStates: Record<string, ConceptMastery> = {
+        'concept-1': {
+          conceptId: 'concept-1',
+          userId: 'test-user',
+          masteryLevel: 90,
+          lastReviewedAt: now,
+          lastQuizScore: 90,
+          reviewCount: 10,
+          correctStreak: 5,
+          incorrectStreak: 0,
+          fsrsState: {
+            stability: 20,
+            difficulty: 3,
+            elapsedDays: 0,
+            scheduledDays: 30,
+            reps: 10,
+            lapses: 0,
+            state: 'review',
+          },
+          nextReviewAt: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000), // 30 days in future
+          history: [],
+        },
+      };
 
-      expect(updated.fsrsState.reps).toBeGreaterThan(baseMastery.fsrsState.reps);
+      const decaying = getDecayingConcepts(SOCIAL_MEDIA_MARKETING_GRAPH, masteryStates);
+
+      expect(decaying).not.toContain('concept-1');
     });
 
-    it('transitions state based on performance', () => {
-      const updated = updateConceptMastery(baseMastery, 95, 30, 'review');
+    it('sorts by most overdue first', () => {
+      const now = new Date();
+      const masteryStates: Record<string, ConceptMastery> = {
+        'concept-a': {
+          conceptId: 'concept-a',
+          userId: 'test-user',
+          masteryLevel: 70,
+          lastReviewedAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
+          lastQuizScore: 70,
+          reviewCount: 5,
+          correctStreak: 2,
+          incorrectStreak: 0,
+          fsrsState: {
+            stability: 5,
+            difficulty: 5,
+            elapsedDays: 5,
+            scheduledDays: 3,
+            reps: 5,
+            lapses: 0,
+            state: 'review',
+          },
+          nextReviewAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000), // 2 days overdue
+          history: [],
+        },
+        'concept-b': {
+          conceptId: 'concept-b',
+          userId: 'test-user',
+          masteryLevel: 70,
+          lastReviewedAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000),
+          lastQuizScore: 70,
+          reviewCount: 5,
+          correctStreak: 2,
+          incorrectStreak: 0,
+          fsrsState: {
+            stability: 5,
+            difficulty: 5,
+            elapsedDays: 10,
+            scheduledDays: 3,
+            reps: 5,
+            lapses: 0,
+            state: 'review',
+          },
+          nextReviewAt: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), // 7 days overdue
+          history: [],
+        },
+      };
 
-      // High performance should keep state defined
-      expect(updated.fsrsState.state).toBeDefined();
+      const decaying = getDecayingConcepts(SOCIAL_MEDIA_MARKETING_GRAPH, masteryStates);
+
+      // concept-b is more overdue, should be first
+      expect(decaying[0]).toBe('concept-b');
+    });
+  });
+
+  describe('getNextReviewConcept', () => {
+    it('returns the most overdue concept', () => {
+      const now = new Date();
+      const masteryStates: Record<string, ConceptMastery> = {
+        'concept-1': {
+          conceptId: 'concept-1',
+          userId: 'test-user',
+          masteryLevel: 75,
+          lastReviewedAt: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000),
+          lastQuizScore: 75,
+          reviewCount: 5,
+          correctStreak: 2,
+          incorrectStreak: 0,
+          fsrsState: {
+            stability: 5,
+            difficulty: 5,
+            elapsedDays: 7,
+            scheduledDays: 3,
+            reps: 5,
+            lapses: 0,
+            state: 'review',
+          },
+          nextReviewAt: new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000), // 4 days overdue
+          history: [],
+        },
+      };
+
+      const next = getNextReviewConcept(SOCIAL_MEDIA_MARKETING_GRAPH, masteryStates);
+
+      expect(next).toBe('concept-1');
+    });
+
+    it('returns null when nothing is due', () => {
+      const now = new Date();
+      const masteryStates: Record<string, ConceptMastery> = {
+        'concept-1': {
+          conceptId: 'concept-1',
+          userId: 'test-user',
+          masteryLevel: 90,
+          lastReviewedAt: now,
+          lastQuizScore: 90,
+          reviewCount: 10,
+          correctStreak: 5,
+          incorrectStreak: 0,
+          fsrsState: {
+            stability: 20,
+            difficulty: 3,
+            elapsedDays: 0,
+            scheduledDays: 30,
+            reps: 10,
+            lapses: 0,
+            state: 'review',
+          },
+          nextReviewAt: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+          history: [],
+        },
+      };
+
+      const next = getNextReviewConcept(SOCIAL_MEDIA_MARKETING_GRAPH, masteryStates);
+
+      expect(next).toBeNull();
+    });
+  });
+
+  describe('getLearningPath', () => {
+    it('returns path including target concept', () => {
+      const path = getLearningPath(
+        SOCIAL_MEDIA_MARKETING_GRAPH,
+        'smm-fundamentals',
+        {}
+      );
+
+      expect(Array.isArray(path)).toBe(true);
+      expect(path).toContain('smm-fundamentals');
+    });
+
+    it('includes unmastered prerequisites', () => {
+      const conceptWithPrereqs = Object.values(SOCIAL_MEDIA_MARKETING_GRAPH.concepts).find(
+        (c) => c.prerequisites.length > 0
+      );
+
+      if (conceptWithPrereqs) {
+        const path = getLearningPath(
+          SOCIAL_MEDIA_MARKETING_GRAPH,
+          conceptWithPrereqs.id,
+          {}
+        );
+
+        // Should include prerequisites
+        expect(path.length).toBeGreaterThanOrEqual(conceptWithPrereqs.prerequisites.length);
+      }
+    });
+
+    it('excludes already mastered prerequisites', () => {
+      const conceptWithPrereqs = Object.values(SOCIAL_MEDIA_MARKETING_GRAPH.concepts).find(
+        (c) => c.prerequisites.length > 0
+      );
+
+      if (conceptWithPrereqs) {
+        // Master all prerequisites
+        const masteryLevels: Record<string, number> = {};
+        conceptWithPrereqs.prerequisites.forEach((prereqId) => {
+          masteryLevels[prereqId] = 100;
+        });
+
+        const path = getLearningPath(
+          SOCIAL_MEDIA_MARKETING_GRAPH,
+          conceptWithPrereqs.id,
+          masteryLevels
+        );
+
+        // Path should only include the target (prerequisites already mastered)
+        expect(path).toContain(conceptWithPrereqs.id);
+        conceptWithPrereqs.prerequisites.forEach((prereqId) => {
+          expect(path).not.toContain(prereqId);
+        });
+      }
     });
   });
 });

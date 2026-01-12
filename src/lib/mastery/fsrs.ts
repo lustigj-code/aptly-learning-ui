@@ -537,3 +537,233 @@ export function getReviewBacklogSize(
     return retrievability < threshold;
   }).length;
 }
+
+// ============================================================================
+// EXAM MODE & WORKLOAD FLATTENING (Research-backed Enhancements)
+// ============================================================================
+
+/**
+ * Exam Mode Configuration
+ * Optimizes review scheduling for a fixed deadline (certification exam)
+ */
+export interface ExamModeConfig {
+  examDate: Date;
+  targetRetention: number; // Usually 0.95 for exams
+  enabled: boolean;
+}
+
+/**
+ * Workload Flattening Configuration
+ * Prevents overwhelm when returning after absence
+ */
+export interface WorkloadConfig {
+  maxDailyReviews: number;
+  reducedRetention: number; // Lower retention temporarily
+  gapDaysThreshold: number; // Days of absence to trigger flattening
+}
+
+const DEFAULT_WORKLOAD_CONFIG: WorkloadConfig = {
+  maxDailyReviews: 50,
+  reducedRetention: 0.82, // 82% retention instead of 90%
+  gapDaysThreshold: 7,    // 7+ days triggers flattening
+};
+
+/**
+ * Calculate days until exam
+ */
+function differenceInDays(later: Date, earlier: Date): number {
+  return Math.floor((later.getTime() - earlier.getTime()) / (24 * 60 * 60 * 1000));
+}
+
+/**
+ * Calculate optimized interval for exam mode
+ *
+ * Distributes reviews evenly before exam, front-loaded for harder items.
+ * Research shows this maximizes retention at exam time.
+ */
+export function calculateExamModeInterval(
+  card: FSRSState,
+  examDate: Date,
+  now: Date = new Date()
+): number {
+  const daysUntilExam = Math.max(1, differenceInDays(examDate, now));
+
+  // Estimate reviews needed to maintain high retention
+  // Based on stability: lower stability = more reviews needed
+  const stability = Math.max(0.1, card.stability);
+  const reviewsNeeded = Math.max(1, Math.ceil(Math.log(0.05) / Math.log(0.9) * (1 / stability)));
+
+  // Distribute reviews evenly, front-loaded for safety margin
+  const optimalInterval = Math.floor(daysUntilExam / (reviewsNeeded + 1));
+
+  // Never exceed original scheduled interval (safety)
+  return Math.max(1, Math.min(optimalInterval, card.scheduledDays || daysUntilExam));
+}
+
+/**
+ * Get items for exam mode review
+ *
+ * Prioritizes items by urgency for exam preparation:
+ * 1. Items with lowest retrievability at exam date
+ * 2. Items with lowest stability (most at-risk)
+ * 3. Items with highest difficulty (hardest content)
+ */
+export function getExamModeReviews(
+  masteryRecords: ConceptMastery[],
+  examDate: Date,
+  maxItems: number = 20
+): ConceptMasteryWithRetrievability[] {
+  const daysUntilExam = differenceInDays(examDate, new Date());
+
+  return masteryRecords
+    .map(m => {
+      const { stability } = m.fsrsState;
+      // Predict retrievability at exam date
+      const retrievabilityAtExam = stability > 0
+        ? calculateRetrievability(stability, daysUntilExam)
+        : 0;
+      return { ...m, retrievability: retrievabilityAtExam };
+    })
+    .filter(m => m.retrievability < 0.95) // Below 95% target at exam
+    .sort((a, b) => {
+      // Primary: lowest predicted retrievability at exam
+      const rDiff = a.retrievability - b.retrievability;
+      if (Math.abs(rDiff) > 0.05) return rDiff;
+
+      // Secondary: lowest stability (most fragile)
+      return a.fsrsState.stability - b.fsrsState.stability;
+    })
+    .slice(0, maxItems);
+}
+
+/**
+ * Flatten workload after a gap
+ *
+ * When a user returns after absence, this prevents the overwhelming backlog
+ * by temporarily lowering retention target and limiting daily reviews.
+ *
+ * Research shows 80-85% retention:
+ * - Reduces daily reviews by ~30%
+ * - Only reduces memorized items by ~3%
+ */
+export function flattenWorkloadAfterGap(
+  overdueCards: ConceptMastery[],
+  config: WorkloadConfig = DEFAULT_WORKLOAD_CONFIG
+): ConceptMastery[] {
+  const { maxDailyReviews, reducedRetention } = config;
+
+  // Sort by priority: highest difficulty first (hardest to relearn)
+  return overdueCards
+    .sort((a, b) => b.fsrsState.difficulty - a.fsrsState.difficulty)
+    .slice(0, maxDailyReviews)
+    .map(card => ({
+      ...card,
+      // Store reduced retention target in fsrsState for this session
+      _tempRetention: reducedRetention,
+    } as ConceptMastery));
+}
+
+/**
+ * Detect if workload flattening should be applied
+ */
+export function shouldFlattenWorkload(
+  lastLoginAt: Date,
+  now: Date = new Date(),
+  gapThreshold: number = DEFAULT_WORKLOAD_CONFIG.gapDaysThreshold
+): boolean {
+  const daysSinceLogin = differenceInDays(now, lastLoginAt);
+  return daysSinceLogin >= gapThreshold;
+}
+
+/**
+ * Get reduced retention parameters for gap recovery
+ *
+ * Gradually ramps retention back up over sessions.
+ */
+export function getGapRecoveryParams(
+  daysSinceLogin: number,
+  sessionsSinceReturn: number
+): FSRSParameters {
+  const baseParams = { ...DEFAULT_PARAMETERS };
+
+  // Start at 82% retention, gradually return to 90%
+  const minRetention = 0.82;
+  const maxRetention = 0.90;
+  const recoveryRate = 0.02; // +2% per session
+
+  const targetRetention = Math.min(
+    maxRetention,
+    minRetention + sessionsSinceReturn * recoveryRate
+  );
+
+  return {
+    ...baseParams,
+    requestRetention: targetRetention,
+  };
+}
+
+// ============================================================================
+// ENHANCED MEAN REVERSION FOR DIFFICULTY
+// ============================================================================
+
+/**
+ * FSRS Mean Difficulty Parameters
+ */
+const FSRS_MEAN_REVERSION_PARAMS = {
+  MEAN_DIFFICULTY: 5.0,   // FSRS scale 1-10, center point
+  REVERSION_RATE: 0.03,   // 3% pull toward mean per update
+};
+
+/**
+ * Update difficulty with enhanced mean reversion
+ *
+ * Prevents difficulty from getting stuck at extremes (1 or 10).
+ * Research shows this improves long-term calibration.
+ */
+export function updateDifficultyWithMeanReversion(
+  currentD: number,
+  rating: ReviewRating,
+  w: number[]
+): number {
+  const { MEAN_DIFFICULTY, REVERSION_RATE } = FSRS_MEAN_REVERSION_PARAMS;
+
+  // Standard FSRS difficulty update
+  const D0 = w[4];
+  const standardMeanReversion = w[7] * (D0 - currentD);
+  const delta = -(rating - 3);
+  const newD = Math.max(1, Math.min(10, currentD + standardMeanReversion + w[6] * delta));
+
+  // Additional mean reversion toward center (research enhancement)
+  return newD + REVERSION_RATE * (MEAN_DIFFICULTY - newD);
+}
+
+/**
+ * Calculate optimal review order for a mixed queue (new + review)
+ *
+ * Interleaves new items and reviews to prevent fatigue.
+ * Research shows 3:1 ratio (3 reviews : 1 new) is optimal for retention.
+ */
+export function calculateOptimalReviewOrder(
+  newItems: ConceptMastery[],
+  reviewItems: ConceptMastery[]
+): ConceptMastery[] {
+  const result: ConceptMastery[] = [];
+  const REVIEW_TO_NEW_RATIO = 3; // 3 reviews per 1 new item
+
+  let reviewIdx = 0;
+  let newIdx = 0;
+
+  while (reviewIdx < reviewItems.length || newIdx < newItems.length) {
+    // Add reviews (up to ratio count)
+    for (let i = 0; i < REVIEW_TO_NEW_RATIO && reviewIdx < reviewItems.length; i++) {
+      result.push(reviewItems[reviewIdx++]);
+    }
+
+    // Add one new item
+    if (newIdx < newItems.length) {
+      result.push(newItems[newIdx++]);
+    }
+  }
+
+  return result;
+}

@@ -8,6 +8,7 @@ import { MonitoringProvider } from '@/components/providers/MonitoringProvider';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { ToastProvider } from '@/components/ui/Toast';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { PWAProvider } from '@/components/pwa';
 
 type ProvidersInnerProps = {
   children: React.ReactNode;
@@ -33,9 +34,11 @@ export function ProvidersInner({ children }: ProvidersInnerProps) {
             <AuthProvider>
               <ToastProvider>
                 <CelebrationProvider>
-                  <AppLayout>
-                    {children}
-                  </AppLayout>
+                  <PWAProvider>
+                    <AppLayout>
+                      {children}
+                    </AppLayout>
+                  </PWAProvider>
                 </CelebrationProvider>
               </ToastProvider>
             </AuthProvider>

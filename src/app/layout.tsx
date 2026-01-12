@@ -75,7 +75,7 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: '/apple-touch-icon.png', sizes: '180x180' }],
   },
-  manifest: '/manifest.json',
+  // manifest is auto-generated from src/app/manifest.ts
   alternates: {
     canonical: APP_URL,
   },

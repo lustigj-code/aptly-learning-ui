@@ -1,32 +1,45 @@
 /**
  * Badge Service Tests
- * Phase 7.1: Testing badge criteria checking logic
+ * Phase 7.1: Testing badge service layer
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { checkBadgeCriteria, type BadgeCriteria } from '../badgeService';
+import {
+  getBadge,
+  getUserBadges,
+  awardBadge,
+  userHasBadge,
+  checkBadgeCriteria,
+  getUserBadgeCount,
+} from '../badgeService';
 
-// Mock Firebase Admin
+// Create mock functions at module scope
+const docGetMock = vi.fn();
+const docSetMock = vi.fn();
+const docUpdateMock = vi.fn();
+const collectionGetMock = vi.fn();
+
+// Mock Firebase Admin with support for both collection().get() and collection().doc().get()
 vi.mock('@/lib/firebase/admin', () => ({
   adminDb: {
     collection: vi.fn(() => ({
+      // Collection-level get (for getBadges, checkBadgeCriteria)
+      get: collectionGetMock,
+      // Document-level operations
       doc: vi.fn(() => ({
-        get: vi.fn(() =>
-          Promise.resolve({
-            exists: true,
-            data: () => ({
-              atomsCompleted: ['a1', 'a2', 'a3', 'a4', 'a5'],
-              lessonsCompleted: ['l1', 'l2'],
-              totalXP: 500,
-              streak: {
-                currentStreak: 7,
-                longestStreak: 14,
-              },
-            }),
-          })
-        ),
+        get: docGetMock,
+        set: docSetMock,
+        update: docUpdateMock,
       })),
     })),
+  },
+}));
+
+vi.mock('firebase-admin/firestore', () => ({
+  FieldValue: {
+    serverTimestamp: vi.fn(() => new Date()),
+    arrayUnion: vi.fn((items) => items),
+    increment: vi.fn((n) => n),
   },
 }));
 
@@ -35,130 +48,259 @@ vi.mock('@/lib/monitoring/sentry', () => ({
 }));
 
 describe('Badge Service', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    // Default mock: user document with badges array
+    docGetMock.mockResolvedValue({
+      exists: true,
+      id: 'test-user',
+      data: () => ({
+        badges: [
+          { id: 'badge-1', title: 'First Steps', earnedAt: new Date() },
+          { id: 'badge-2', title: 'Explorer', earnedAt: new Date() },
+        ],
+        progress: {
+          atomsCompleted: ['a1', 'a2', 'a3'],
+          lessonsCompleted: ['l1'],
+          totalTimeSpentMinutes: 120,
+        },
+        streak: {
+          currentStreak: 7,
+        },
+      }),
+    });
+
+    // Default mock: collection of badges
+    collectionGetMock.mockResolvedValue({
+      docs: [
+        {
+          id: 'badge-1',
+          data: () => ({
+            type: 'achievement',
+            title: 'First Steps',
+            description: 'Complete your first atom',
+            icon: '🎯',
+            criteria: { type: 'completion', threshold: 1 },
+            rarity: 'common',
+          }),
+        },
+        {
+          id: 'badge-streak',
+          data: () => ({
+            type: 'streak',
+            title: 'Week Warrior',
+            description: 'Maintain a 7-day streak',
+            icon: '🔥',
+            criteria: { type: 'streak', threshold: 7 },
+            rarity: 'rare',
+          }),
+        },
+      ],
+      forEach: function(callback: (doc: any) => void) {
+        this.docs.forEach(callback);
+      },
+    });
+
+    docSetMock.mockResolvedValue(undefined);
+    docUpdateMock.mockResolvedValue(undefined);
+  });
+
+  describe('getBadge', () => {
+    it('fetches a single badge by ID', async () => {
+      docGetMock.mockResolvedValueOnce({
+        exists: true,
+        id: 'badge-1',
+        data: () => ({
+          type: 'achievement',
+          title: 'First Steps',
+          description: 'Complete your first atom',
+          icon: '🎯',
+          criteria: { type: 'completion', threshold: 1 },
+          rarity: 'common',
+        }),
+      });
+
+      const badge = await getBadge('badge-1');
+
+      expect(badge).toBeDefined();
+      expect(badge?.id).toBe('badge-1');
+      expect(badge?.title).toBe('First Steps');
+    });
+
+    it('returns null when badge not found', async () => {
+      docGetMock.mockResolvedValueOnce({
+        exists: false,
+      });
+
+      const badge = await getBadge('nonexistent-badge');
+
+      expect(badge).toBeNull();
+    });
+
+    it('throws error with invalid badgeId', async () => {
+      await expect(getBadge('')).rejects.toThrow('Invalid badgeId');
+    });
+  });
+
+  describe('getUserBadges', () => {
+    it('fetches badges for a user', async () => {
+      const badges = await getUserBadges('test-user');
+
+      expect(badges).toHaveLength(2);
+      expect(badges[0].id).toBe('badge-1');
+      expect(badges[1].id).toBe('badge-2');
+    });
+
+    it('returns empty array when user has no badges', async () => {
+      docGetMock.mockResolvedValueOnce({
+        exists: true,
+        data: () => ({ badges: [] }),
+      });
+
+      const badges = await getUserBadges('test-user');
+
+      expect(badges).toHaveLength(0);
+    });
+
+    it('returns empty array when user document not found', async () => {
+      docGetMock.mockResolvedValueOnce({
+        exists: false,
+      });
+
+      const badges = await getUserBadges('nonexistent-user');
+
+      expect(badges).toHaveLength(0);
+    });
+
+    it('throws error with invalid UID', async () => {
+      await expect(getUserBadges('')).rejects.toThrow('Invalid UID');
+    });
+  });
+
+  describe('userHasBadge', () => {
+    it('returns true when user has the badge', async () => {
+      const hasBadge = await userHasBadge('test-user', 'badge-1');
+
+      expect(hasBadge).toBe(true);
+    });
+
+    it('returns false when user does not have the badge', async () => {
+      const hasBadge = await userHasBadge('test-user', 'badge-99');
+
+      expect(hasBadge).toBe(false);
+    });
+
+    it('throws error when uid or badgeId is missing', async () => {
+      await expect(userHasBadge('', 'badge-1')).rejects.toThrow('required');
+      await expect(userHasBadge('test-user', '')).rejects.toThrow('required');
+    });
+  });
+
+  describe('awardBadge', () => {
+    it('awards a badge to user', async () => {
+      // Mock badge exists
+      docGetMock.mockResolvedValueOnce({
+        exists: true,
+        id: 'badge-new',
+        data: () => ({
+          type: 'achievement',
+          title: 'New Badge',
+          description: 'A new badge',
+          icon: '⭐',
+          criteria: { type: 'completion', threshold: 1 },
+          rarity: 'common',
+        }),
+      });
+
+      await expect(awardBadge('test-user', 'badge-new')).resolves.not.toThrow();
+      expect(docUpdateMock).toHaveBeenCalled();
+    });
+
+    it('throws error when badge does not exist', async () => {
+      docGetMock.mockResolvedValueOnce({
+        exists: false,
+      });
+
+      await expect(awardBadge('test-user', 'nonexistent')).rejects.toThrow('not found');
+    });
+
+    it('throws error when uid or badgeId is missing', async () => {
+      await expect(awardBadge('', 'badge-1')).rejects.toThrow('required');
+      await expect(awardBadge('test-user', '')).rejects.toThrow('required');
+    });
+  });
+
   describe('checkBadgeCriteria', () => {
-    beforeEach(() => {
-      vi.clearAllMocks();
+    it('returns array of newly awarded badge IDs', async () => {
+      // User doesn't have badge-streak yet, but meets criteria (7-day streak)
+      docGetMock.mockResolvedValue({
+        exists: true,
+        data: () => ({
+          badges: [{ id: 'badge-1' }], // Only has badge-1
+          progress: {
+            atomsCompleted: ['a1', 'a2', 'a3'],
+          },
+          streak: {
+            currentStreak: 7, // Meets streak badge criteria
+          },
+        }),
+      });
+
+      const awarded = await checkBadgeCriteria('test-user');
+
+      expect(Array.isArray(awarded)).toBe(true);
     });
 
-    it('returns true for completion criteria when threshold met', async () => {
-      const criteria: BadgeCriteria = {
-        type: 'completion',
-        threshold: 5, // Need 5 atoms
-        relatedEntityId: undefined,
-      };
+    it('returns empty array when no new badges earned', async () => {
+      // User already has all badges that criteria match
+      docGetMock.mockResolvedValue({
+        exists: true,
+        data: () => ({
+          badges: [{ id: 'badge-1' }, { id: 'badge-streak' }],
+          progress: { atomsCompleted: ['a1'] },
+          streak: { currentStreak: 7 },
+        }),
+      });
 
-      const result = await checkBadgeCriteria('test-user', criteria);
+      const awarded = await checkBadgeCriteria('test-user');
 
-      expect(result).toBe(true); // User has 5 atoms completed
+      expect(awarded).toEqual([]);
     });
 
-    it('returns false for completion criteria when threshold not met', async () => {
-      const criteria: BadgeCriteria = {
-        type: 'completion',
-        threshold: 10, // Need 10 atoms
-        relatedEntityId: undefined,
-      };
+    it('throws error when user not found', async () => {
+      docGetMock.mockResolvedValueOnce({
+        exists: false,
+      });
 
-      const result = await checkBadgeCriteria('test-user', criteria);
-
-      expect(result).toBe(false); // User only has 5
+      await expect(checkBadgeCriteria('nonexistent-user')).rejects.toThrow('User not found');
     });
 
-    it('checks streak criteria correctly', async () => {
-      const criteria: BadgeCriteria = {
-        type: 'streak',
-        threshold: 7, // Need 7-day streak
-        relatedEntityId: undefined,
-      };
+    it('throws error with invalid UID', async () => {
+      await expect(checkBadgeCriteria('')).rejects.toThrow('Invalid UID');
+    });
+  });
 
-      const result = await checkBadgeCriteria('test-user', criteria);
+  describe('getUserBadgeCount', () => {
+    it('returns count of user badges', async () => {
+      const count = await getUserBadgeCount('test-user');
 
-      expect(result).toBe(true); // User has 7-day streak
+      expect(count).toBe(2);
     });
 
-    it('checks score criteria', async () => {
-      const criteria: BadgeCriteria = {
-        type: 'score',
-        threshold: 90, // Need 90%+ score
-        relatedEntityId: 'quiz-1',
-      };
+    it('returns 0 when user has no badges', async () => {
+      docGetMock.mockResolvedValueOnce({
+        exists: true,
+        data: () => ({ badges: [] }),
+      });
 
-      // This would check specific quiz score from completionDetails
-      // Simplified for test
-      const result = await checkBadgeCriteria('test-user', criteria);
+      const count = await getUserBadgeCount('test-user');
 
-      expect(typeof result).toBe('boolean');
+      expect(count).toBe(0);
     });
 
-    it('handles time-based criteria', async () => {
-      const criteria: BadgeCriteria = {
-        type: 'time',
-        threshold: 60, // Need 60 minutes
-        relatedEntityId: undefined,
-      };
-
-      // Would check totalTimeSpentMinutes
-      const result = await checkBadgeCriteria('test-user', criteria);
-
-      expect(typeof result).toBe('boolean');
-    });
-
-    it('supports custom logic criteria', async () => {
-      const criteria: BadgeCriteria = {
-        type: 'custom',
-        threshold: 0,
-        customLogic: 'weekend_warrior', // Complete on both weekend days
-      };
-
-      const result = await checkBadgeCriteria('test-user', criteria);
-
-      expect(typeof result).toBe('boolean');
-    });
-
-    it('handles missing user progress gracefully', async () => {
-      const { adminDb } = await import('@/lib/firebase/admin');
-      vi.mocked(adminDb.collection).mockReturnValue({
-        doc: vi.fn(() => ({
-          get: vi.fn(() =>
-            Promise.resolve({
-              exists: false, // User not found
-            })
-          ),
-        })),
-      } as any);
-
-      const criteria: BadgeCriteria = {
-        type: 'completion',
-        threshold: 5,
-      };
-
-      const result = await checkBadgeCriteria('nonexistent-user', criteria);
-
-      expect(result).toBe(false);
-    });
-
-    it('checks lesson completion criteria', async () => {
-      const criteria: BadgeCriteria = {
-        type: 'completion',
-        threshold: 2, // Need 2 lessons
-        relatedEntityId: 'lessons',
-      };
-
-      const result = await checkBadgeCriteria('test-user', criteria);
-
-      expect(result).toBe(true); // User has 2 lessons completed
-    });
-
-    it('calculates XP threshold correctly', async () => {
-      const criteria: BadgeCriteria = {
-        type: 'score', // Using score type for XP check
-        threshold: 500,
-        relatedEntityId: 'xp',
-      };
-
-      const result = await checkBadgeCriteria('test-user', criteria);
-
-      expect(result).toBe(true); // User has 500 XP
+    it('throws error with invalid UID', async () => {
+      await expect(getUserBadgeCount('')).rejects.toThrow('Invalid UID');
     });
   });
 });

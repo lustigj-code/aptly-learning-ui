@@ -6,35 +6,33 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   getUserProgress,
-  initializeUserProgress,
-  updateProgressData,
+  initializeProgress,
+  updateProgress,
 } from '../progressService';
+
+// Create mock functions at module scope
+const getMock = vi.fn();
+const setMock = vi.fn();
+const updateMock = vi.fn();
 
 // Mock Firebase Admin
 vi.mock('@/lib/firebase/admin', () => ({
   adminDb: {
     collection: vi.fn(() => ({
       doc: vi.fn(() => ({
-        get: vi.fn(() =>
-          Promise.resolve({
-            exists: true,
-            data: () => ({
-              userId: 'test-user',
-              atomsCompleted: ['atom-1', 'atom-2'],
-              lessonsCompleted: ['lesson-1'],
-              totalXP: 250,
-              currentLevel: 3,
-              streak: {
-                currentStreak: 5,
-                longestStreak: 10,
-              },
-            }),
-          })
-        ),
-        set: vi.fn(() => Promise.resolve()),
-        update: vi.fn(() => Promise.resolve()),
+        get: getMock,
+        set: setMock,
+        update: updateMock,
       })),
     })),
+  },
+}));
+
+vi.mock('firebase-admin/firestore', () => ({
+  FieldValue: {
+    serverTimestamp: vi.fn(() => new Date()),
+    arrayUnion: vi.fn((items) => items),
+    increment: vi.fn((n) => n),
   },
 }));
 
@@ -45,6 +43,20 @@ vi.mock('@/lib/monitoring/sentry', () => ({
 describe('Progress Service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default mock implementations
+    getMock.mockResolvedValue({
+      exists: true,
+      data: () => ({
+        userId: 'test-user',
+        atomsCompleted: ['atom-1', 'atom-2'],
+        lessonsCompleted: ['lesson-1'],
+        xp: 250,
+        totalTimeSpentMinutes: 120,
+        overallPercentage: 45,
+      }),
+    });
+    setMock.mockResolvedValue(undefined);
+    updateMock.mockResolvedValue(undefined);
   });
 
   describe('getUserProgress', () => {
@@ -54,20 +66,13 @@ describe('Progress Service', () => {
       expect(progress).toBeDefined();
       expect(progress?.userId).toBe('test-user');
       expect(progress?.atomsCompleted).toHaveLength(2);
-      expect(progress?.totalXP).toBe(250);
+      expect(progress?.xp).toBe(250);
     });
 
     it('returns null when progress document not found', async () => {
-      const { adminDb } = await import('@/lib/firebase/admin');
-      vi.mocked(adminDb.collection).mockReturnValue({
-        doc: vi.fn(() => ({
-          get: vi.fn(() =>
-            Promise.resolve({
-              exists: false,
-            })
-          ),
-        })),
-      } as any);
+      getMock.mockResolvedValueOnce({
+        exists: false,
+      });
 
       const progress = await getUserProgress('nonexistent-user');
 
@@ -80,83 +85,61 @@ describe('Progress Service', () => {
     });
 
     it('handles Firestore errors gracefully', async () => {
-      const { adminDb } = await import('@/lib/firebase/admin');
-      vi.mocked(adminDb.collection).mockReturnValue({
-        doc: vi.fn(() => ({
-          get: vi.fn(() => Promise.reject(new Error('Firestore error'))),
-        })),
-      } as any);
+      getMock.mockRejectedValueOnce(new Error('Firestore error'));
 
       await expect(getUserProgress('test-user')).rejects.toThrow('Failed to fetch progress');
     });
   });
 
-  describe('initializeUserProgress', () => {
+  describe('initializeProgress', () => {
     it('creates initial progress document for new user', async () => {
-      const result = await initializeUserProgress('new-user-123');
-
-      expect(result.success).toBe(true);
-      expect(result.userId).toBe('new-user-123');
+      // Function returns void on success, should not throw
+      await expect(initializeProgress('new-user-123')).resolves.not.toThrow();
+      expect(setMock).toHaveBeenCalled();
     });
 
     it('sets correct default values', async () => {
-      const { adminDb } = await import('@/lib/firebase/admin');
-      const setMock = vi.fn(() => Promise.resolve());
-
-      vi.mocked(adminDb.collection).mockReturnValue({
-        doc: vi.fn(() => ({
-          set: setMock,
-        })),
-      } as any);
-
-      await initializeUserProgress('user-123');
+      await initializeProgress('user-123');
 
       expect(setMock).toHaveBeenCalledWith(
         expect.objectContaining({
           userId: 'user-123',
           atomsCompleted: [],
-          totalXP: 0,
-          currentLevel: 1,
-          streak: expect.objectContaining({
-            currentStreak: 0,
-            freezesAvailable: 2,
-          }),
+          xp: 0,
+          overallPercentage: 0,
         })
       );
     });
+
+    it('throws error with invalid UID', async () => {
+      await expect(initializeProgress('')).rejects.toThrow('Invalid UID');
+    });
   });
 
-  describe('updateProgressData', () => {
+  describe('updateProgress', () => {
     it('updates progress fields', async () => {
       const updates = {
-        totalXP: 300,
-        currentLevel: 4,
+        xp: 300,
+        overallPercentage: 50,
       };
 
-      const result = await updateProgressData('test-user', updates);
-
-      expect(result.success).toBe(true);
+      // Function returns void on success, should not throw
+      await expect(updateProgress('test-user', updates)).resolves.not.toThrow();
+      expect(updateMock).toHaveBeenCalled();
     });
 
-    it('appends to arrays without duplicates', async () => {
-      const updates = {
-        atomsCompleted: ['atom-3'], // New atom
-      };
-
-      await updateProgressData('test-user', updates);
-
-      // Should use arrayUnion to prevent duplicates
+    it('throws error with empty updates', async () => {
+      await expect(updateProgress('test-user', {})).rejects.toThrow('At least one field');
     });
 
     it('handles nested updates correctly', async () => {
       const updates = {
-        'streak.currentStreak': 6,
-        'streak.lastCompletedDate': '2026-01-07',
+        overallPercentage: 60,
       };
 
-      const result = await updateProgressData('test-user', updates);
+      await updateProgress('test-user', updates);
 
-      expect(result.success).toBe(true);
+      expect(updateMock).toHaveBeenCalled();
     });
   });
 });

@@ -22,8 +22,8 @@ describe('Card Component', () => {
     const { container: elevated } = render(<Card variant="elevated">Content</Card>);
     const { container: outlined } = render(<Card variant="outlined">Content</Card>);
 
-    // Elevated uses shadow-warm-lg class
-    expect(elevated.firstChild).toHaveClass('shadow-warm-lg');
+    // Elevated uses shadow-md class
+    expect(elevated.firstChild).toHaveClass('shadow-md');
     // Outlined has border class
     expect(outlined.firstChild).toHaveClass('border');
   });

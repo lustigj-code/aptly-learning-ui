@@ -47,18 +47,18 @@ describe('Button Component', () => {
 
   it('applies variant classes correctly', () => {
     const { container } = render(<Button variant="primary">Primary</Button>);
-    // Primary variant uses gradient from-teal
-    expect(container.firstChild).toHaveClass('from-teal');
+    // Primary variant uses bg-teal
+    expect(container.firstChild).toHaveClass('bg-teal');
   });
 
   it('applies size classes correctly', () => {
     const { container: small } = render(<Button size="sm">Small</Button>);
     const { container: large } = render(<Button size="lg">Large</Button>);
 
-    // sm uses text-sm and h-9
+    // sm uses h-9
     expect(small.firstChild).toHaveClass('h-9');
-    // lg uses text-base and h-13
-    expect(large.firstChild).toHaveClass('h-13');
+    // lg uses h-12
+    expect(large.firstChild).toHaveClass('h-12');
   });
 
   it('supports custom className', () => {

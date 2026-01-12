@@ -3,9 +3,15 @@
  * Phase 7.1: Gamification testing
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import { CelebrationSystem } from '../celebration/CelebrationSystem';
+import userEvent from '@testing-library/user-event';
+import {
+  CelebrationProvider,
+  useCelebration,
+  QuickCelebration,
+  StreakCelebration,
+} from '../celebration/CelebrationSystem';
 
 // Mock canvas-confetti
 vi.mock('canvas-confetti', () => ({
@@ -13,87 +19,184 @@ vi.mock('canvas-confetti', () => ({
 }));
 
 describe('CelebrationSystem', () => {
-  it('shows XP earned message', async () => {
-    const celebration = {
-      xpEarned: 25,
-      message: 'You earned 25 XP!',
-    };
-
-    render(<CelebrationSystem celebration={celebration} onComplete={() => {}} />);
-
-    expect(screen.getByText(/25 XP/i)).toBeInTheDocument();
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
   });
 
-  it('displays level up celebration', async () => {
-    const celebration = {
-      xpEarned: 50,
-      newLevel: 5,
-      message: "You earned 50 XP! You've reached level 5!",
-    };
-
-    render(<CelebrationSystem celebration={celebration} onComplete={() => {}} />);
-
-    expect(screen.getByText(/level 5/i)).toBeInTheDocument();
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
-  it('shows streak milestone celebration', async () => {
-    const celebration = {
-      xpEarned: 15,
-      streakMilestone: 7,
-      message: 'You earned 15 XP! 7 day streak!',
-    };
+  describe('useCelebration hook', () => {
+    it('throws error when used outside provider', () => {
+      const TestComponent = () => {
+        const celebration = useCelebration();
+        return <div>{celebration ? 'has context' : 'no context'}</div>;
+      };
 
-    render(<CelebrationSystem celebration={celebration} onComplete={() => {}} />);
+      expect(() => {
+        render(<TestComponent />);
+      }).toThrow('useCelebration must be used within a CelebrationProvider');
+    });
 
-    expect(screen.getByText(/7 day streak/i)).toBeInTheDocument();
+    it('provides celebration methods', () => {
+      let celebrationMethods: ReturnType<typeof useCelebration> | null = null;
+
+      const TestComponent = () => {
+        celebrationMethods = useCelebration();
+        return <div>Test</div>;
+      };
+
+      render(
+        <CelebrationProvider>
+          <TestComponent />
+        </CelebrationProvider>
+      );
+
+      expect(celebrationMethods).not.toBeNull();
+      expect(celebrationMethods!.celebrate).toBeDefined();
+      expect(celebrationMethods!.celebrateBadge).toBeDefined();
+      expect(celebrationMethods!.celebrateStreak).toBeDefined();
+      expect(celebrationMethods!.celebrateXP).toBeDefined();
+    });
+
+    it('triggers XP celebration', async () => {
+      const TestComponent = () => {
+        const { celebrateXP } = useCelebration();
+        return (
+          <button onClick={() => celebrateXP(50)}>
+            Celebrate XP
+          </button>
+        );
+      };
+
+      render(
+        <CelebrationProvider>
+          <TestComponent />
+        </CelebrationProvider>
+      );
+
+      const button = screen.getByRole('button');
+      await userEvent.click(button);
+
+      // XP celebration adds floating XP indicator
+      await waitFor(() => {
+        expect(screen.getByText(/\+50 XP/)).toBeInTheDocument();
+      });
+    });
+
+    it('triggers tier celebration with overlay', async () => {
+      const TestComponent = () => {
+        const { celebrate } = useCelebration();
+        return (
+          <button onClick={() => celebrate(3, 'Lesson Complete!')}>
+            Celebrate
+          </button>
+        );
+      };
+
+      render(
+        <CelebrationProvider>
+          <TestComponent />
+        </CelebrationProvider>
+      );
+
+      const button = screen.getByRole('button');
+      await userEvent.click(button);
+
+      // Tier 3 celebrations show an overlay
+      await waitFor(() => {
+        expect(screen.getByText(/Lesson Complete|Continue Learning/i)).toBeInTheDocument();
+      });
+    });
+
+    it('triggers badge celebration', async () => {
+      const mockBadge = {
+        id: 'first-lesson',
+        type: 'milestone' as const,
+        title: 'First Steps',
+        description: 'Completed your first lesson',
+        icon: 'check',
+        rarity: 'common' as const,
+        criteria: { type: 'completion' as const, threshold: 1 },
+      };
+
+      const TestComponent = () => {
+        const { celebrateBadge } = useCelebration();
+        return (
+          <button onClick={() => celebrateBadge(mockBadge, 75)}>
+            Badge Earned
+          </button>
+        );
+      };
+
+      render(
+        <CelebrationProvider>
+          <TestComponent />
+        </CelebrationProvider>
+      );
+
+      const button = screen.getByRole('button');
+      await userEvent.click(button);
+
+      // Badge celebration shows badge earned message
+      await waitFor(() => {
+        expect(screen.getByText(/Badge Earned/i)).toBeInTheDocument();
+        expect(screen.getByText('First Steps')).toBeInTheDocument();
+      });
+    });
   });
 
-  it('displays badge earned notification', async () => {
-    const celebration = {
-      xpEarned: 10,
-      badge: {
-        id: 'week-warrior',
-        title: 'Week Warrior',
-      },
-      message: 'You earned 10 XP! New badge: Week Warrior!',
-    };
+  describe('QuickCelebration', () => {
+    it('shows correct answer message', () => {
+      render(<QuickCelebration show={true} isCorrect={true} xp={10} />);
 
-    render(<CelebrationSystem celebration={celebration} onComplete={() => {}} />);
+      expect(screen.getByText(/Correct/i)).toBeInTheDocument();
+      expect(screen.getByText(/\+10 XP/)).toBeInTheDocument();
+    });
 
-    expect(screen.getByText(/Week Warrior/i)).toBeInTheDocument();
-    expect(screen.getByText(/badge/i)).toBeInTheDocument();
+    it('shows incorrect answer message', () => {
+      render(<QuickCelebration show={true} isCorrect={false} />);
+
+      expect(screen.getByText(/Not quite|try again/i)).toBeInTheDocument();
+    });
+
+    it('hides when show is false', () => {
+      render(<QuickCelebration show={false} isCorrect={true} xp={10} />);
+
+      expect(screen.queryByText(/Correct/i)).not.toBeInTheDocument();
+    });
   });
 
-  it('calls onComplete after celebration finishes', async () => {
-    const onComplete = vi.fn();
-    const celebration = {
-      xpEarned: 10,
-      message: 'You earned 10 XP!',
-    };
+  describe('StreakCelebration', () => {
+    it('shows streak days', async () => {
+      render(<StreakCelebration show={true} days={7} onDismiss={() => {}} />);
 
-    render(<CelebrationSystem celebration={celebration} onComplete={onComplete} duration={100} />);
+      expect(screen.getByText(/7 Day Streak/i)).toBeInTheDocument();
+    });
 
-    // Wait for celebration duration + buffer
-    await waitFor(
-      () => {
-        expect(onComplete).toHaveBeenCalled();
-      },
-      { timeout: 500 }
-    );
-  });
+    it('shows week message for 7-day streak', () => {
+      render(<StreakCelebration show={true} days={7} onDismiss={() => {}} />);
 
-  it('triggers confetti for celebrations', async () => {
-    const confettiModule = await import('canvas-confetti');
-    const confetti = confettiModule.default;
+      expect(screen.getByText(/week/i)).toBeInTheDocument();
+    });
 
-    const celebration = {
-      xpEarned: 50,
-      newLevel: 10,
-      message: 'Level up!',
-    };
+    it('calls onDismiss when clicked', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      const onDismiss = vi.fn();
 
-    render(<CelebrationSystem celebration={celebration} onComplete={() => {}} />);
+      render(<StreakCelebration show={true} days={5} onDismiss={onDismiss} />);
 
-    expect(confetti).toHaveBeenCalled();
+      const keepGoingButton = screen.getByText(/Keep Going/i);
+      await user.click(keepGoingButton);
+
+      expect(onDismiss).toHaveBeenCalled();
+    });
+
+    it('hides when show is false', () => {
+      render(<StreakCelebration show={false} days={5} onDismiss={() => {}} />);
+
+      expect(screen.queryByText(/Day Streak/i)).not.toBeInTheDocument();
+    });
   });
 });

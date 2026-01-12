@@ -478,6 +478,7 @@ export function QuizAtom({ atom, onComplete, onStruggleDetected }: QuizAtomProps
               resetTimer(); // Reset timer for new attempt
             }}
             leftIcon={<RotateCcw size={20} />}
+            className="min-h-[48px]" // Enhanced touch target for mobile
           >
             Retake Quiz
           </Button>
@@ -551,6 +552,7 @@ export function QuizAtom({ atom, onComplete, onStruggleDetected }: QuizAtomProps
               isAnswered={state.showingFeedback}
               isDisabled={state.showingFeedback}
               onSelect={() => handleAnswerSelect(option)}
+              className="min-h-[44px]" // Minimum touch target size for mobile
             />
           ))}
         </motion.div>
@@ -617,7 +619,7 @@ export function QuizAtom({ atom, onComplete, onStruggleDetected }: QuizAtomProps
                     isLoading={state.loadingExplanation || coachLoading}
                     isDisabled={state.loadingExplanation || coachLoading}
                     leftIcon={<MessageCircle size={16} />}
-                    className="mt-3"
+                    className="mt-3 min-h-[44px]" // Mobile-friendly touch target
                   >
                     Explain Why
                   </Button>
@@ -688,6 +690,7 @@ export function QuizAtom({ atom, onComplete, onStruggleDetected }: QuizAtomProps
             onClick={handleSubmitAnswer}
             isDisabled={!isAnswered}
             rightIcon={<ChevronRight size={20} />}
+            className="min-h-[48px]" // Enhanced touch target for mobile
           >
             Submit Answer
           </Button>
@@ -698,6 +701,7 @@ export function QuizAtom({ atom, onComplete, onStruggleDetected }: QuizAtomProps
             fullWidth={true}
             onClick={handleNextQuestion}
             rightIcon={<ChevronRight size={20} />}
+            className="min-h-[48px]" // Enhanced touch target for mobile
           >
             {state.currentQuestionIndex < questions.length - 1
               ? 'Next Question'

@@ -221,7 +221,7 @@ function ReadingRenderer({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="h-full flex flex-col overflow-hidden"
+      className="h-full flex flex-col"
     >
       {/* Scrollable Content Area */}
       <div className="flex-1 overflow-y-auto min-h-0">

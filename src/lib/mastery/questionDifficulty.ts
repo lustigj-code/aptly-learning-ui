@@ -131,3 +131,113 @@ export function createInteractionFeatures(
     recentCorrectRate,
   };
 }
+
+// ============================================================================
+// Dynamic K-Factor & Rasch IRT Enhancement (Research-backed)
+// ============================================================================
+
+/**
+ * Metadata for tracking update history per student/item pair
+ */
+export interface UpdateMetadata {
+  questionId: string;
+  studentId: string;
+  priorUpdates: number; // n = number of prior updates for this item/student pair
+}
+
+/**
+ * Research-backed parameters for uncertainty function
+ * Source: Rasch IRT literature, Aptly Deep Research
+ */
+const UNCERTAINTY_PARAMS = {
+  BETA: 0.1,   // Decay rate
+  GAMMA: 0.5,  // Decay exponent
+};
+
+const K_FACTOR_PARAMS = {
+  K_MAX: 30,   // High plasticity for new items
+  K_MIN: 10,   // Floor for established items (never decay to zero)
+};
+
+const MEAN_REVERSION_PARAMS = {
+  GLOBAL_MEAN: 0.5,     // Neutral difficulty
+  REVERSION_RATE: 0.05, // Pull 5% toward mean each update
+};
+
+/**
+ * Uncertainty Function: U(n) = 1 / (1 + β * n^γ)
+ *
+ * Returns high uncertainty (≈1) for new items, low (→0) for well-established items.
+ * Research shows this prevents over-fitting to early noisy data.
+ */
+export function calculateUncertainty(priorUpdates: number): number {
+  const { BETA, GAMMA } = UNCERTAINTY_PARAMS;
+  return 1 / (1 + BETA * Math.pow(Math.max(0, priorUpdates), GAMMA));
+}
+
+/**
+ * Dynamic K-Factor based on uncertainty
+ *
+ * K ranges from 30 (new items, high plasticity) to 10 (established items).
+ * This replaces static delta values for more adaptive difficulty adjustment.
+ */
+export function calculateDynamicKFactor(priorUpdates: number): number {
+  const { K_MAX, K_MIN } = K_FACTOR_PARAMS;
+  const uncertainty = calculateUncertainty(priorUpdates);
+  return K_MIN + (K_MAX - K_MIN) * uncertainty;
+}
+
+/**
+ * Apply Mean Reversion to prevent "ease hell"
+ *
+ * Pulls difficulty slightly toward global mean after each update.
+ * Prevents items from getting stuck at extreme difficulty values.
+ */
+export function applyMeanReversion(
+  currentDifficulty: number,
+  globalMean: number = MEAN_REVERSION_PARAMS.GLOBAL_MEAN
+): number {
+  const { REVERSION_RATE } = MEAN_REVERSION_PARAMS;
+  return currentDifficulty + REVERSION_RATE * (globalMean - currentDifficulty);
+}
+
+/**
+ * Update difficulty with dynamic K-factor and mean reversion
+ *
+ * This is the main function for updating question difficulty after a response.
+ * Combines uncertainty-based K-factor with mean reversion for robust estimates.
+ */
+export function updateDifficulty(
+  currentDifficulty: number,
+  isCorrect: boolean,
+  priorUpdates: number
+): number {
+  const k = calculateDynamicKFactor(priorUpdates);
+
+  // Correct answer = easier item, incorrect = harder item
+  const delta = isCorrect ? -k / 100 : k / 100;
+
+  // Clamp to valid range
+  const newDifficulty = Math.max(0, Math.min(1, currentDifficulty + delta));
+
+  // Apply mean reversion to prevent extreme values
+  return applyMeanReversion(newDifficulty);
+}
+
+/**
+ * Zero-Sum Constraint for Ability/Difficulty Balance
+ *
+ * Ensures learner ability gain ≈ item difficulty loss (and vice versa).
+ * This maintains calibration across the system.
+ */
+export function enforceZeroSum(
+  abilityChange: number,
+  difficultyChange: number
+): { ability: number; difficulty: number } {
+  const netChange = abilityChange + difficultyChange;
+  const adjustment = netChange / 2;
+  return {
+    ability: abilityChange - adjustment,
+    difficulty: difficultyChange + adjustment,
+  };
+}

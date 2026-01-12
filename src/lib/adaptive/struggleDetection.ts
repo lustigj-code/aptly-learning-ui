@@ -496,3 +496,339 @@ export function shouldTriggerIntervention(signals: StruggleSignals): boolean {
 // ============================================
 
 export { THRESHOLDS };
+
+// ============================================================================
+// ZPD-BASED ROUTING & BEHAVIORAL SIGNALS (Research-backed Enhancement)
+// ============================================================================
+
+/**
+ * Zone of Proximal Development Classification
+ *
+ * Research-backed accuracy ranges:
+ * - Frustration Zone: < 35% accuracy - too hard, needs direct help
+ * - ZPD (Productive Struggle): 36-69% accuracy - optimal for learning
+ * - Mastery Zone: > 70% accuracy - ready for new material
+ *
+ * Source: NWEA, Third Space Learning, LearnLM research
+ */
+export type InterventionZone = 'frustration' | 'zpd' | 'mastery';
+
+/**
+ * Behavioral signals for fast-track intervention
+ *
+ * These signals bypass normal tier progression and trigger immediate help.
+ * Research shows these patterns indicate counterproductive struggle.
+ */
+export interface BehavioralSignals {
+  rapidGuessing: boolean;     // < 3 seconds response time
+  wheelSpinning: boolean;     // > 20 attempts on same skill without progress
+  hintExhaustion: boolean;    // > 3 failed hints in a row
+  videoSkipping: boolean;     // > 20% of video duration skipped
+  frustrationDetected: boolean; // Linguistic frustration signals
+}
+
+/**
+ * Recent interaction for behavioral analysis
+ */
+export interface RecentInteraction {
+  skillId: string;
+  responseTimeMs: number;
+  isCorrect: boolean;
+  usedHint: boolean;
+  hintWasHelpful: boolean;
+  timestamp: Date;
+}
+
+/**
+ * Research-backed thresholds for behavioral signals
+ */
+const BEHAVIORAL_THRESHOLDS = {
+  RAPID_GUESS_MS: 3000,       // < 3 seconds = guessing
+  WHEEL_SPIN_ATTEMPTS: 20,    // > 20 attempts on same skill
+  HINT_FAIL_CONSECUTIVE: 3,   // > 3 failed hints in a row
+  VIDEO_SKIP_RATIO: 0.20,     // > 20% of video skipped
+  ZPD_LOWER_BOUND: 0.36,      // 36% accuracy
+  ZPD_UPPER_BOUND: 0.69,      // 69% accuracy
+  MASTERY_THRESHOLD: 0.70,    // 70% accuracy
+};
+
+/**
+ * Classify learner's zone based on recent accuracy
+ *
+ * @param recentAccuracy - Accuracy over recent attempts (0-1)
+ * @returns The intervention zone classification
+ */
+export function classifyZone(recentAccuracy: number): InterventionZone {
+  if (recentAccuracy < BEHAVIORAL_THRESHOLDS.ZPD_LOWER_BOUND) {
+    return 'frustration';
+  }
+  if (recentAccuracy > BEHAVIORAL_THRESHOLDS.MASTERY_THRESHOLD) {
+    return 'mastery';
+  }
+  return 'zpd'; // 36-70% = Zone of Proximal Development
+}
+
+/**
+ * Calculate recent accuracy from interactions
+ */
+export function calculateRecentAccuracy(
+  interactions: RecentInteraction[],
+  windowSize: number = 10
+): number {
+  const recent = interactions.slice(-windowSize);
+  if (recent.length === 0) return 0.5; // Neutral if no data
+
+  const correctCount = recent.filter(i => i.isCorrect).length;
+  return correctCount / recent.length;
+}
+
+/**
+ * Detect behavioral signals that warrant fast-track intervention
+ *
+ * These signals indicate counterproductive struggle and should bypass
+ * normal Socratic progression to provide immediate help.
+ */
+export function detectBehavioralSignals(
+  interactions: RecentInteraction[]
+): BehavioralSignals {
+  const recent = interactions.slice(-10);
+
+  return {
+    rapidGuessing: detectRapidGuessing(recent),
+    wheelSpinning: detectWheelSpinning(interactions),
+    hintExhaustion: detectHintExhaustion(interactions),
+    videoSkipping: false, // Requires video analytics integration
+    frustrationDetected: false, // Set by linguistic detection separately
+  };
+}
+
+/**
+ * Detect rapid guessing (< 3 seconds per response)
+ */
+function detectRapidGuessing(interactions: RecentInteraction[]): boolean {
+  if (interactions.length < 3) return false;
+
+  // Check if majority of recent responses are too fast
+  const rapidCount = interactions.filter(
+    i => i.responseTimeMs < BEHAVIORAL_THRESHOLDS.RAPID_GUESS_MS
+  ).length;
+
+  return rapidCount >= Math.ceil(interactions.length * 0.5); // 50%+ rapid
+}
+
+/**
+ * Detect wheel spinning (> 20 attempts on same skill without progress)
+ */
+function detectWheelSpinning(interactions: RecentInteraction[]): boolean {
+  if (interactions.length < BEHAVIORAL_THRESHOLDS.WHEEL_SPIN_ATTEMPTS) {
+    return false;
+  }
+
+  // Get the most common skill in recent interactions
+  const skillCounts = new Map<string, number>();
+  for (const i of interactions) {
+    skillCounts.set(i.skillId, (skillCounts.get(i.skillId) || 0) + 1);
+  }
+
+  // Find skill with most attempts
+  let maxSkill = '';
+  let maxCount = 0;
+  for (const [skillId, count] of skillCounts) {
+    if (count > maxCount) {
+      maxCount = count;
+      maxSkill = skillId;
+    }
+  }
+
+  // Check if stuck on one skill with poor performance
+  if (maxCount >= BEHAVIORAL_THRESHOLDS.WHEEL_SPIN_ATTEMPTS) {
+    const skillInteractions = interactions.filter(i => i.skillId === maxSkill);
+    const accuracy = skillInteractions.filter(i => i.isCorrect).length / skillInteractions.length;
+    return accuracy < 0.5; // Still struggling after many attempts
+  }
+
+  return false;
+}
+
+/**
+ * Detect hint exhaustion (> 3 failed hints in a row)
+ */
+function detectHintExhaustion(interactions: RecentInteraction[]): boolean {
+  let consecutiveFailedHints = 0;
+
+  // Count from most recent backward
+  for (let i = interactions.length - 1; i >= 0; i--) {
+    const interaction = interactions[i];
+    if (interaction.usedHint && !interaction.hintWasHelpful) {
+      consecutiveFailedHints++;
+    } else if (interaction.usedHint && interaction.hintWasHelpful) {
+      break; // Reset on successful hint
+    }
+  }
+
+  return consecutiveFailedHints >= BEHAVIORAL_THRESHOLDS.HINT_FAIL_CONSECUTIVE;
+}
+
+// ============================================================================
+// LINGUISTIC FRUSTRATION DETECTION
+// ============================================================================
+
+/**
+ * Frustration patterns detected in user messages
+ *
+ * Source: ACL Anthology frustration detection research, LearnLM
+ */
+const FRUSTRATION_PATTERNS = [
+  /i don'?t (know|understand|get it)/i,
+  /that doesn'?t (help|make sense)/i,
+  /i am (drowning|lost|confused|stuck)/i,
+  /this is (impossible|too hard|frustrating)/i,
+  /^(idk|no|nope|what\??)$/i,
+  /i give up/i,
+  /just tell me (the answer|what to do)/i,
+  /this makes no sense/i,
+  /i('m| am) (so )?confused/i,
+  /nothing (works|is working)/i,
+];
+
+/**
+ * Detect linguistic frustration in user message
+ *
+ * @param message - User's message text
+ * @returns Detection result with confidence and matched pattern
+ */
+export function detectLinguisticFrustration(message: string): {
+  isFrustrated: boolean;
+  confidence: number;
+  matchedPattern?: string;
+} {
+  const normalized = message.toLowerCase().trim();
+
+  // Check for frustration patterns
+  for (const pattern of FRUSTRATION_PATTERNS) {
+    if (pattern.test(normalized)) {
+      return {
+        isFrustrated: true,
+        confidence: 0.8,
+        matchedPattern: pattern.source,
+      };
+    }
+  }
+
+  // Check for very short, dismissive responses
+  if (normalized.length < 5 && ['no', 'idk', 'what', '?', '??', 'huh'].includes(normalized)) {
+    return {
+      isFrustrated: true,
+      confidence: 0.6,
+      matchedPattern: 'short_dismissive',
+    };
+  }
+
+  return {
+    isFrustrated: false,
+    confidence: 0.2,
+  };
+}
+
+/**
+ * Intervention strategy based on zone and signals
+ */
+export interface InterventionStrategy {
+  tier: 1 | 2 | 3;
+  type: 'socratic' | 'hint' | 'worked_example' | 'direct_explanation' | 'practice';
+  immediate: boolean;
+  reason: string;
+}
+
+/**
+ * Select intervention strategy based on ZPD zone and behavioral signals
+ *
+ * This is the main decision function for the 3-tier intervention hierarchy.
+ * Combines ZPD classification with behavioral signal detection.
+ */
+export function selectInterventionStrategy(
+  zone: InterventionZone,
+  currentTier: 1 | 2 | 3,
+  behavioralSignals: BehavioralSignals,
+  recentAccuracy: number
+): InterventionStrategy {
+  // Fast-track to Tier 3 on critical behavioral signals
+  if (behavioralSignals.rapidGuessing) {
+    return {
+      tier: 3,
+      type: 'worked_example',
+      immediate: true,
+      reason: 'Rapid guessing detected - providing worked example',
+    };
+  }
+
+  if (behavioralSignals.wheelSpinning) {
+    return {
+      tier: 3,
+      type: 'worked_example',
+      immediate: true,
+      reason: 'Wheel spinning detected - breaking the cycle with worked example',
+    };
+  }
+
+  if (behavioralSignals.hintExhaustion) {
+    return {
+      tier: 3,
+      type: 'worked_example',
+      immediate: true,
+      reason: 'Hints not helping - showing complete worked example',
+    };
+  }
+
+  if (behavioralSignals.frustrationDetected) {
+    return {
+      tier: 3,
+      type: 'direct_explanation',
+      immediate: true,
+      reason: 'Frustration detected - providing clear explanation',
+    };
+  }
+
+  // Zone-based routing
+  switch (zone) {
+    case 'frustration':
+      // Below 35% accuracy - too hard, skip Socratic approach
+      return {
+        tier: 3,
+        type: 'direct_explanation',
+        immediate: true,
+        reason: 'Accuracy too low for productive struggle',
+      };
+
+    case 'zpd':
+      // 36-69% accuracy - optimal for Socratic method
+      return {
+        tier: currentTier,
+        type: currentTier === 1 ? 'socratic' : currentTier === 2 ? 'hint' : 'worked_example',
+        immediate: false,
+        reason: 'In Zone of Proximal Development - using Socratic approach',
+      };
+
+    case 'mastery':
+      // Above 70% accuracy - ready for more challenge
+      return {
+        tier: 1,
+        type: 'practice',
+        immediate: false,
+        reason: 'High accuracy - ready for new material or harder practice',
+      };
+  }
+}
+
+/**
+ * Semi-Socratic questioning decision
+ *
+ * Research shows 34% questioning ratio is optimal (not 100% Socratic).
+ * Source: LearnLM/Google DeepMind tutoring research
+ */
+export function shouldAskQuestion(interactionCount: number): boolean {
+  // 34% of the time, ask a question; 66% give direct guidance
+  return Math.random() < 0.34;
+}
+
+export { BEHAVIORAL_THRESHOLDS };

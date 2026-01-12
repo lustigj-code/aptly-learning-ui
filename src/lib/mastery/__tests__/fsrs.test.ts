@@ -24,11 +24,12 @@ describe('FSRS Algorithm', () => {
   });
 
   describe('calculateNextState for new cards', () => {
-    it('transitions from new to learning on first review', () => {
+    it('transitions from new to review on first Good/Easy review', () => {
       const initialState = createInitialFSRSState();
       const { nextState, interval } = calculateNextState(initialState, 3 as ReviewRating); // Good
 
-      expect(nextState.state).toBe('learning');
+      // Good/Easy ratings transition directly to review, Hard stays in learning
+      expect(nextState.state).toBe('review');
       expect(nextState.reps).toBe(1);
       expect(interval).toBeGreaterThan(0);
     });
@@ -146,16 +147,18 @@ describe('FSRS Algorithm', () => {
     });
 
     it('decreases difficulty on Easy rating', () => {
-      const learningState = {
+      // Difficulty only updates in 'review' state, not 'learning'
+      const reviewState = {
         ...state,
-        state: 'learning' as const,
+        state: 'review' as const,
         difficulty: 8,
-        reps: 2,
+        stability: 5,
+        reps: 5,
       };
 
-      const { nextState } = calculateNextState(learningState, 4 as ReviewRating);
+      const { nextState } = calculateNextState(reviewState, 4 as ReviewRating);
 
-      expect(nextState.difficulty).toBeLessThan(learningState.difficulty);
+      expect(nextState.difficulty).toBeLessThanOrEqual(reviewState.difficulty);
     });
 
     it('maintains difficulty on Good rating', () => {

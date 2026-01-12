@@ -22,6 +22,7 @@ import type { Atom, Lesson, Module } from '@/types'
 
 // Import content renderers
 import { ContentRenderer } from './ContentRenderer'
+import { SwipeableAtomView } from './SwipeableAtomView'
 // TODO: Re-enable when API is stable
 // import { useMasteryLevels } from '@/hooks/useMasteryLevels'
 // import { areLessonPrerequisitesMet, getMissingPrerequisites } from '@/data/courseToConceptMap'
@@ -284,7 +285,7 @@ function SmartCoachBar({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex items-center gap-4 px-4 py-3 bg-light-grey/50 rounded-xl mt-4 flex-shrink-0"
+      className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 px-4 py-3 bg-light-grey/50 rounded-xl mt-4 flex-shrink-0"
     >
       {/* Sage Avatar */}
       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal to-teal-dark flex items-center justify-center flex-shrink-0">
@@ -292,13 +293,13 @@ function SmartCoachBar({
       </div>
 
       {/* Message */}
-      <p className="flex-1 text-sm text-navy">{message}</p>
+      <p className="flex-1 text-sm text-navy min-w-0">{message}</p>
 
       {/* Actions */}
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto">
         <button
           onClick={onAskSage}
-          className="flex items-center gap-1.5 px-3 py-2 text-sm text-teal hover:bg-teal/10 rounded-lg transition-colors"
+          className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm text-teal hover:bg-teal/10 rounded-lg transition-colors min-h-[44px] flex-1 sm:flex-initial"
         >
           <MessageCircle className="w-4 h-4" />
           <span>Ask Sage</span>
@@ -306,7 +307,7 @@ function SmartCoachBar({
         {showContinue && (
           <button
             onClick={onContinue}
-            className="flex items-center gap-1.5 px-4 py-2 bg-teal text-white text-sm font-medium rounded-lg hover:bg-teal-dark transition-colors"
+            className="flex items-center justify-center gap-1.5 px-4 py-2 bg-teal text-white text-sm font-medium rounded-lg hover:bg-teal-dark transition-colors min-h-[44px] flex-1 sm:flex-initial"
           >
             <span>Continue</span>
             <ChevronRight className="w-4 h-4" />
@@ -385,7 +386,7 @@ function ChatOverlay({
       initial={{ y: '100%' }}
       animate={{ y: 0 }}
       exit={{ y: '100%' }}
-      className="fixed inset-x-0 bottom-0 bg-white border-t border-grey/20 shadow-2xl z-50 max-h-[60vh] flex flex-col"
+      className="fixed inset-x-0 bottom-0 bg-white border-t border-grey/20 shadow-2xl z-50 max-h-[70vh] sm:max-h-[60vh] flex flex-col"
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-grey/20">
@@ -395,7 +396,7 @@ function ChatOverlay({
           </div>
           <span className="font-medium text-navy">Ask Sage</span>
         </div>
-        <button onClick={onClose} className="p-1 hover:bg-light-grey rounded">
+        <button onClick={onClose} className="p-1 hover:bg-light-grey rounded min-h-[44px] min-w-[44px] flex items-center justify-center">
           <X className="w-5 h-5 text-grey" />
         </button>
       </div>
@@ -433,10 +434,15 @@ function ChatOverlay({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Type your question..."
-            className="flex-1 px-3 py-2 rounded-lg border border-grey/30 text-sm focus:border-teal focus:ring-1 focus:ring-teal/20 outline-none"
+            className="flex-1 px-3 py-2 rounded-lg border border-grey/30 text-sm focus:border-teal focus:ring-1 focus:ring-teal/20 outline-none min-h-[44px]"
             disabled={isLoading}
           />
-          <Button onClick={handleSend} disabled={!input.trim() || isLoading} size="sm">
+          <Button
+            onClick={handleSend}
+            disabled={!input.trim() || isLoading}
+            size="sm"
+            className="min-h-[44px] min-w-[44px]"
+          >
             <Send className="w-4 h-4" />
           </Button>
         </div>
@@ -646,6 +652,33 @@ export function CoachLearningView({
     setContentComplete(false)
   }, [isLastAtomInLesson, isLastLesson, currentLesson, sessionState.completedLessonIds, onLessonComplete])
 
+  // Handle swipe to previous atom
+  const handleSwipePrevious = useCallback(() => {
+    if (sessionState.currentAtomIndex > 0) {
+      setSessionState(prev => ({
+        ...prev,
+        currentAtomIndex: prev.currentAtomIndex - 1,
+      }))
+      setContentComplete(false)
+    } else if (sessionState.currentLessonIndex > 0) {
+      // Go to last atom of previous lesson
+      const prevLesson = module.lessons[sessionState.currentLessonIndex - 1]
+      setSessionState(prev => ({
+        ...prev,
+        currentLessonIndex: prev.currentLessonIndex - 1,
+        currentAtomIndex: prevLesson.atoms.length - 1,
+      }))
+      setContentComplete(false)
+    }
+  }, [sessionState.currentAtomIndex, sessionState.currentLessonIndex, module.lessons])
+
+  // Handle swipe to next atom (only if content is complete)
+  const handleSwipeNext = useCallback(() => {
+    if (contentComplete) {
+      handleContinue()
+    }
+  }, [contentComplete, handleContinue])
+
   // Handle lesson selection from sidebar
   const handleSelectLesson = useCallback((index: number) => {
     const targetLesson = module.lessons[index]
@@ -684,21 +717,21 @@ export function CoachLearningView({
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Content Area - Full Screen */}
-        <div className="flex-1 flex flex-col px-8 py-6">
+        <div className="flex-1 flex flex-col px-4 sm:px-6 md:px-8 py-4 sm:py-6">
           {/* Inline Header */}
           <div className="flex items-center justify-between mb-4 flex-shrink-0">
             <div className="flex items-center gap-3 min-w-0">
               {onExit && (
                 <button
                   onClick={onExit}
-                  className="flex items-center gap-2 px-3 py-1.5 text-sm text-grey hover:text-navy hover:bg-light-grey rounded-lg transition-colors flex-shrink-0"
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm text-grey hover:text-navy hover:bg-light-grey rounded-lg transition-colors flex-shrink-0 min-h-[44px]"
                 >
                   <ArrowLeft className="w-4 h-4" />
-                  <span>Exit</span>
+                  <span className="hidden sm:inline">Exit</span>
                 </button>
               )}
               <div className="min-w-0">
-                <h1 className="font-medium text-navy truncate">{currentLesson.title}</h1>
+                <h1 className="font-medium text-navy truncate text-sm sm:text-base">{currentLesson.title}</h1>
                 <p className="text-xs text-grey">
                   Part {sessionState.currentAtomIndex + 1} of {currentLesson.atoms.length}
                 </p>
@@ -709,31 +742,70 @@ export function CoachLearningView({
               {dueCount > 0 && (
                 <a
                   href="/review"
-                  className="flex items-center gap-1.5 px-2 py-1 bg-purple/10 text-purple rounded-full text-xs font-medium hover:bg-purple/20 transition-colors"
+                  className="hidden sm:flex items-center gap-1.5 px-2 py-1 bg-purple/10 text-purple rounded-full text-xs font-medium hover:bg-purple/20 transition-colors min-h-[32px]"
                 >
                   <Brain className="w-3 h-3" />
                   <span>{dueCount} due</span>
                 </a>
               )}
-              <div className="w-20 h-1 bg-grey/10 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-teal rounded-full transition-all"
-                  style={{ width: `${progressPercent}%` }}
-                />
+              {/* Desktop Progress Bar */}
+              <div className="hidden md:flex items-center gap-2">
+                <div className="w-20 h-1 bg-grey/10 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-teal rounded-full transition-all"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+                <span className="text-xs text-grey tabular-nums">{progressPercent}%</span>
               </div>
-              <span className="text-xs text-grey tabular-nums">{progressPercent}%</span>
+              {/* Mobile Progress - Circular */}
+              <div className="md:hidden relative w-10 h-10">
+                <svg className="w-10 h-10 transform -rotate-90" viewBox="0 0 36 36">
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="16"
+                    fill="none"
+                    className="stroke-grey/10"
+                    strokeWidth="3"
+                  />
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="16"
+                    fill="none"
+                    className="stroke-teal"
+                    strokeWidth="3"
+                    strokeDasharray={`${progressPercent} 100`}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-navy">
+                  {progressPercent}
+                </span>
+              </div>
             </div>
           </div>
 
           {/* Content - Fills remaining space */}
           <div className="flex-1 min-h-0 relative overflow-hidden">
-            <ContentRenderer
-              atom={currentAtom}
-              onComplete={handleContentComplete}
-              onQuizFail={handleQuizFail}
-              onContinue={handleContinue}
-              isActive={!contentComplete}
-            />
+            <SwipeableAtomView
+              currentIndex={sessionState.currentAtomIndex}
+              totalCount={currentLesson.atoms.length}
+              onSwipeNext={handleSwipeNext}
+              onSwipePrevious={handleSwipePrevious}
+              canSwipeNext={contentComplete && !isLastLesson}
+              canSwipePrevious={sessionState.currentAtomIndex > 0 || sessionState.currentLessonIndex > 0}
+              disabled={false}
+            >
+              <ContentRenderer
+                atom={currentAtom}
+                onComplete={handleContentComplete}
+                onQuizFail={handleQuizFail}
+                onContinue={handleContinue}
+                isActive={!contentComplete}
+              />
+            </SwipeableAtomView>
           </div>
 
           {/* Smart Coach Bar */}

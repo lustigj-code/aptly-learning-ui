@@ -86,6 +86,143 @@ export const HARD_BKT_PARAMS: BKTParameters = {
   pS: 0.15,  // Higher slip rate (more complex)
 };
 
+// ============================================================================
+// CONTENT-TYPE SPECIFIC PARAMETERS (Research Enhancement)
+// ============================================================================
+
+/**
+ * Content type for BKT parameter selection
+ *
+ * Research shows different content types have different learning patterns:
+ * - Conceptual: Slow acquisition, hard to guess, stable once learned
+ * - Procedural: Medium acquisition, practice-dependent
+ * - Factual: Fast acquisition, easy to guess, prone to forgetting
+ */
+export type ContentType = 'conceptual' | 'procedural' | 'factual';
+
+/**
+ * Content-type specific BKT parameters
+ *
+ * Based on research from ASSISTments and EdNet datasets.
+ * Source: Aptly Deep Research (166 sources)
+ */
+export const BKT_BY_CONTENT: Record<ContentType, BKTParameters> = {
+  conceptual: {
+    pL0: 0.05,  // Concepts rarely pre-known
+    pT: 0.20,   // Slower acquisition
+    pG: 0.15,   // Harder to guess
+    pS: 0.10,   // Stable once learned
+  },
+  procedural: {
+    pL0: 0.10,  // Some prior exposure possible
+    pT: 0.30,   // Medium acquisition with practice
+    pG: 0.20,   // Standard guess rate
+    pS: 0.15,   // More slips under pressure
+  },
+  factual: {
+    pL0: 0.15,  // Facts more likely pre-known
+    pT: 0.35,   // Fast memorization
+    pG: 0.25,   // Easy to guess (recognition)
+    pS: 0.05,   // Few slips if truly known
+  },
+};
+
+/**
+ * Research-backed parameter ranges for validation
+ *
+ * Parameters outside these ranges may indicate misconfiguration.
+ * Source: BKT literature review, Aptly Deep Research
+ */
+export const BKT_RANGES = {
+  pL0: { min: 0.0, max: 0.3, description: 'Initial mastery probability' },
+  pT:  { min: 0.1, max: 0.4, description: 'Learning rate per opportunity' },
+  pG:  { min: 0.0, max: 0.3, description: 'Guess probability ceiling' },
+  pS:  { min: 0.0, max: 0.2, description: 'Slip probability floor' },
+};
+
+/**
+ * Validate BKT parameters are within research-backed ranges
+ */
+export function validateBKTParams(params: BKTParameters): {
+  valid: boolean;
+  errors: string[];
+} {
+  const errors: string[] = [];
+
+  for (const [key, range] of Object.entries(BKT_RANGES)) {
+    const value = params[key as keyof BKTParameters];
+    if (value < range.min || value > range.max) {
+      errors.push(
+        `${key} (${value}) outside valid range [${range.min}, ${range.max}]: ${range.description}`
+      );
+    }
+  }
+
+  // Additional constraint: P(G) + P(S) should be < 0.5 for identifiability
+  if (params.pG + params.pS >= 0.5) {
+    errors.push(
+      `P(G) + P(S) = ${params.pG + params.pS} >= 0.5: Model may be unidentifiable`
+    );
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+}
+
+/**
+ * Get BKT parameters for a skill based on content type
+ */
+export function getParamsForContentType(
+  contentType: ContentType
+): BKTParameters {
+  return BKT_BY_CONTENT[contentType] || DEFAULT_BKT_PARAMS;
+}
+
+/**
+ * Detect content type from skill metadata (heuristic)
+ */
+export function inferContentType(skillName: string, skillDescription?: string): ContentType {
+  const text = `${skillName} ${skillDescription || ''}`.toLowerCase();
+
+  // Conceptual indicators
+  if (
+    text.includes('understand') ||
+    text.includes('concept') ||
+    text.includes('theory') ||
+    text.includes('principle') ||
+    text.includes('relationship')
+  ) {
+    return 'conceptual';
+  }
+
+  // Procedural indicators
+  if (
+    text.includes('apply') ||
+    text.includes('calculate') ||
+    text.includes('perform') ||
+    text.includes('procedure') ||
+    text.includes('step')
+  ) {
+    return 'procedural';
+  }
+
+  // Factual indicators
+  if (
+    text.includes('define') ||
+    text.includes('identify') ||
+    text.includes('name') ||
+    text.includes('list') ||
+    text.includes('recall')
+  ) {
+    return 'factual';
+  }
+
+  // Default to procedural (middle ground)
+  return 'procedural';
+}
+
 // ============================================
 // MASTERY THRESHOLD
 // ============================================
@@ -361,9 +498,10 @@ export function getMasteryLevel(pMastery: number): 'novice' | 'learning' | 'prof
 }
 
 /**
- * Validate BKT parameters are within valid ranges
+ * Simple validation check (convenience wrapper)
+ * For detailed errors, use the validateBKTParams function that returns { valid, errors }
  */
-export function validateBKTParams(params: BKTParameters): boolean {
+export function isValidBKTParams(params: BKTParameters): boolean {
   const { pL0, pT, pG, pS } = params;
 
   return (
