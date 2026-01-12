@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SPRING, TOUCH_TARGET } from '@/lib/design-tokens';
 
 type QuizOptionState = 'default' | 'selected' | 'correct' | 'incorrect' | 'correct-not-selected';
 
@@ -66,10 +67,19 @@ function QuizOption({
       aria-label={`Option ${optionLetter}: ${label}`}
       disabled={isDisabled || isAnswered}
       onClick={onSelect}
+      onKeyDown={(e) => {
+        // Handle Enter and Spacebar for keyboard navigation
+        if ((e.key === 'Enter' || e.key === ' ') && !isDisabled && !isAnswered) {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
       className={cn(
         'w-full p-4 rounded-xl border-2 text-left transition-colors duration-200',
         'flex items-center gap-3',
         'disabled:cursor-not-allowed',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal focus-visible:ring-offset-2',
+        TOUCH_TARGET.primaryClass, // 48px minimum touch target
         stateStyles[state],
         className
       )}
@@ -85,7 +95,7 @@ function QuizOption({
       transition={
         state === 'incorrect'
           ? { duration: 0.4, ease: 'easeInOut' }
-          : { type: 'spring', stiffness: 400, damping: 17 }
+          : SPRING.snappy
       }
     >
       {/* Option letter circle */}
@@ -106,17 +116,17 @@ function QuizOption({
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+              transition={SPRING.bouncy}
             >
-              <Check size={16} />
+              <Check size={16} aria-label="Correct answer" />
             </motion.div>
           ) : showX ? (
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+              transition={SPRING.bouncy}
             >
-              <X size={16} />
+              <X size={16} aria-label="Incorrect answer" />
             </motion.div>
           ) : (
             optionLetter
