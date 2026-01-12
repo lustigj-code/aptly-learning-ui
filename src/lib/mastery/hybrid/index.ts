@@ -9,3 +9,4 @@
 export * from '../hybridTypes';
 export * from '../questionDifficulty';
 export * from '../predictionRouter';
+export * from '../shadowMode';
