@@ -2,13 +2,15 @@
 
 ## Current Position
 
-**Milestone:** v1.0 Flawless Launch
-**Phase:** 4.2 of 5 (Multi-Course & AI Integration)
-**Plan:** Complete (3 of 3 plans executed)
-**Status:** Phase 4.2 COMPLETE - Moving to Phase 5
-**Last activity:** 2026-01-11 - Completed AI feature integration
+**Milestone:** v2.0 Adaptive Learning Evolution
+**Phase:** 10.1 of 15 (Data Collection + A/B Enhancement)
+**Plan:** 10.1 Complete - Interaction Logging Infrastructure
+**Status:** Phase 10.1 COMPLETE - Moving to Phase 10.2
+**Last activity:** 2026-01-11 - Built interaction logging for ML model training
 
-Progress: ████████████████████ 100% (Phase 4.2)
+Progress: ████░░░░░░░░░░░░░░░░ 8% (v2.0 Phase 10)
+
+**Previous Milestone:** v1.0 Flawless Launch - Phase 4.2 Complete
 
 ---
 
@@ -21,6 +23,11 @@ Progress: ████████████████████ 100% (Pha
 - Using Gemini API for AI-powered features
 - **[4.1-01]** Skill ID pattern: `{courseId}-{moduleNum}-{skillNum}`
 - **[4.1-01]** ParsedCourseContent as standard AI input format
+- **[v2.0]** NotebookLM research: 40 sources on adaptive learning best practices
+- **[v2.0]** Hybrid model: DKT2 + BKT dual-pathway architecture
+- **[v2.0]** Vector DB: Pinecone for RAG-based Socratic coach
+- **[v2.0]** Data collection started: Firestore `interactionLogs` for ML training
+- **[10.1]** Interaction logging captures 20+ fields per quiz/practice interaction
 
 ### Roadmap Evolution
 - Phase 4.1 inserted after Phase 4: AI-powered dynamic skill map generation (URGENT)
@@ -61,7 +68,21 @@ Progress: ████████████████████ 100% (Pha
 
 ## Session Notes
 
-### 2026-01-11
+### 2026-01-11 (v2.0 Work)
+- Started v2.0 Adaptive Learning Evolution milestone
+- Source: Deep research via NotebookLM (40 academic sources)
+- Created Phase 10-15 roadmap for research-backed adaptive learning
+- **Phase 10.1 COMPLETE:** Interaction Logging Infrastructure
+  - Added InteractionLog types with 20+ ML-relevant fields
+  - Created interactionLogService.ts for Firestore batch operations
+  - Built useInteractionLogger hook with client-side batching
+  - Added /api/interactions/log endpoint
+  - Integrated logging into QuizAtom component
+  - Commits: 3fbe388, e613285
+- Data collection now active for hybrid model training
+- Target: 100k+ interactions before Phase 15
+
+### 2026-01-11 (v1.0 Work)
 - Completed Phase 4.1: AI-Powered Dynamic Skill Map Generation (ALL 4 PLANS)
 - 4.1-03: Firestore storage, sequencer update with courseId, skill map caching
 - 4.1-04: Admin interface - list/detail pages, generate/activate actions
@@ -118,7 +139,7 @@ Progress: ████████████████████ 100% (Pha
 ## Session Continuity
 
 Last session: 2026-01-11
-Stopped at: Completed Phase 4.1 (all 4 plans), ready for Phase 4.2
+Stopped at: Completed Phase 10.1, ready for Phase 10.2 (A/B Testing Dashboard UI)
 Resume file: None
 
 ---
