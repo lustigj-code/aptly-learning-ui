@@ -3,12 +3,12 @@
 ## Current Position
 
 **Milestone:** v2.0 Adaptive Learning Evolution
-**Phase:** 11.1 COMPLETE, executing Phase 11.2 (Exam Mode)
-**Plan:** Phase 11.1 Complete - FSRS Dashboard Integration
-**Status:** Phase 11.1 COMPLETE - Executing Phase 11.2
-**Last activity:** 2026-01-11 - Added review badge to learning header
+**Phase:** 11 COMPLETE, ready for Phase 12 (Socratic RAG Coach)
+**Plan:** Phase 11.2 Complete - Exam Mode
+**Status:** Phase 11 COMPLETE - Moving to Phase 12
+**Last activity:** 2026-01-11 - Added exam readiness calculator and dashboard widget
 
-Progress: ████████░░░░░░░░░░░░ 25% (v2.0 Phase 11.1 of 15 complete)
+Progress: ██████████░░░░░░░░░░ 33% (v2.0 Phase 11 of 15 complete)
 
 **Previous Milestone:** v1.0 Flawless Launch - Phase 4.2 Complete
 
@@ -90,6 +90,12 @@ Progress: ████████░░░░░░░░░░░░ 25% (v2.0
   - Added review due badge to learning header (CoachLearningView)
   - Badge shows "N due" with Brain icon, links to /review
   - Commit: 523f1ac
+- **Phase 11.2 COMPLETE:** Exam Mode
+  - Added exam date fields to UserPreferences type and API
+  - Created examReadiness.ts with FSRS-based calculations
+  - Built ExamModeSettings component with date picker, retention slider
+  - Created ExamReadinessWidget for dashboard with countdown and status
+  - Commits: c76e920, 3048e31, 88b740d, dbf2cf6
 - Data collection now active for hybrid model training
 - Target: 100k+ interactions before Phase 15
 
@@ -150,7 +156,7 @@ Progress: ████████░░░░░░░░░░░░ 25% (v2.0
 ## Session Continuity
 
 Last session: 2026-01-11
-Stopped at: Completed Phase 11.1, executing Phase 11.2 (Exam Mode)
+Stopped at: Completed Phase 11, ready for Phase 12 (Socratic RAG Coach)
 Resume file: None
 
 ---
