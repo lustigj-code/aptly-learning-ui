@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import { ExternalLink, BookOpen, Check, Clock, Lightbulb } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ExternalLink, BookOpen, Check, Clock, Lightbulb, Sparkles, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/Button';
 import { useTimeTracking, formatTimeMMSS } from '@/hooks/useTimeTracking';
+import { useCoach } from '@/hooks/useCoach';
 import { post } from '@/lib/api/client';
 import type { Atom, ReadingContent } from '@/types';
 
@@ -28,6 +29,12 @@ function calculateReadingTime(text: string): number {
 export function ReadingAtom({ atom, onComplete, isLoading = false }: ReadingAtomProps) {
   const [isCompleted, setIsCompleted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [loadingSummary, setLoadingSummary] = useState(false);
+
+  // AI Coach for summary feature
+  const { getSummary, isLoading: coachLoading } = useCoach();
 
   const { content } = atom;
   const relatedResources = content.relatedResources || [];
@@ -74,6 +81,34 @@ export function ReadingAtom({ atom, onComplete, isLoading = false }: ReadingAtom
     await submitCompletion();
   };
 
+  // Request AI summary of the content
+  const handleGetSummary = async () => {
+    if (aiSummary) {
+      // Already have summary, just show it
+      setShowSummary(true);
+      return;
+    }
+
+    setLoadingSummary(true);
+    setShowSummary(true);
+
+    try {
+      const response = await getSummary(content.body, {
+        currentLesson: atom.lessonId,
+        currentAtom: atom.id,
+        atomType: 'reading',
+        atomContent: content.body.substring(0, 500), // First 500 chars for context
+      });
+
+      setAiSummary(response?.content || 'Here are the key points from this reading...');
+    } catch (error) {
+      console.error('Error getting summary:', error);
+      setAiSummary('This content covers important concepts. Focus on the Key Takeaways section for the main points.');
+    } finally {
+      setLoadingSummary(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Time-Based Progress Header - Sticky */}
@@ -87,13 +122,63 @@ export function ReadingAtom({ atom, onComplete, isLoading = false }: ReadingAtom
             <BookOpen size={18} className="text-teal" />
             <span className="text-sm font-medium text-navy">{estimatedMinutes} min read</span>
           </div>
-          <div className="flex items-center gap-2 text-sm text-rich-black/60">
-            <Clock size={14} className={isActive ? 'text-teal' : 'text-grey'} />
-            <span className="font-mono">{formatTimeMMSS(elapsedSeconds)}</span>
-            <span className="text-xs">({timeProgress}%)</span>
+          <div className="flex items-center gap-4">
+            {/* AI Summary Button */}
+            <button
+              onClick={handleGetSummary}
+              disabled={loadingSummary || coachLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-teal bg-light-teal/30 hover:bg-light-teal/50 rounded-full transition-colors disabled:opacity-50"
+            >
+              <Sparkles size={14} />
+              <span>AI Summary</span>
+            </button>
+            <div className="flex items-center gap-2 text-sm text-rich-black/60">
+              <Clock size={14} className={isActive ? 'text-teal' : 'text-grey'} />
+              <span className="font-mono">{formatTimeMMSS(elapsedSeconds)}</span>
+              <span className="text-xs">({timeProgress}%)</span>
+            </div>
           </div>
         </div>
       </motion.div>
+
+      {/* AI Summary Panel */}
+      <AnimatePresence>
+        {showSummary && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="bg-gradient-to-r from-light-teal/20 to-light-blue/20 border-b border-teal/30"
+          >
+            <div className="max-w-[680px] mx-auto px-4 py-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3 flex-1">
+                  <div className="w-8 h-8 bg-teal/20 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Sparkles size={16} className="text-teal" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-navy mb-2">AI Summary</h3>
+                    {loadingSummary || coachLoading ? (
+                      <div className="flex items-center gap-2 text-sm text-rich-black/60">
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-teal border-t-transparent" />
+                        <span>Generating summary...</span>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-rich-black leading-relaxed">{aiSummary}</p>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowSummary(false)}
+                  className="p-1 text-rich-black/40 hover:text-rich-black/60 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Content Area - Centered, Optimal Reading Width */}
       <div className="flex-1 overflow-y-auto px-4 py-8">

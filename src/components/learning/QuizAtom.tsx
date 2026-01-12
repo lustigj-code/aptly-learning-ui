@@ -2,15 +2,18 @@
 
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, RotateCcw, CheckCircle, AlertCircle, Clock, TrendingUp, Sparkles } from 'lucide-react';
+import { ChevronRight, RotateCcw, CheckCircle, AlertCircle, Clock, TrendingUp, Sparkles, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { QuizOption, QuizProgress } from '@/components/learning/QuizOption';
+import { SocraticQuizHint } from '@/components/ai/SocraticQuizHint';
 import { useTimeTracking, formatTimeMMSS } from '@/hooks/useTimeTracking';
+import { useCoach } from '@/hooks/useCoach';
 import { post } from '@/lib/api/client';
 import type { Atom, QuizContent, Question } from '@/types';
+import type { QuizQuestion } from '@/lib/ai/quiz-ai-integration';
 
 type QuizAtomProps = {
   atom: Atom & { type: 'quiz'; content: QuizContent };
@@ -48,7 +51,29 @@ type QuizState = {
   newlyMasteredSkills: string[];
   // Struggle tracking for proactive coach
   consecutiveWrong: number;
+  // AI hint tracking
+  hintsViewed: Record<number, number>; // questionIndex -> hint level
+  // AI explanation
+  aiExplanation: string | null;
+  loadingExplanation: boolean;
 };
+
+/**
+ * Convert Question type to QuizQuestion type for AI integration
+ */
+function toQuizQuestion(question: Question, index: number): QuizQuestion {
+  const options = question.options || [];
+  const correctAnswerIndex = options.indexOf(question.correctAnswer as string);
+
+  return {
+    id: question.id || `q-${index}`,
+    question: question.question,
+    options: options,
+    correctAnswer: correctAnswerIndex >= 0 ? correctAnswerIndex : 0,
+    explanation: question.explanation || '',
+    difficulty: String(question.difficulty || 3),
+  };
+}
 
 export function QuizAtom({ atom, onComplete, onStruggleDetected }: QuizAtomProps) {
   const [state, setState] = useState<QuizState>({
@@ -62,7 +87,13 @@ export function QuizAtom({ atom, onComplete, onStruggleDetected }: QuizAtomProps
     allSkillUpdates: [],
     newlyMasteredSkills: [],
     consecutiveWrong: 0,
+    hintsViewed: {},
+    aiExplanation: null,
+    loadingExplanation: false,
   });
+
+  // AI Coach for "Explain Why" feature
+  const { getQuizHelp, isLoading: coachLoading } = useCoach();
 
   const { content } = atom;
 
@@ -157,6 +188,7 @@ export function QuizAtom({ atom, onComplete, onStruggleDetected }: QuizAtomProps
         ...prev,
         currentQuestionIndex: prev.currentQuestionIndex + 1,
         showingFeedback: false,
+        aiExplanation: null, // Clear AI explanation for next question
       }));
     } else {
       calculateScoreAndComplete();
@@ -215,6 +247,44 @@ export function QuizAtom({ atom, onComplete, onStruggleDetected }: QuizAtomProps
 
     // Open-ended questions would typically be evaluated server-side
     return false;
+  };
+
+  // Track hint usage
+  const handleHintViewed = (level: number) => {
+    setState((prev) => ({
+      ...prev,
+      hintsViewed: {
+        ...prev.hintsViewed,
+        [state.currentQuestionIndex]: level,
+      },
+    }));
+  };
+
+  // Request AI explanation for wrong answer
+  const handleExplainWhy = async () => {
+    if (!currentQuestion) return;
+
+    setState((prev) => ({ ...prev, loadingExplanation: true }));
+
+    try {
+      const userAnswer = state.answers[state.currentQuestionIndex];
+      const prompt = `I got this question wrong. Question: "${currentQuestion.question}". I answered "${userAnswer}" but the correct answer is "${currentQuestion.correctAnswer}". Can you explain why my answer was wrong and help me understand the concept better?`;
+
+      const response = await getQuizHelp(prompt);
+
+      setState((prev) => ({
+        ...prev,
+        aiExplanation: response?.content || 'I can help explain this! The key is to understand the underlying concept.',
+        loadingExplanation: false,
+      }));
+    } catch (error) {
+      console.error('Error getting explanation:', error);
+      setState((prev) => ({
+        ...prev,
+        aiExplanation: 'I can help explain this! Think about why each option might or might not be correct.',
+        loadingExplanation: false,
+      }));
+    }
   };
 
   const isAnswered = state.answers[state.currentQuestionIndex] !== undefined;
@@ -361,6 +431,9 @@ export function QuizAtom({ atom, onComplete, onStruggleDetected }: QuizAtomProps
                 allSkillUpdates: [],
                 newlyMasteredSkills: [],
                 consecutiveWrong: 0,
+                hintsViewed: {},
+                aiExplanation: null,
+                loadingExplanation: false,
               });
               resetTimer(); // Reset timer for new attempt
             }}
@@ -441,6 +514,18 @@ export function QuizAtom({ atom, onComplete, onStruggleDetected }: QuizAtomProps
             />
           ))}
         </motion.div>
+
+        {/* AI Hint Section - Only show before submitting */}
+        {!state.showingFeedback && (
+          <div className="border-t border-grey/20 pt-4 mt-4">
+            <SocraticQuizHint
+              question={toQuizQuestion(currentQuestion, state.currentQuestionIndex)}
+              userMastery={50} // Default mastery, could be fetched from user state
+              attemptNumber={state.attempts + 1}
+              onHintViewed={handleHintViewed}
+            />
+          </div>
+        )}
       </Card>
 
       {/* Feedback Section */}
@@ -481,6 +566,36 @@ export function QuizAtom({ atom, onComplete, onStruggleDetected }: QuizAtomProps
                       {options[options.indexOf(currentQuestion.correctAnswer as string)]}
                     </p>
                   </div>
+                )}
+
+                {/* AI Explain Why Button - Only for wrong answers */}
+                {!isCorrect && !state.aiExplanation && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleExplainWhy}
+                    isLoading={state.loadingExplanation || coachLoading}
+                    isDisabled={state.loadingExplanation || coachLoading}
+                    leftIcon={<MessageCircle size={16} />}
+                    className="mt-3"
+                  >
+                    Explain Why
+                  </Button>
+                )}
+
+                {/* AI Explanation Display */}
+                {state.aiExplanation && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-3 p-4 bg-light-blue/20 rounded-lg border border-blue/30"
+                  >
+                    <div className="flex items-start gap-2 mb-2">
+                      <MessageCircle size={16} className="text-blue mt-0.5 flex-shrink-0" />
+                      <span className="text-sm font-semibold text-navy">AI Coach Explanation</span>
+                    </div>
+                    <p className="text-sm text-rich-black">{state.aiExplanation}</p>
+                  </motion.div>
                 )}
 
                 {/* Skill Mastery Updates */}
