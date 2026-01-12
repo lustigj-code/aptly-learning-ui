@@ -10,9 +10,11 @@ import {
   ChevronRight,
   MessageCircle,
   ArrowLeft,
+  Brain,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useCoach } from '@/hooks/useCoach'
+import { useReviewQueue } from '@/hooks/useReviewQueue'
 import { useUser } from '@/store/unifiedStore'
 import { cn } from '@/lib/utils'
 import { getCourse, getDefaultCourse, DEFAULT_COURSE_ID } from '@/data/courseRegistry'
@@ -30,6 +32,7 @@ import { ContentRenderer } from './ContentRenderer'
 // ============================================
 
 type SessionState = {
+  courseId: string
   moduleId: string
   currentLessonIndex: number
   currentAtomIndex: number
@@ -453,6 +456,7 @@ export function CoachLearningView({
   onLessonComplete,
 }: CoachLearningViewProps) {
   const { user } = useUser()
+  const { dueCount } = useReviewQueue(user?.id || null)
   // Get courseId from props, user progress, or default
   const effectiveCourseId = courseId || user?.progress?.currentCourseId || DEFAULT_COURSE_ID
   const effectiveModuleId = user?.progress?.currentModuleId
@@ -464,10 +468,12 @@ export function CoachLearningView({
   // Session state
   const [sessionState, setSessionState] = useState<SessionState>(() => {
     const saved = loadSession()
-    if (saved && saved.moduleId === module.id) {
+    // Only restore session if both courseId and moduleId match
+    if (saved && saved.courseId === effectiveCourseId && saved.moduleId === module.id) {
       return saved
     }
     return {
+      courseId: effectiveCourseId,
       moduleId: module.id,
       currentLessonIndex: 0,
       currentAtomIndex: 0,
@@ -698,7 +704,17 @@ export function CoachLearningView({
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-3 flex-shrink-0">
+              {/* Review Due Badge */}
+              {dueCount > 0 && (
+                <a
+                  href="/review"
+                  className="flex items-center gap-1.5 px-2 py-1 bg-purple/10 text-purple rounded-full text-xs font-medium hover:bg-purple/20 transition-colors"
+                >
+                  <Brain className="w-3 h-3" />
+                  <span>{dueCount} due</span>
+                </a>
+              )}
               <div className="w-20 h-1 bg-grey/10 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-teal rounded-full transition-all"
