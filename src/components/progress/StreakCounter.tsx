@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { Flame, Snowflake } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SPRING, SHADOWS_RAW } from '@/lib/design-tokens';
 
 type StreakCounterSize = 'sm' | 'md' | 'lg' | 'xl';
 
@@ -40,7 +41,7 @@ export function StreakCounter({
         className={cn('flex items-center', container)}
         initial={{ scale: 0.5, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+        transition={SPRING.gentle}
       >
         {showFlame && (
           <motion.div
@@ -108,7 +109,8 @@ export function StreakCounter({
           key={count}
           initial={{ scale: 1.5, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+          transition={SPRING.bouncy}
+          aria-label={`${count} day streak`}
         >
           {count}
         </motion.span>

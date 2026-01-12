@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { Lock, Award, Flame, Star, Trophy, Target, Zap, BookOpen, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SPRING, TIMING } from '@/lib/design-tokens';
 import type { Badge as BadgeType, BadgeRarity } from '@/types';
 
 type BadgeSize = 'sm' | 'md' | 'lg';
@@ -182,10 +183,10 @@ export function XPBadge({ amount, className }: XPBadgeProps) {
       )}
       initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+      transition={SPRING.bouncy}
     >
-      <Zap size={14} className="text-yellow" />
-      +{amount} XP
+      <Zap size={14} className="text-yellow" aria-hidden="true" />
+      <span aria-label={`Plus ${amount} experience points`}>+{amount} XP</span>
     </motion.div>
   );
 }
