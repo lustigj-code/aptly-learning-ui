@@ -15,6 +15,10 @@ export type UserPreferences = {
   reducedMotion: boolean;
   preferReadingOrVideo?: 'reading' | 'video';
   quizTiming?: 'during' | 'end';
+  // Exam Mode (v2.0)
+  certificationExamDate?: Date;
+  targetRetention?: number; // Default 0.95 (95%)
+  examModeEnabled?: boolean;
 };
 
 export type StreakDay = {

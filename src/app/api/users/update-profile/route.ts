@@ -17,6 +17,10 @@ const updateProfileSchema = z.object({
       voiceEnabled: z.boolean().optional(),
       reducedMotion: z.boolean().optional(),
       selectedCharacter: z.string().optional(),
+      // Exam Mode (v2.0)
+      certificationExamDate: z.string().datetime().optional().nullable(), // ISO 8601 date string
+      targetRetention: z.number().min(0.5).max(1).optional(), // 0.5 to 1.0 (50%-100%)
+      examModeEnabled: z.boolean().optional(),
     })
     .optional(),
 });
