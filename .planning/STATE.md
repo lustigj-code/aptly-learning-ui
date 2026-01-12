@@ -3,12 +3,12 @@
 ## Current Position
 
 **Milestone:** v1.0 Flawless Launch
-**Phase:** 4.1 of 5 (AI-Powered Dynamic Skill Map Generation) - COMPLETE
-**Plan:** 4 of 4 in current phase (ALL COMPLETE)
-**Status:** Ready for Phase 4.2
-**Last activity:** 2026-01-11 - Completed 4.1-04-PLAN.md (Admin Interface)
+**Phase:** 4.2 of 5 (Multi-Course & AI Integration)
+**Plan:** 3 of 4 in current phase (4.2-03 in progress)
+**Status:** Phase 4.2-01 and 4.2-02 complete, 4.2-03 partially complete
+**Last activity:** 2026-01-11 - Investigating AI feature integration
 
-Progress: ████████████████████ 100% (Phase 4.1)
+Progress: ██████████████░░░░░░ 62.5% (Phase 4.2)
 
 ---
 
@@ -65,8 +65,11 @@ Progress: ████████████████████ 100% (Pha
 - Completed Phase 4.1: AI-Powered Dynamic Skill Map Generation (ALL 4 PLANS)
 - 4.1-03: Firestore storage, sequencer update with courseId, skill map caching
 - 4.1-04: Admin interface - list/detail pages, generate/activate actions
+- Started Phase 4.2: Multi-Course & AI Integration
+- 4.2-01: Created courseRegistry.ts as single source of truth, updated dashboard
+- 4.2-02: Redesigned ReadingAtom with 680px width, time-based progress, Key Takeaways
+- 4.2-03: Investigated AI features - components exist (SocraticQuizHint, useCoach) but need integration
 - Fixed auth token access using getIdToken() from firebase auth module
-- Ready for Phase 4.2 (Multi-Course & AI Integration)
 
 ### 2026-01-10 (Evening)
 - Coach-first architecture: Unified /learn page with coach as primary UI
