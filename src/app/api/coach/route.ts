@@ -29,6 +29,23 @@ import {
   type ActivityContext,
   type InterventionState,
 } from '@/lib/rag'
+import {
+  queryComprehensive,
+} from '@/lib/rag/ragQuery'
+import {
+  type LearnerState,
+  type SourceCitation,
+} from '@/lib/rag/contextBuilder'
+import {
+  generateGroundedResponse,
+  calculateGroundingScore,
+  MIN_GROUNDING_SCORE,
+} from '@/lib/coach/groundedCoach'
+import {
+  validateResponse,
+  logGroundingMetrics,
+  type ValidationResult,
+} from '@/lib/coach/responseValidation'
 
 // Initialize Gemini client
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENAI_API_KEY || '')
@@ -219,11 +236,32 @@ type RequestBody = {
 }
 
 // ============================================
-// SOCRATIC RAG HANDLER (Phase 12)
+// SOCRATIC RAG HANDLER (Phase 12.3 - Enhanced)
 // ============================================
 
 /**
+ * Enhanced RAG result type for Socratic mode
+ */
+interface EnhancedSocraticResult {
+  response: string
+  interventionTier: number
+  isGrounded: boolean
+  groundingScore: number
+  sourceCitations: SourceCitation[]
+  validationResult?: ValidationResult
+  ragQueryTime?: number
+}
+
+/**
  * Handle Socratic mode with RAG context and hierarchical interventions
+ *
+ * Phase 12.3 Enhancements:
+ * - Uses queryComprehensive for better RAG retrieval
+ * - Builds context with BKT state and struggle level
+ * - Generates grounded responses with source citations
+ * - Validates responses for hallucination detection
+ * - Logs grounding metrics for analysis
+ *
  * Based on LearnLM research: 93.8% remediation vs 64.5% for static hints
  */
 async function handleSocraticMode(
@@ -231,82 +269,189 @@ async function handleSocraticMode(
   message: string,
   body: RequestBody,
   conversationHistory: Message[]
-): Promise<{ response: string; interventionTier: number } | null> {
+): Promise<EnhancedSocraticResult | null> {
   const { context } = body
 
   try {
-    // Build student context for personalized prompts
-    const studentContext: StudentContext = {
-      name: context.userName || 'Student',
-      predictedAbility: (context.masteryLevel || 50) / 100, // Convert to 0-1
+    // Step 1: Query RAG for relevant content
+    const ragQueryStart = Date.now()
+    const ragResult = await queryComprehensive(
+      message,
+      context.currentCourse || 'course-1',
+      {
+        lessonId: body.lessonId,
+        questionId: context.questionId,
+        selectedAnswer: context.selectedAnswer,
+        studentAbility: (context.masteryLevel || 50) / 100,
+        isStruggling: (context.consecutiveWrong || 0) >= 2,
+      }
+    )
+    const ragQueryTime = Date.now() - ragQueryStart
+
+    // Step 2: Build learner state from context
+    const learnerState: LearnerState = {
+      userId,
+      currentSkillId: context.conceptId || context.currentAtom,
+      currentPMastery: (context.masteryLevel || 50) / 100,
       consecutiveWrong: context.consecutiveWrong || 0,
-      currentStruggleLevel: detectStruggleLevel(
-        context.consecutiveWrong || 0,
-        conversationHistory.length
-      ),
       emotionalState: detectEmotionalState(message),
+      interventionZone: determineInterventionZone(context.masteryLevel || 50),
     }
 
-    // Build activity context
-    const activityContext: ActivityContext = {
-      lessonTitle: context.currentLesson || 'Current Lesson',
-      atomType: (context.atomType || 'reading') as 'video' | 'reading' | 'quiz' | 'practice',
-      questionText: context.questionText,
-      studentAnswer: context.selectedAnswer,
-    }
-
-    // Retrieve RAG context (prioritizing misconceptions if wrong answer selected)
-    const ragChunks = await retrievePedagogicalContext({
-      query: message,
-      courseId: context.currentCourse || 'course-1',
-      lessonId: body.lessonId,
-      questionId: context.questionId,
-      distractorId: context.selectedAnswer, // Maps to distractor if wrong answer
-      studentAbility: studentContext.predictedAbility,
-      preferStudentFriendly: studentContext.predictedAbility < 0.5,
-      chunkTypes: context.selectedAnswer
-        ? ['misconception', 'hint', 'content']
-        : ['content', 'hint'],
-      topK: 5,
-    })
-
-    // Format RAG context for prompt injection
-    const formattedContext = formatRAGContext(
-      ragChunks.map(r => r.chunk)
-    )
-    const ragContextString = formatContextForPrompt(formattedContext)
-
-    // Get or update misconception explanation if available
-    const misconceptionChunk = ragChunks.find(r => r.chunk.chunkType === 'misconception')
-    if (misconceptionChunk) {
-      activityContext.misconceptionExplanation = misconceptionChunk.chunk.text
-    }
-
-    // Build LearnLM-style system prompt
-    const systemPrompt = buildSocraticSystemPrompt(
-      studentContext,
-      activityContext,
-      ragContextString
-    )
-
-    // Get intervention state and directive
+    // Step 3: Get intervention state
     const conceptId = context.conceptId || context.currentAtom || 'general'
     const interventionState = getOrCreateInterventionState(userId, conceptId)
-    const interventionDirective = getInterventionDirective(interventionState)
 
-    // Generate response with low temperature
-    const genConfig = getSocraticGenerationConfig()
-    const socraticModel = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
-      generationConfig: {
-        temperature: genConfig.temperature,
-        maxOutputTokens: genConfig.maxOutputTokens,
-        topP: genConfig.topP,
+    // Step 4: Generate grounded response
+    const socraticResponse = await generateGroundedResponse(
+      message,
+      ragResult.chunks,
+      learnerState,
+      interventionState.currentTier as 1 | 2 | 3,
+      {
+        lessonTitle: context.currentLesson || 'Current Lesson',
+        atomType: (context.atomType || 'reading') as 'video' | 'reading' | 'quiz' | 'practice',
+        questionText: context.questionText,
+        studentAnswer: context.selectedAnswer,
       },
+      conversationHistory
+    )
+
+    // Step 5: Validate response for quality
+    const validationResult = validateResponse(
+      socraticResponse.message,
+      ragResult.chunks,
+      interventionState.currentTier as 1 | 2 | 3
+    )
+
+    // Step 6: Log grounding metrics
+    logGroundingMetrics({
+      responseId: `${userId}_${Date.now()}`,
+      userId,
+      groundingScore: socraticResponse.groundingScore,
+      isGrounded: socraticResponse.isGrounded,
+      sourcesUsed: ragResult.totalRetrieved,
+      hallucationDetected: validationResult.flags.some(f => f.type === 'hallucination'),
+      timestamp: new Date(),
     })
 
-    // Build full prompt with intervention directive
-    const fullPrompt = `${systemPrompt}
+    // Step 7: Check if student is still struggling and advance tier
+    if (isStillStruggling(message, false)) {
+      const newState = advanceTier(interventionState)
+      updateInterventionState(userId, conceptId, newState)
+    }
+
+    // Log warnings if response has issues
+    if (validationResult.flags.length > 0) {
+      console.warn('[Socratic Mode] Response validation flags:', {
+        flags: validationResult.flags.map(f => f.message),
+        suggestions: validationResult.suggestions,
+      })
+    }
+
+    return {
+      response: socraticResponse.message,
+      interventionTier: interventionState.currentTier,
+      isGrounded: socraticResponse.isGrounded,
+      groundingScore: socraticResponse.groundingScore,
+      sourceCitations: socraticResponse.sourceCitations,
+      validationResult,
+      ragQueryTime,
+    }
+  } catch (error) {
+    console.error('[Socratic Mode] Error:', error)
+
+    // Attempt fallback with basic RAG
+    try {
+      return await handleSocraticModeFallback(userId, message, body, conversationHistory)
+    } catch (fallbackError) {
+      console.error('[Socratic Mode] Fallback also failed:', fallbackError)
+      return null
+    }
+  }
+}
+
+/**
+ * Fallback Socratic handler when grounded coach fails
+ * Uses simpler retrieval and generation
+ */
+async function handleSocraticModeFallback(
+  userId: string,
+  message: string,
+  body: RequestBody,
+  conversationHistory: Message[]
+): Promise<EnhancedSocraticResult | null> {
+  const { context } = body
+
+  // Build student context for personalized prompts
+  const studentContext: StudentContext = {
+    name: context.userName || 'Student',
+    predictedAbility: (context.masteryLevel || 50) / 100,
+    consecutiveWrong: context.consecutiveWrong || 0,
+    currentStruggleLevel: detectStruggleLevel(
+      context.consecutiveWrong || 0,
+      conversationHistory.length
+    ),
+    emotionalState: detectEmotionalState(message),
+  }
+
+  // Build activity context
+  const activityContext: ActivityContext = {
+    lessonTitle: context.currentLesson || 'Current Lesson',
+    atomType: (context.atomType || 'reading') as 'video' | 'reading' | 'quiz' | 'practice',
+    questionText: context.questionText,
+    studentAnswer: context.selectedAnswer,
+  }
+
+  // Simple RAG retrieval
+  const ragChunks = await retrievePedagogicalContext({
+    query: message,
+    courseId: context.currentCourse || 'course-1',
+    lessonId: body.lessonId,
+    questionId: context.questionId,
+    distractorId: context.selectedAnswer,
+    studentAbility: studentContext.predictedAbility,
+    preferStudentFriendly: studentContext.predictedAbility < 0.5,
+    chunkTypes: context.selectedAnswer
+      ? ['misconception', 'hint', 'content']
+      : ['content', 'hint'],
+    topK: 5,
+  })
+
+  // Format RAG context
+  const formattedContext = formatRAGContext(ragChunks.map(r => r.chunk))
+  const ragContextString = formatContextForPrompt(formattedContext)
+
+  // Get misconception if available
+  const misconceptionChunk = ragChunks.find(r => r.chunk.chunkType === 'misconception')
+  if (misconceptionChunk) {
+    activityContext.misconceptionExplanation = misconceptionChunk.chunk.text
+  }
+
+  // Build prompt
+  const systemPrompt = buildSocraticSystemPrompt(
+    studentContext,
+    activityContext,
+    ragContextString
+  )
+
+  // Get intervention state
+  const conceptId = context.conceptId || context.currentAtom || 'general'
+  const interventionState = getOrCreateInterventionState(userId, conceptId)
+  const interventionDirective = getInterventionDirective(interventionState)
+
+  // Generate with Gemini
+  const genConfig = getSocraticGenerationConfig()
+  const socraticModel = genAI.getGenerativeModel({
+    model: 'gemini-2.0-flash',
+    generationConfig: {
+      temperature: genConfig.temperature,
+      maxOutputTokens: genConfig.maxOutputTokens,
+      topP: genConfig.topP,
+    },
+  })
+
+  const fullPrompt = `${systemPrompt}
 
 # CURRENT INTERVENTION DIRECTIVE
 ${interventionDirective.instruction}
@@ -317,32 +462,48 @@ ${interventionDirective.examples.slice(0, 2).map(e => `- ${e}`).join('\n')}
 Constraints:
 ${interventionDirective.constraints.slice(0, 3).map(c => `- ${c}`).join('\n')}`
 
-    // Generate response
-    const chat = socraticModel.startChat({
-      history: conversationHistory.slice(-6).map(m => ({
-        role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.content }],
-      })),
-      systemInstruction: { role: 'user', parts: [{ text: fullPrompt }] },
-    })
+  const chat = socraticModel.startChat({
+    history: conversationHistory.slice(-6).map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    })),
+    systemInstruction: { role: 'user', parts: [{ text: fullPrompt }] },
+  })
 
-    const result = await chat.sendMessage(message)
-    const response = result.response.text()
+  const result = await chat.sendMessage(message)
+  const response = result.response.text()
 
-    // Check if student is still struggling and advance tier if needed
-    if (isStillStruggling(message, false)) {
-      const newState = advanceTier(interventionState)
-      updateInterventionState(userId, conceptId, newState)
-    }
+  // Calculate basic grounding score
+  const groundingScore = calculateGroundingScore(response, ragChunks)
 
-    return {
-      response,
-      interventionTier: interventionState.currentTier,
-    }
-  } catch (error) {
-    console.error('[Socratic Mode] Error:', error)
-    return null // Fall back to standard mode
+  // Update tier if struggling
+  if (isStillStruggling(message, false)) {
+    const newState = advanceTier(interventionState)
+    updateInterventionState(userId, conceptId, newState)
   }
+
+  return {
+    response,
+    interventionTier: interventionState.currentTier,
+    isGrounded: groundingScore >= MIN_GROUNDING_SCORE,
+    groundingScore,
+    sourceCitations: ragChunks.slice(0, 3).map(c => ({
+      chunkId: c.chunk.id,
+      title: c.chunk.title || 'Course Content',
+      lessonId: c.chunk.lessonId,
+      relevance: c.score,
+    })),
+  }
+}
+
+/**
+ * Determine intervention zone from mastery level
+ */
+function determineInterventionZone(masteryLevel: number): 'frustration' | 'zpd' | 'mastery' {
+  const accuracy = masteryLevel / 100
+  if (accuracy < 0.36) return 'frustration'
+  if (accuracy > 0.70) return 'mastery'
+  return 'zpd'
 }
 
 // ============================================
@@ -472,9 +633,16 @@ export async function POST(request: NextRequest) {
           conversationId,
           socraticMode: true,
           interventionTier: socraticResult.interventionTier,
+          // Phase 12.3: RAG grounding metadata
+          ragMetadata: {
+            isGrounded: socraticResult.isGrounded,
+            groundingScore: socraticResult.groundingScore,
+            sourceCitations: socraticResult.sourceCitations,
+            ragQueryTime: socraticResult.ragQueryTime,
+          },
           modelInfo: {
             model: 'gemini-socratic',
-            variant: 'socratic-rag',
+            variant: 'socratic-rag-grounded',
           },
         })
       }

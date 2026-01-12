@@ -52,11 +52,61 @@ export {
 // Indexing
 export {
   indexCourse,
+  indexAllCourses,
   indexSingleChunk,
   getIndexStats,
   deleteCoursechunks,
+  clearAllChunks,
   verifyIndex,
 } from './contentIndexer';
+
+// Vector Store (Phase 12.1)
+export type {
+  VectorStoreProvider,
+  VectorMetadata,
+  VectorRecord,
+  VectorSearchResult,
+  IndexStats as VectorIndexStats,
+} from './vectorStore';
+
+export {
+  getVectorStoreProvider,
+  getVectorStoreConfig,
+  isVectorStoreConfigured,
+  upsertVector,
+  upsertVectors,
+  searchVectors,
+  deleteVectorsByCourse,
+  deleteAllVectors,
+  getVectorStats,
+} from './vectorStore';
+
+// Embeddings (Phase 12.1)
+export type {
+  EmbeddingProvider,
+  EmbeddingConfig,
+} from './embeddings';
+
+export {
+  embedText,
+  embedBatch,
+  chunkTextForEmbedding,
+  getEmbeddingProvider,
+  getEmbeddingConfig,
+  getEmbeddingDimensions,
+  isEmbeddingConfigured,
+} from './embeddings';
+
+// Misconception Bank (Phase 12.1)
+export type { MisconceptionEntry, MisconceptionCategory } from './misconceptionBank';
+export {
+  getMisconceptionBank,
+  getAllMisconceptions,
+  getMisconceptionById,
+  getMisconceptionsByCategory,
+  getMisconceptionsBySkill,
+  getMisconceptionBankStats,
+} from './misconceptionBank';
 
 // Socratic Prompts (LearnLM-style)
 export type {
@@ -92,3 +142,42 @@ export {
   getTierDescription,
   getInterventionSummary,
 } from './interventionManager';
+
+// Phase 12.3: RAG Query Service
+export type {
+  RAGQueryOptions,
+  RAGQueryResult,
+} from './ragQuery';
+
+export {
+  queryRAG,
+  queryMisconception,
+  queryHints,
+  queryContent,
+  queryExamples,
+  queryComprehensive,
+  filterByScore,
+  filterByType,
+  getBestMisconception,
+  getHintForTier,
+  hasGroundingContent,
+} from './ragQuery';
+
+// Phase 12.3: Context Builder
+export type {
+  LearnerState,
+  RAGContext,
+  BuiltContext,
+  SourceCitation,
+} from './contextBuilder';
+
+export {
+  buildContext,
+  buildMinimalContext,
+  buildMisconceptionContext,
+  ragContextToChunks,
+  MAX_CONTEXT_TOKENS,
+  MAX_CONTEXT_CHARS,
+  CHARS_PER_TOKEN,
+  BUDGET_ALLOCATION,
+} from './contextBuilder';

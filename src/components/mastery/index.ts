@@ -9,14 +9,23 @@
  * Part of Phase 14: Mastery Map UX
  */
 
+// Core Components
 export { MasteryMap } from './MasteryMap';
+export { EnhancedMasteryMap } from './EnhancedMasteryMap';
 export { SkillNode } from './SkillNode';
+export { MasteryMapNode } from './MasteryMapNode';
+export { MiniMap, CollapsibleMiniMap } from './MiniMap';
+export { MasteryMapSidebar } from './MasteryMapSidebar';
+
+// Layout Utilities
 export {
   generateMasteryMapData,
   calculateLayout,
   calculateNodeStatus,
   calculateRetrievability,
 } from './layoutUtils';
+
+// Types
 export type {
   SkillNodeStatus,
   SkillNodeData,

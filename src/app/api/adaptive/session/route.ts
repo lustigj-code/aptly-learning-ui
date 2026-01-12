@@ -47,6 +47,7 @@ interface LearningSession {
     mainLearning: number;
     practiceItems: number;
     cooldownReview: number;
+    interleavedReviews: number; // FSRS-injected review items (max 5)
   };
   createdAt: Date;
 }
@@ -216,6 +217,7 @@ async function buildSessionServer(
       mainLearning: interleavedItems.filter(i => i.type === 'learn').length,
       practiceItems: interleavedItems.filter(i => i.type === 'practice').length,
       cooldownReview: interleavedItems.filter(i => i.type === 'cooldown').length,
+      interleavedReviews: interleavedItems.filter(i => i.isReviewChallenge).length,
     },
     createdAt: new Date(),
   };

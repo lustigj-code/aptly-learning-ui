@@ -425,3 +425,134 @@ export interface InteractionLogInput extends Omit<InteractionLog, 'id' | 'timest
 
 // Device type detection utility
 export type DeviceType = 'mobile' | 'tablet' | 'desktop';
+
+// ============================================
+// SOCRATIC COACH TYPES (Phase 12.2)
+// ============================================
+
+/**
+ * Intervention levels for Socratic coaching
+ * - Level 1: Leading questions ("What do you think happens when...?")
+ * - Level 2: Hints with context ("Remember that X relates to Y...")
+ * - Level 3: Worked example (only after 2 failed attempts)
+ */
+export type InterventionLevel = 1 | 2 | 3;
+
+/**
+ * Types of interventions
+ * - question: Metacognitive or leading question
+ * - hint: Contextual hint pointing to area of confusion
+ * - worked_example: Step-by-step solution of similar problem
+ */
+export type InterventionType = 'question' | 'hint' | 'worked_example';
+
+/**
+ * Socratic coach response with intervention metadata
+ */
+export interface SocraticResponse {
+  /** The coach's message content */
+  message: string;
+
+  /** Current intervention level (1-3) */
+  interventionLevel: InterventionLevel;
+
+  /** Type of intervention used */
+  interventionType: InterventionType;
+
+  /** Suggested follow-up questions for continued engagement */
+  followUpQuestions: string[];
+
+  /** Related concepts for transfer learning */
+  relatedConcepts: string[];
+
+  /** Optional confidence score (0-1) */
+  confidence?: number;
+
+  /** Optional reasoning explanation for the response */
+  reasoning?: string;
+}
+
+/**
+ * Context for Socratic coaching request
+ */
+export interface SocraticCoachRequest {
+  /** Student's message or response */
+  message: string;
+
+  /** Current concept being studied */
+  conceptId: string;
+  conceptName: string;
+
+  /** Question context (if applicable) */
+  questionId?: string;
+  questionText?: string;
+  questionDifficulty?: number;
+
+  /** Student's answer (if answering a question) */
+  studentAnswer?: string;
+  correctAnswer?: string;
+  isCorrect?: boolean;
+
+  /** Attempt tracking */
+  attemptCount: number;
+  consecutiveWrong: number;
+
+  /** Mastery from BKT (0-1) */
+  priorMastery: number;
+
+  /** Conversation context */
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>;
+
+  /** Related concepts for transfer prompts */
+  relatedConcepts?: string[];
+}
+
+/**
+ * Full Socratic coaching result including metadata
+ */
+export interface SocraticCoachResult {
+  /** The response to send to the student */
+  response: SocraticResponse;
+
+  /** System prompt used for generation */
+  systemPrompt: string;
+
+  /** Current intervention state */
+  interventionState: {
+    currentLevel: InterventionLevel;
+    level1Attempts: number;
+    level2Attempts: number;
+    level3Used: boolean;
+    conceptId: string;
+  };
+
+  /** Detected struggle indicators */
+  struggleIndicators: {
+    isStruggling: boolean;
+    severity: 'none' | 'mild' | 'moderate' | 'severe';
+    indicators: string[];
+  };
+
+  /** Generation configuration used */
+  generationConfig: {
+    temperature: number;
+    maxOutputTokens: number;
+    topP: number;
+  };
+}
+
+/**
+ * Socratic coach log entry for analytics
+ */
+export interface SocraticLogEntry {
+  timestamp: Date;
+  userId: string;
+  conceptId: string;
+  questionId?: string;
+  interventionLevel: InterventionLevel;
+  interventionType: InterventionType;
+  attemptCount: number;
+  priorMastery: number;
+  struggleSeverity: string;
+  usedWorkedExample: boolean;
+}

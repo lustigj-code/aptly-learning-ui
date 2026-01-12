@@ -1,9 +1,12 @@
 'use client';
 
+import { useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useUser } from '@/store/unifiedStore';
 import { useMasteryMap } from '@/hooks/useMasteryMap';
-import { MasteryMap } from '@/components/mastery';
-import { Loader2, RefreshCw, Map } from 'lucide-react';
+import { EnhancedMasteryMap } from '@/components/mastery';
+import type { SkillNodeData } from '@/components/mastery/types';
+import { Loader2, RefreshCw, Map, TrendingUp, Target, Clock, Award } from 'lucide-react';
 
 /**
  * Mastery Map Page
@@ -12,102 +15,254 @@ import { Loader2, RefreshCw, Map } from 'lucide-react';
  * - All skills as nodes with mastery status
  * - Prerequisite relationships as edges
  * - Current learning position highlighted
+ * - Enhanced with Framer Motion animations
  *
  * Part of Phase 14: Mastery Map UX
  */
 export default function MasteryMapPage() {
+  const router = useRouter();
   const { user } = useUser();
   const { data, stats, isLoading, error, refresh } = useMasteryMap(user?.id ?? null);
+
+  const handleNodeClick = useCallback((node: SkillNodeData) => {
+    console.log('Clicked node:', node);
+  }, []);
+
+  const handleNavigate = useCallback((skillId: string, lessonId: string) => {
+    // Navigate to the lesson for this skill
+    router.push(`/learn/${lessonId}`);
+  }, [router]);
 
   if (!user) {
     return (
       <div className="min-h-screen bg-light-grey flex items-center justify-center">
-        <p className="text-grey">Please sign in to view your mastery map.</p>
+        <div className="text-center">
+          <Map className="w-16 h-16 text-grey mx-auto mb-4" />
+          <p className="text-grey text-lg">Please sign in to view your mastery map.</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-light-grey p-6">
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Map className="w-8 h-8 text-teal" />
-            <div>
-              <h1 className="text-2xl font-bold text-navy">Mastery Map</h1>
-              <p className="text-grey text-sm">Track your learning journey</p>
+    <div className="min-h-screen bg-light-grey">
+      {/* Header */}
+      <div className="bg-white border-b border-grey/20">
+        <div className="max-w-7xl mx-auto px-6 py-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-teal/10 rounded-xl flex items-center justify-center">
+                <Map className="w-6 h-6 text-teal" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-navy">Mastery Map</h1>
+                <p className="text-grey">Visualize your learning journey</p>
+              </div>
             </div>
+            <button
+              onClick={refresh}
+              disabled={isLoading}
+              className="flex items-center gap-2 px-4 py-2 bg-teal text-white rounded-lg hover:bg-teal-dark transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
           </div>
-          <button
-            onClick={refresh}
-            disabled={isLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-teal text-white rounded-lg hover:bg-teal/90 transition-colors disabled:opacity-50"
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
         </div>
+      </div>
 
-        {/* Stats */}
+      <div className="max-w-7xl mx-auto p-6 space-y-6">
+        {/* Stats Cards */}
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <StatCard label="Total Skills" value={stats.totalSkills} color="navy" />
-            <StatCard label="Mastered" value={stats.mastered} color="green" />
-            <StatCard label="Available" value={stats.available} color="teal" />
-            <StatCard label="Locked" value={stats.locked} color="grey" />
-            <StatCard label="Needs Review" value={stats.decaying} color="orange" />
+            <StatCard
+              label="Total Skills"
+              value={stats.totalSkills}
+              icon={<Target className="w-5 h-5" />}
+              color="navy"
+            />
+            <StatCard
+              label="Mastered"
+              value={stats.mastered}
+              icon={<Award className="w-5 h-5" />}
+              color="green"
+              highlight
+            />
+            <StatCard
+              label="Available"
+              value={stats.available}
+              icon={<TrendingUp className="w-5 h-5" />}
+              color="teal"
+            />
+            <StatCard
+              label="Locked"
+              value={stats.locked}
+              icon={<Clock className="w-5 h-5" />}
+              color="grey"
+            />
+            <StatCard
+              label="Needs Review"
+              value={stats.decaying}
+              icon={<RefreshCw className="w-5 h-5" />}
+              color="orange"
+              warning={stats.decaying > 0}
+            />
+          </div>
+        )}
+
+        {/* Progress Summary */}
+        {stats && stats.totalSkills > 0 && (
+          <div className="bg-white rounded-xl border border-grey/20 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-navy">Overall Progress</span>
+              <span className="text-sm font-bold text-teal">
+                {Math.round((stats.mastered / stats.totalSkills) * 100)}%
+              </span>
+            </div>
+            <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-teal to-green-500 rounded-full transition-all duration-500"
+                style={{ width: `${(stats.mastered / stats.totalSkills) * 100}%` }}
+              />
+            </div>
           </div>
         )}
 
         {/* Map */}
         {isLoading && !data ? (
-          <div className="flex items-center justify-center h-96 bg-white rounded-xl border border-grey/20">
-            <Loader2 className="w-8 h-8 text-teal animate-spin" />
+          <div className="flex items-center justify-center h-[600px] bg-white rounded-xl border border-grey/20">
+            <div className="text-center">
+              <Loader2 className="w-10 h-10 text-teal animate-spin mx-auto mb-3" />
+              <p className="text-grey">Loading your skill map...</p>
+            </div>
           </div>
         ) : error ? (
-          <div className="flex items-center justify-center h-96 bg-white rounded-xl border border-red-200">
-            <p className="text-red-500">{error}</p>
+          <div className="flex items-center justify-center h-[600px] bg-white rounded-xl border border-red-200">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <span className="text-2xl">!</span>
+              </div>
+              <p className="text-red-500 font-medium">{error}</p>
+              <button
+                onClick={refresh}
+                className="mt-3 text-sm text-teal hover:underline"
+              >
+                Try again
+              </button>
+            </div>
           </div>
         ) : data ? (
-          <MasteryMap
+          <EnhancedMasteryMap
             data={data}
-            onNodeClick={(node) => {
-              console.log('Clicked node:', node);
-            }}
-            className="min-h-[500px]"
+            onNodeClick={handleNodeClick}
+            onNavigate={handleNavigate}
+            showLegend
+            showControls
+            variant="full"
+            className="h-[600px]"
           />
         ) : null}
 
         {/* Instructions */}
-        <div className="bg-white rounded-xl border border-grey/20 p-4">
-          <h3 className="font-semibold text-navy mb-2">How to read this map</h3>
-          <ul className="text-sm text-grey space-y-1">
-            <li><span className="inline-block w-3 h-3 bg-gray-400 rounded mr-2" />Locked - Complete prerequisites first</li>
-            <li><span className="inline-block w-3 h-3 bg-teal rounded mr-2" />Available - Ready to learn</li>
-            <li><span className="inline-block w-3 h-3 bg-amber-500 rounded mr-2" />Active - Currently learning</li>
-            <li><span className="inline-block w-3 h-3 bg-green-500 rounded mr-2" />Mastered - Well learned</li>
-            <li><span className="inline-block w-3 h-3 bg-orange-500 rounded mr-2" />Needs Review - Memory fading, review soon</li>
-          </ul>
+        <div className="bg-white rounded-xl border border-grey/20 p-6">
+          <h3 className="font-semibold text-navy mb-4">How to Use This Map</h3>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <h4 className="text-sm font-medium text-navy mb-2">Node States</h4>
+              <ul className="text-sm text-grey space-y-2">
+                <li className="flex items-center gap-2">
+                  <span className="w-4 h-4 bg-gray-400 rounded-full flex-shrink-0" />
+                  <span><strong>Locked</strong> - Complete prerequisites first</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-4 h-4 bg-teal rounded-full flex-shrink-0" />
+                  <span><strong>Available</strong> - Ready to learn</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-4 h-4 bg-amber-500 rounded-full flex-shrink-0" />
+                  <span><strong>Active</strong> - Currently learning</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-4 h-4 bg-green-500 rounded-full flex-shrink-0" />
+                  <span><strong>Mastered</strong> - Well learned (95%+ mastery)</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-4 h-4 bg-orange-500 rounded-full flex-shrink-0" />
+                  <span><strong>Review</strong> - Memory fading, review soon</span>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-sm font-medium text-navy mb-2">Navigation</h4>
+              <ul className="text-sm text-grey space-y-2">
+                <li className="flex items-start gap-2">
+                  <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">+/-</span>
+                  <span>Zoom in/out</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">0</span>
+                  <span>Fit to screen</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">Drag</span>
+                  <span>Pan around the map</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">Click</span>
+                  <span>Select a skill for details</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="w-4 h-4 bg-teal/20 rounded flex items-center justify-center flex-shrink-0">
+                    <Target className="w-2.5 h-2.5 text-teal" />
+                  </span>
+                  <span>Center on current skill</span>
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
-  const colorClasses: Record<string, string> = {
-    navy: 'bg-navy/10 text-navy',
-    green: 'bg-green-100 text-green-600',
-    teal: 'bg-teal/10 text-teal',
-    grey: 'bg-gray-100 text-gray-500',
-    orange: 'bg-orange-100 text-orange-500',
+interface StatCardProps {
+  label: string;
+  value: number;
+  color: string;
+  icon?: React.ReactNode;
+  highlight?: boolean;
+  warning?: boolean;
+}
+
+function StatCard({ label, value, color, icon, highlight, warning }: StatCardProps) {
+  const colorClasses: Record<string, { bg: string; text: string; iconBg: string }> = {
+    navy: { bg: 'bg-navy/10', text: 'text-navy', iconBg: 'bg-navy/20' },
+    green: { bg: 'bg-green-100', text: 'text-green-600', iconBg: 'bg-green-200' },
+    teal: { bg: 'bg-teal/10', text: 'text-teal', iconBg: 'bg-teal/20' },
+    grey: { bg: 'bg-gray-100', text: 'text-gray-500', iconBg: 'bg-gray-200' },
+    orange: { bg: 'bg-orange-100', text: 'text-orange-500', iconBg: 'bg-orange-200' },
   };
 
+  const colors = colorClasses[color] || colorClasses.grey;
+
   return (
-    <div className={`rounded-lg p-4 ${colorClasses[color]}`}>
-      <p className="text-2xl font-bold">{value}</p>
-      <p className="text-sm opacity-80">{label}</p>
+    <div
+      className={`rounded-xl p-4 transition-all ${colors.bg} ${
+        highlight ? 'ring-2 ring-green-400 ring-offset-2' : ''
+      } ${warning ? 'animate-pulse' : ''}`}
+    >
+      <div className="flex items-start justify-between">
+        <div>
+          <p className={`text-2xl font-bold ${colors.text}`}>{value}</p>
+          <p className={`text-sm opacity-80 ${colors.text}`}>{label}</p>
+        </div>
+        {icon && (
+          <div className={`p-2 rounded-lg ${colors.iconBg} ${colors.text}`}>
+            {icon}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

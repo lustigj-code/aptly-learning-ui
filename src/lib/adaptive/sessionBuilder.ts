@@ -53,6 +53,12 @@ export interface SessionItem {
   estimatedMinutes: number;
   reason: string;
   order: number;
+  isReviewChallenge?: boolean; // Badge indicator for FSRS-injected reviews
+  metadata?: {
+    retrievability?: number;
+    similarity?: number;
+    urgency?: number;
+  };
 }
 
 export interface LearningSession {
@@ -65,6 +71,7 @@ export interface LearningSession {
     mainLearning: number;
     practiceItems: number;
     cooldownReview: number;
+    interleavedReviews: number; // FSRS-injected review items
   };
   createdAt: Date;
 }
@@ -197,6 +204,7 @@ function createMockSession(
       mainLearning: items.filter(i => i.type === 'learn').length,
       practiceItems: items.filter(i => i.type === 'practice').length,
       cooldownReview: items.filter(i => i.type === 'cooldown').length,
+      interleavedReviews: items.filter(i => i.isReviewChallenge).length,
     },
     createdAt: new Date(),
   };
@@ -341,6 +349,7 @@ async function buildSessionDirect(
       mainLearning: interleavedItems.filter(i => i.type === 'learn').length,
       practiceItems: interleavedItems.filter(i => i.type === 'practice').length,
       cooldownReview: interleavedItems.filter(i => i.type === 'cooldown').length,
+      interleavedReviews: interleavedItems.filter(i => i.isReviewChallenge).length,
     },
     createdAt: new Date(),
   };

@@ -11,6 +11,7 @@ import { SkeletonDashboard } from '@/components/ui/Skeleton';
 import { StreakCounter, StreakCalendar } from '@/components/progress/StreakCounter';
 import { Section } from '@/components/layout/AppLayout';
 import { ExamReadinessWidget } from '@/components/dashboard/ExamReadinessWidget';
+import { ReviewQueueWidget } from '@/components/dashboard/ReviewQueueWidget';
 import { useUser, useSyncStatus } from '@/store/unifiedStore';
 import { useReviewQueue } from '@/hooks/useReviewQueue';
 import { Brain } from 'lucide-react';
@@ -52,7 +53,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const { user: authUser, isLoading } = useUser();
   const { syncStatus, isSyncing } = useSyncStatus();
-  const { dueCount, dueItems } = useReviewQueue(authUser?.id || null);
+  const { dueCount } = useReviewQueue(authUser?.id || null);
 
   // Use demo user if not authenticated (for UI testing)
   const user = authUser || DEMO_USER;
@@ -149,36 +150,10 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      {/* Review Nudge Banner */}
+      {/* Review Queue Widget - Full widget with top 5 items */}
       {dueCount > 0 && (
         <Section delay={0}>
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-gradient-to-r from-purple/10 to-teal/10 rounded-xl p-4 border border-purple/20 flex items-center justify-between"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-purple/20 rounded-xl flex items-center justify-center">
-                <Brain size={24} className="text-purple" />
-              </div>
-              <div>
-                <p className="font-semibold text-navy">
-                  {dueCount} concept{dueCount !== 1 ? 's' : ''} ready for review
-                </p>
-                <p className="text-sm text-rich-black/60">
-                  Reviewing now will strengthen your memory!
-                </p>
-              </div>
-            </div>
-            <Button
-              variant="secondary"
-              size="sm"
-              rightIcon={<ArrowRight size={16} />}
-              onClick={() => router.push('/review')}
-            >
-              Start Review
-            </Button>
-          </motion.div>
+          <ReviewQueueWidget userId={user.id} maxItems={5} />
         </Section>
       )}
 
