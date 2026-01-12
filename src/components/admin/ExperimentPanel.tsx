@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ComparisonChart } from './MetricsChart';
+import { Database, TrendingUp } from 'lucide-react';
 
 interface Experiment {
   id: string;
@@ -35,10 +36,31 @@ export function ExperimentPanel() {
   const [loading, setLoading] = useState(true);
   const [selectedExperiment, setSelectedExperiment] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [interactionCount, setInteractionCount] = useState<number>(0);
+  const [interactionCountLoading, setInteractionCountLoading] = useState(true);
+
+  const TARGET_INTERACTIONS = 100000; // Target for hybrid model training
 
   useEffect(() => {
     fetchExperiments();
+    fetchInteractionCount();
   }, []);
+
+  async function fetchInteractionCount() {
+    try {
+      setInteractionCountLoading(true);
+      const response = await fetch('/api/interactions/log');
+      if (response.ok) {
+        const data = await response.json();
+        setInteractionCount(data.stats?.totalCount || 0);
+      }
+    } catch (err) {
+      console.error('Error fetching interaction count:', err);
+      // Leave at 0 if error
+    } finally {
+      setInteractionCountLoading(false);
+    }
+  }
 
   async function fetchExperiments() {
     try {
@@ -99,6 +121,49 @@ export function ExperimentPanel() {
 
   return (
     <div className="space-y-6">
+      {/* Data Collection Progress */}
+      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-200 p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+            <Database className="w-5 h-5 text-indigo-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">ML Training Data Collection</h3>
+            <p className="text-sm text-gray-500">Interactions needed for hybrid DKT2+BKT model</p>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-600">Progress</span>
+            <span className="font-semibold text-gray-900">
+              {interactionCountLoading ? '...' : interactionCount.toLocaleString()} / {TARGET_INTERACTIONS.toLocaleString()}
+            </span>
+          </div>
+          <div className="h-3 bg-white rounded-full overflow-hidden border border-indigo-100">
+            <div
+              className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-500"
+              style={{ width: `${Math.min((interactionCount / TARGET_INTERACTIONS) * 100, 100)}%` }}
+            />
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-gray-500">
+              {((interactionCount / TARGET_INTERACTIONS) * 100).toFixed(1)}% complete
+            </span>
+            {interactionCount >= TARGET_INTERACTIONS ? (
+              <span className="flex items-center gap-1 text-green-600 font-medium">
+                <TrendingUp className="w-3 h-3" />
+                Ready for training
+              </span>
+            ) : (
+              <span className="text-gray-500">
+                {(TARGET_INTERACTIONS - interactionCount).toLocaleString()} more needed
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Experiment Selector */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">
@@ -427,6 +492,19 @@ function getMockExperiments(): Experiment[] {
       name: 'Pre-test Skipping Impact',
       description:
         'Test if allowing content skipping improves efficiency without hurting retention',
+      status: 'draft',
+      startDate: new Date().toISOString(),
+      sampleSize: {
+        target: 200,
+        current: { control: 0, treatment: 0 },
+      },
+      results: undefined,
+    },
+    {
+      id: 'socratic-coach-v1',
+      name: 'Socratic Coach vs Direct Coach',
+      description:
+        'Test if Socratic questioning (never giving direct answers) improves learning outcomes',
       status: 'draft',
       startDate: new Date().toISOString(),
       sampleSize: {
