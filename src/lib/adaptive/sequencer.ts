@@ -13,6 +13,78 @@ import { getDueForReview } from '@/lib/mastery/fsrs';
 import { type ConceptMastery } from '@/lib/mastery/knowledgeGraph';
 import { AI_AT_WORK_SKILL_MAP, getSkillName, getSkillModule } from '@/data/skillMap';
 import { adminDb } from '@/lib/firebase/admin';
+import { getSkillMap } from '@/lib/skillmap/skillMapStorage';
+
+// ============================================
+// SKILL MAP CACHE
+// ============================================
+
+const skillMapCache = new Map<string, SkillMap>();
+
+/**
+ * Get skill map for course (with caching)
+ * Falls back to hardcoded AI_AT_WORK_SKILL_MAP for backward compatibility
+ */
+async function getSkillMapForCourse(courseId: string): Promise<SkillMap> {
+  // Check cache first
+  if (skillMapCache.has(courseId)) {
+    return skillMapCache.get(courseId)!;
+  }
+
+  // Try Firestore for dynamic skill map
+  try {
+    const dynamicMap = await getSkillMap(courseId);
+    if (dynamicMap && dynamicMap.status === 'active') {
+      const skillMap: SkillMap = { skills: dynamicMap.skills };
+      skillMapCache.set(courseId, skillMap);
+      console.log(`[Sequencer] Loaded dynamic skill map for ${courseId} (${Object.keys(dynamicMap.skills).length} skills)`);
+      return skillMap;
+    }
+  } catch (error) {
+    console.warn(`[Sequencer] Failed to load skill map from Firestore for ${courseId}:`, error);
+  }
+
+  // Fallback to hardcoded for AI at Work course
+  if (courseId === 'ai-at-work' || courseId === 'course-ai-work' || courseId === 'course-1') {
+    skillMapCache.set(courseId, AI_AT_WORK_SKILL_MAP);
+    return AI_AT_WORK_SKILL_MAP;
+  }
+
+  // Return empty skill map if none found
+  console.warn(`[Sequencer] No skill map found for course: ${courseId}`);
+  return { skills: {} };
+}
+
+/**
+ * Clear skill map cache (for admin/refresh)
+ */
+export function clearSkillMapCache(courseId?: string): void {
+  if (courseId) {
+    skillMapCache.delete(courseId);
+  } else {
+    skillMapCache.clear();
+  }
+  console.log(`[Sequencer] Cache cleared${courseId ? ` for ${courseId}` : ''}`);
+}
+
+/**
+ * Get skill name from a skill map
+ */
+function getSkillNameFromMap(skillId: string, skillMap: SkillMap): string {
+  return skillMap.skills[skillId]?.name ?? getSkillName(skillId);
+}
+
+/**
+ * Get skill module number from skill ID
+ */
+function getSkillModuleFromMap(skillId: string): number {
+  // Try to parse module from skill ID pattern like "course-1-M1-01"
+  const match = skillId.match(/M(\d+)/);
+  if (match) {
+    return parseInt(match[1], 10);
+  }
+  return getSkillModule(skillId);
+}
 
 // ============================================
 // TYPES
@@ -71,19 +143,27 @@ export const DEFAULT_SEQUENCER_CONFIG: SequencerConfig = {
 /**
  * Main function: What should user do next?
  * Returns prioritized list of recommendations
+ *
+ * @param userId - The user's ID
+ * @param courseId - The course ID to load skill map for (defaults to 'ai-at-work')
+ * @param config - Sequencer configuration
  */
 export async function getNextItems(
   userId: string,
+  courseId: string = 'ai-at-work',
   config: SequencerConfig = DEFAULT_SEQUENCER_CONFIG
 ): Promise<NextItemRecommendation[]> {
   const recommendations: NextItemRecommendation[] = [];
+
+  // Load skill map for this course (dynamic or fallback)
+  const skillMap = await getSkillMapForCourse(courseId);
 
   // Fetch user's current learning state
   const learnerState = await fetchLearnerState(userId);
 
   // Priority 1: Critical Reviews (prevent forgetting)
   if (config.sessionGoal !== 'learn') {
-    const criticalReviews = getCriticalReviews(learnerState);
+    const criticalReviews = getCriticalReviews(learnerState, skillMap);
     for (const review of criticalReviews.slice(0, 2)) {
       recommendations.push({
         ...review,
@@ -101,9 +181,9 @@ export async function getNextItems(
     const attemptsLeft = estimateAttemptsToMastery(skill.pMastery);
     recommendations.push({
       type: 'practice',
-      itemId: getContentForSkill(skill.skillId, 'practice'),
+      itemId: getContentForSkillWithMap(skill.skillId, 'practice', skillMap),
       skillId: skill.skillId,
-      reason: `Almost there! ${attemptsLeft} more correct ${attemptsLeft === 1 ? 'answer' : 'answers'} to master "${getSkillName(skill.skillId)}"`,
+      reason: `Almost there! ${attemptsLeft} more correct ${attemptsLeft === 1 ? 'answer' : 'answers'} to master "${getSkillNameFromMap(skill.skillId, skillMap)}"`,
       priority: 2,
       estimatedMinutes: 3,
       metadata: {
@@ -118,9 +198,9 @@ export async function getNextItems(
   for (const skill of quickWins.slice(0, 1)) {
     recommendations.push({
       type: 'practice',
-      itemId: getContentForSkill(skill.skillId, 'quiz'),
+      itemId: getContentForSkillWithMap(skill.skillId, 'quiz', skillMap),
       skillId: skill.skillId,
-      reason: `Quick practice to lock in "${getSkillName(skill.skillId)}"`,
+      reason: `Quick practice to lock in "${getSkillNameFromMap(skill.skillId, skillMap)}"`,
       priority: 3,
       estimatedMinutes: 2,
       metadata: {
@@ -133,15 +213,15 @@ export async function getNextItems(
   if (config.sessionGoal !== 'review') {
     const readyToLearn = getReadyToLearnSkills(
       learnerState.skillStates,
-      AI_AT_WORK_SKILL_MAP
+      skillMap
     );
     for (const skillId of readyToLearn.slice(0, 2)) {
-      const skill = AI_AT_WORK_SKILL_MAP.skills[skillId];
+      const skill = skillMap.skills[skillId];
       recommendations.push({
         type: 'new_content',
-        itemId: getContentForSkill(skillId, 'lesson'),
+        itemId: getContentForSkillWithMap(skillId, 'lesson', skillMap),
         skillId,
-        reason: `Ready to learn: "${getSkillName(skillId)}"`,
+        reason: `Ready to learn: "${getSkillNameFromMap(skillId, skillMap)}"`,
         priority: 4,
         estimatedMinutes: skill ? estimateLessonMinutes(skill.lessonId) : 10,
         metadata: {
@@ -151,18 +231,23 @@ export async function getNextItems(
     }
   }
 
-  // Fallback for new users: If no recommendations, start with Module 1
+  // Fallback for new users: If no recommendations, start with first available skill
   if (recommendations.length === 0) {
     console.log('[Sequencer] No recommendations found, adding starter content for new user');
 
-    // Add the first skill (M1-genai-definition has no prerequisites)
-    const starterSkill = AI_AT_WORK_SKILL_MAP.skills['M1-genai-definition'];
-    if (starterSkill) {
+    // Find the first skill with no prerequisites
+    const firstSkillId = Object.keys(skillMap.skills).find(id => {
+      const skill = skillMap.skills[id];
+      return skill.prerequisites.length === 0;
+    });
+
+    if (firstSkillId) {
+      const starterSkill = skillMap.skills[firstSkillId];
       recommendations.push({
         type: 'new_content',
         itemId: `lesson-${starterSkill.lessonId}`,
-        skillId: 'M1-genai-definition',
-        reason: 'Start your learning journey: "What is Generative AI?"',
+        skillId: firstSkillId,
+        reason: `Start your learning journey: "${starterSkill.name}"`,
         priority: 4,
         estimatedMinutes: 15,
         metadata: { pMastery: 0 },
@@ -247,7 +332,7 @@ export function getReadyToLearnSkills(
 /**
  * Get critical reviews - skills overdue and at risk of forgetting
  */
-function getCriticalReviews(learnerState: UserLearnerState): NextItemRecommendation[] {
+function getCriticalReviews(learnerState: UserLearnerState, skillMap: SkillMap): NextItemRecommendation[] {
   const reviews: NextItemRecommendation[] = [];
   const now = new Date();
 
@@ -259,9 +344,9 @@ function getCriticalReviews(learnerState: UserLearnerState): NextItemRecommendat
       if (overdueHours > 24) {
         reviews.push({
           type: 'review',
-          itemId: getContentForSkill(fsrsState.conceptId, 'review'),
+          itemId: getContentForSkillWithMap(fsrsState.conceptId, 'review', skillMap),
           skillId: fsrsState.conceptId,
-          reason: `Prevent forgetting: "${getSkillName(fsrsState.conceptId)}" (${Math.round(overdueHours)}h overdue)`,
+          reason: `Prevent forgetting: "${getSkillNameFromMap(fsrsState.conceptId, skillMap)}" (${Math.round(overdueHours)}h overdue)`,
           priority: 1,
           estimatedMinutes: 3,
           metadata: {
@@ -367,13 +452,14 @@ async function fetchLearnerState(userId: string): Promise<UserLearnerState> {
 }
 
 /**
- * Get appropriate content ID for a skill
+ * Get appropriate content ID for a skill (using dynamic skill map)
  */
-function getContentForSkill(
+function getContentForSkillWithMap(
   skillId: string,
-  contentType: 'lesson' | 'quiz' | 'practice' | 'review'
+  contentType: 'lesson' | 'quiz' | 'practice' | 'review',
+  skillMap: SkillMap
 ): string {
-  const skill = AI_AT_WORK_SKILL_MAP.skills[skillId];
+  const skill = skillMap.skills[skillId];
   if (!skill) return skillId;
 
   // Map to content based on type
@@ -389,6 +475,17 @@ function getContentForSkill(
     default:
       return skillId;
   }
+}
+
+/**
+ * Get appropriate content ID for a skill (legacy - uses hardcoded map)
+ * @deprecated Use getContentForSkillWithMap instead
+ */
+function getContentForSkill(
+  skillId: string,
+  contentType: 'lesson' | 'quiz' | 'practice' | 'review'
+): string {
+  return getContentForSkillWithMap(skillId, contentType, AI_AT_WORK_SKILL_MAP);
 }
 
 /**

@@ -308,4 +308,195 @@ Critical  High      High      Med-High    High       High      Medium
 
 ---
 
-*Last updated: 2026-01-09*
+---
+
+## Milestone: v1.1 Feature Expansion
+
+**Objective:** Extend platform with certification prep, portfolio, enhanced gamification, and mobile optimization.
+
+**Depends on:** v1.0 Flawless Launch complete
+
+---
+
+## Phase 6: Certification Readiness
+
+**Priority:** High (core value for professional certification)
+
+**Goal:** Enable users to prepare for and pass certification exams
+
+### 6.1 Exam Tracker Dashboard
+- Create certification progress dashboard
+- Show readiness score based on mastery levels
+- Display exam date countdown and study schedule
+- Recommend focus areas based on weak skills
+
+### 6.2 Practice Exams
+- Build full-length practice exam mode
+- Timer with exam-like conditions
+- Random question selection from question bank
+- Detailed score breakdown by topic
+- Compare to passing threshold
+
+### 6.3 Exam Simulation Mode
+- Replicate actual exam experience (time limits, no hints)
+- Track confidence levels per question
+- Post-exam analysis with improvement suggestions
+- Retake functionality with different questions
+
+### 6.4 Certification Tracking
+- Record exam attempts and scores
+- Display digital badges for passed certifications
+- Integration with certification providers (if available)
+- Shareable certificates
+
+**Success Criteria:**
+- Users can track certification readiness
+- Practice exams available with realistic conditions
+- Score predictions correlate with actual exam performance
+- Certification badges displayed on profile
+
+---
+
+## Phase 7: Portfolio & Projects
+
+**Priority:** Medium-High (differentiator for job seekers)
+
+**Goal:** Enable users to build and showcase project work
+
+### 7.1 Project Submission System
+- Project submission interface (text, files, links)
+- Rubric-based evaluation framework
+- AI-powered feedback on submissions
+- Revision and resubmission workflow
+
+### 7.2 Portfolio Builder
+- User portfolio page with completed projects
+- Project thumbnails and descriptions
+- Skills demonstrated per project
+- Public/private visibility settings
+
+### 7.3 Project Showcase
+- Community gallery of best projects
+- Peer review system
+- Instructor feedback integration
+- Featured projects section
+
+### 7.4 LinkedIn/Resume Integration
+- Export portfolio as PDF
+- Generate project descriptions for LinkedIn
+- Skills badges for completed projects
+- Shareable project links
+
+**Success Criteria:**
+- Users can submit and receive feedback on projects
+- Portfolio pages showcase completed work
+- Projects can be shared externally
+- Skills from projects reflected in mastery tracking
+
+---
+
+## Phase 8: Gamification Enhancements
+
+**Priority:** Medium (engagement boost)
+
+**Goal:** Deepen engagement through enhanced gamification
+
+### 8.1 Leaderboards
+- Weekly/monthly leaderboards by XP
+- Course-specific leaderboards
+- Opt-in competitive mode
+- Team/cohort competitions
+
+### 8.2 Challenges & Quests
+- Daily/weekly learning challenges
+- Multi-step quests with narrative
+- Time-limited events
+- Challenge rewards (special badges, XP multipliers)
+
+### 8.3 Social Learning
+- Study groups/cohorts
+- Discussion forums per lesson
+- Peer Q&A with upvoting
+- Mentor matching for advanced users
+
+### 8.4 Rewards Shop
+- Virtual currency (in addition to XP)
+- Cosmetic rewards (profile themes, avatars)
+- Feature unlocks (priority support, early access)
+- Charity donations option
+
+**Success Criteria:**
+- Leaderboards drive healthy competition
+- Challenges increase daily active users
+- Social features increase retention
+- Rewards feel meaningful and earned
+
+---
+
+## Phase 9: Mobile & Polish
+
+**Priority:** Medium (accessibility)
+
+**Goal:** Optimize for mobile and achieve app-like experience
+
+### 9.1 PWA Enhancement
+- Offline mode for downloaded content
+- Push notifications for streaks and reviews
+- Add to home screen optimization
+- App-like transitions and gestures
+
+### 9.2 Mobile UI Optimization
+- Swipe navigation between atoms
+- Touch-optimized quiz interactions
+- Mobile-first reading experience
+- Thumb-friendly bottom navigation
+
+### 9.3 Mobile-Specific Features
+- Voice input for practice responses
+- Camera for project submissions
+- Biometric authentication
+- Mobile-optimized video player
+
+### 9.4 Performance Optimization
+- Sub-second page transitions
+- Aggressive caching strategy
+- Image optimization pipeline
+- Bundle size reduction
+
+**Success Criteria:**
+- Lighthouse PWA score > 90
+- Mobile session duration equals desktop
+- Offline mode works reliably
+- App store rating > 4.5 (if native wrapper)
+
+---
+
+## v1.1 Execution Order
+
+```
+Phase 6 → Phase 7 → Phase 8 → Phase 9
+   ↓         ↓         ↓         ↓
+ High    Med-High   Medium    Medium
+```
+
+**Recommended approach:**
+1. Phase 6 first — certification is core value proposition
+2. Phase 7 second — portfolio adds career value
+3. Phase 8 third — gamification boosts engagement
+4. Phase 9 last — polish after features stable
+
+---
+
+## v1.1 Estimated Scope
+
+| Phase | Plans | Complexity |
+|-------|-------|------------|
+| Phase 6 | 4 | High (exam simulation) |
+| Phase 7 | 4 | Medium-High |
+| Phase 8 | 4 | Medium |
+| Phase 9 | 4 | Medium |
+| **Total** | **16 plans** | |
+
+---
+
+*Last updated: 2026-01-11*

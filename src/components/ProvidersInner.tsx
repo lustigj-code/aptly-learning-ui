@@ -5,6 +5,7 @@ import { CelebrationProvider } from '@/components/celebration/CelebrationSystem'
 import { AppLayout } from '@/components/layout/AppLayout';
 import { AuthProvider } from '@/components/providers/AuthProvider';
 import { MonitoringProvider } from '@/components/providers/MonitoringProvider';
+import { QueryProvider } from '@/components/providers/QueryProvider';
 import { ToastProvider } from '@/components/ui/Toast';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 
@@ -27,17 +28,19 @@ export function ProvidersInner({ children }: ProvidersInnerProps) {
   return (
     <ErrorBoundary>
       <Suspense fallback={<LoadingFallback />}>
-        <MonitoringProvider>
-          <AuthProvider>
-            <ToastProvider>
-              <CelebrationProvider>
-                <AppLayout>
-                  {children}
-                </AppLayout>
-              </CelebrationProvider>
-            </ToastProvider>
-          </AuthProvider>
-        </MonitoringProvider>
+        <QueryProvider>
+          <MonitoringProvider>
+            <AuthProvider>
+              <ToastProvider>
+                <CelebrationProvider>
+                  <AppLayout>
+                    {children}
+                  </AppLayout>
+                </CelebrationProvider>
+              </ToastProvider>
+            </AuthProvider>
+          </MonitoringProvider>
+        </QueryProvider>
       </Suspense>
     </ErrorBoundary>
   );

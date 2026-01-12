@@ -40,6 +40,7 @@ interface LearningSession {
 
 interface SessionRequest {
   userId: string;
+  courseId?: string; // Course to build session for (defaults to 'ai-at-work')
   availableMinutes: number;
   preferences: {
     learningPace: 'light' | 'moderate' | 'intensive';
@@ -55,6 +56,7 @@ interface SessionRequest {
 
 async function buildSessionServer(
   userId: string,
+  courseId: string,
   availableMinutes: number,
   preferences: SessionRequest['preferences']
 ): Promise<LearningSession> {
@@ -79,7 +81,7 @@ async function buildSessionServer(
     };
 
     try {
-      const warmupItems = await getNextItems(userId, warmupConfig);
+      const warmupItems = await getNextItems(userId, courseId, warmupConfig);
       for (const item of warmupItems.slice(0, 2)) {
         if (remainingMinutes < item.estimatedMinutes) break;
 
@@ -111,7 +113,7 @@ async function buildSessionServer(
     };
 
     try {
-      const learningItems = await getNextItems(userId, learningConfig);
+      const learningItems = await getNextItems(userId, courseId, learningConfig);
       const newContentItems = learningItems.filter(i => i.type === 'new_content');
 
       for (const item of newContentItems.slice(0, 2)) {
@@ -145,7 +147,7 @@ async function buildSessionServer(
     };
 
     try {
-      const practiceItems = await getNextItems(userId, practiceConfig);
+      const practiceItems = await getNextItems(userId, courseId, practiceConfig);
       const practices = practiceItems.filter(
         i => i.type === 'practice' || i.priority === 2 || i.priority === 3
       );
@@ -270,7 +272,7 @@ function interleaveItems(items: SessionItem[]): SessionItem[] {
 export async function POST(request: NextRequest) {
   try {
     const body: SessionRequest = await request.json();
-    const { userId, availableMinutes, preferences } = body;
+    const { userId, courseId, availableMinutes, preferences } = body;
 
     if (!userId) {
       return NextResponse.json(
@@ -281,6 +283,7 @@ export async function POST(request: NextRequest) {
 
     const session = await buildSessionServer(
       userId,
+      courseId || 'ai-at-work',
       availableMinutes || 30,
       preferences || {
         learningPace: 'moderate',
@@ -306,6 +309,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const userId = searchParams.get('userId');
+  const courseId = searchParams.get('courseId');
   const minutes = searchParams.get('minutes');
 
   if (!userId) {
@@ -318,6 +322,7 @@ export async function GET(request: NextRequest) {
   try {
     const session = await buildSessionServer(
       userId,
+      courseId || 'ai-at-work',
       parseInt(minutes || '30', 10),
       {
         learningPace: 'moderate',

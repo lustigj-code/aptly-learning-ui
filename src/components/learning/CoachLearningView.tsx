@@ -20,6 +20,10 @@ import type { Atom, Lesson, Module } from '@/types'
 
 // Import content renderers
 import { ContentRenderer } from './ContentRenderer'
+// TODO: Re-enable when API is stable
+// import { useMasteryLevels } from '@/hooks/useMasteryLevels'
+// import { areLessonPrerequisitesMet, getMissingPrerequisites } from '@/data/courseToConceptMap'
+// import { SOCIAL_MEDIA_MARKETING_GRAPH } from '@/lib/mastery'
 
 // ============================================
 // TYPES
@@ -427,6 +431,9 @@ export function CoachLearningView({
 }: CoachLearningViewProps) {
   const { user } = useUser()
   const module = getModule()
+  // TODO: Re-enable when API is stable
+  // const { masteryLevels } = useMasteryLevels(user?.id || null)
+  // const [prerequisiteWarning, setPrerequisiteWarning] = useState<string | null>(null)
 
   // Session state
   const [sessionState, setSessionState] = useState<SessionState>(() => {
@@ -609,13 +616,20 @@ export function CoachLearningView({
 
   // Handle lesson selection from sidebar
   const handleSelectLesson = useCallback((index: number) => {
+    const targetLesson = module.lessons[index]
+    if (!targetLesson) return
+
+    // TODO: Re-enable prerequisite checking when API is stable
+    // const prereqsMet = areLessonPrerequisitesMet(targetLesson.id, masteryLevels)
+    // if (!prereqsMet) { ... }
+
     setSessionState(prev => ({
       ...prev,
       currentLessonIndex: index,
       currentAtomIndex: 0,
     }))
     setContentComplete(false)
-  }, [])
+  }, [module.lessons])
 
   if (!currentLesson || !currentAtom) {
     return (

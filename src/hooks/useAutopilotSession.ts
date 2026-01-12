@@ -205,12 +205,13 @@ export function useAutopilotSession() {
   /**
    * Start autopilot session
    */
-  const startSession = useCallback(async (courseId?: string) => {
+  const startSession = useCallback(async (courseId: string = 'ai-at-work') => {
     dispatch({ type: 'START' })
 
     try {
       const session = await buildSession(
         user?.id || 'anonymous',
+        courseId,
         30, // 30 minutes default
         {
           learningPace: 'moderate',

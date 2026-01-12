@@ -107,11 +107,12 @@ export const DEFAULT_SESSION_CONFIG: SessionConfig = {
  */
 export async function buildSession(
   userId: string,
-  availableMinutes: number,
+  courseId: string = 'ai-at-work',
+  availableMinutes: number = 30,
   preferences: SessionConfig['preferences'] = DEFAULT_SESSION_CONFIG.preferences
 ): Promise<LearningSession> {
   // Try API endpoint first, fall back to mock session
-  return buildSessionViaAPI(userId, availableMinutes, preferences);
+  return buildSessionViaAPI(userId, courseId, availableMinutes, preferences);
 }
 
 /**
@@ -119,6 +120,7 @@ export async function buildSession(
  */
 async function buildSessionViaAPI(
   userId: string,
+  courseId: string,
   availableMinutes: number,
   preferences: SessionConfig['preferences']
 ): Promise<LearningSession> {
@@ -126,7 +128,7 @@ async function buildSessionViaAPI(
     const response = await fetch('/api/adaptive/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, availableMinutes, preferences }),
+      body: JSON.stringify({ userId, courseId, availableMinutes, preferences }),
     });
 
     if (response.ok) {
@@ -206,6 +208,7 @@ function createMockSession(
  */
 async function buildSessionDirect(
   userId: string,
+  courseId: string,
   availableMinutes: number,
   preferences: SessionConfig['preferences']
 ): Promise<LearningSession> {
@@ -232,7 +235,7 @@ async function buildSessionDirect(
       userPreferences: preferences,
     };
 
-    const warmupItems = await getNextItems(userId, warmupConfig);
+    const warmupItems = await getNextItems(userId, courseId, warmupConfig);
     for (const item of warmupItems.slice(0, 2)) {
       if (remainingMinutes < item.estimatedMinutes) break;
 
@@ -257,7 +260,7 @@ async function buildSessionDirect(
       userPreferences: preferences,
     };
 
-    const learningItems = await getNextItems(userId, learningConfig);
+    const learningItems = await getNextItems(userId, courseId, learningConfig);
     const newContentItems = learningItems.filter(i => i.type === 'new_content');
 
     for (const item of newContentItems.slice(0, 2)) {
@@ -284,7 +287,7 @@ async function buildSessionDirect(
       userPreferences: preferences,
     };
 
-    const practiceItems = await getNextItems(userId, practiceConfig);
+    const practiceItems = await getNextItems(userId, courseId, practiceConfig);
     const practices = practiceItems.filter(
       i => i.type === 'practice' || i.priority === 2 || i.priority === 3
     );

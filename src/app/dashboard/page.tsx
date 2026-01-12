@@ -11,6 +11,8 @@ import { SkeletonDashboard } from '@/components/ui/Skeleton';
 import { StreakCounter, StreakCalendar } from '@/components/progress/StreakCounter';
 import { Section } from '@/components/layout/AppLayout';
 import { useUser, useSyncStatus } from '@/store/unifiedStore';
+import { useReviewQueue } from '@/hooks/useReviewQueue';
+import { Brain } from 'lucide-react';
 import { COURSES } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 
@@ -46,6 +48,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const { user: authUser, isLoading } = useUser();
   const { syncStatus, isSyncing } = useSyncStatus();
+  const { dueCount, dueItems } = useReviewQueue(authUser?.id || null);
 
   // Use demo user if not authenticated (for UI testing)
   const user = authUser || DEMO_USER;
@@ -120,6 +123,39 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      {/* Review Nudge Banner */}
+      {dueCount > 0 && (
+        <Section delay={0}>
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-gradient-to-r from-purple/10 to-teal/10 rounded-xl p-4 border border-purple/20 flex items-center justify-between"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-purple/20 rounded-xl flex items-center justify-center">
+                <Brain size={24} className="text-purple" />
+              </div>
+              <div>
+                <p className="font-semibold text-navy">
+                  {dueCount} concept{dueCount !== 1 ? 's' : ''} ready for review
+                </p>
+                <p className="text-sm text-rich-black/60">
+                  Reviewing now will strengthen your memory!
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              rightIcon={<ArrowRight size={16} />}
+              onClick={() => router.push('/review')}
+            >
+              Start Review
+            </Button>
+          </motion.div>
+        </Section>
+      )}
+
       {/* Hero Section: Continue Learning (70vh) */}
       <Section delay={0}>
         <Card
@@ -284,6 +320,25 @@ export default function DashboardPage() {
                   <p className="text-xs text-rich-black/60">complete</p>
                 </div>
               </div>
+
+              {/* Due for Review */}
+              {dueCount > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center gap-3 p-3 bg-purple/5 rounded-lg border border-purple/20 cursor-pointer hover:bg-purple/10 transition-colors"
+                  onClick={() => router.push('/review')}
+                >
+                  <div className="w-10 h-10 bg-purple/20 rounded-lg flex items-center justify-center">
+                    <Brain size={20} className="text-purple" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-2xl font-bold text-navy">{dueCount}</p>
+                    <p className="text-xs text-rich-black/60">due for review</p>
+                  </div>
+                  <ArrowRight size={16} className="text-purple" />
+                </motion.div>
+              )}
 
               {/* Longest Streak Info */}
               {streak.longestStreak > streak.currentStreak && (

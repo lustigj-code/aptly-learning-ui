@@ -1,8 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase/admin';
+import { adminDb, adminAuth } from '@/lib/firebase/admin';
 import { z } from 'zod';
 import type { Badge } from '@/types';
 import { FieldValue } from 'firebase-admin/firestore';
+
+/**
+ * Verify admin access via Firebase ID token
+ */
+async function verifyAdminAuth(request: NextRequest): Promise<{ authorized: boolean; error?: NextResponse }> {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return {
+      authorized: false,
+      error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    };
+  }
+
+  try {
+    const token = authHeader.split('Bearer ')[1];
+    await adminAuth.verifyIdToken(token);
+    return { authorized: true };
+  } catch {
+    return {
+      authorized: false,
+      error: NextResponse.json({ error: 'Invalid token' }, { status: 401 }),
+    };
+  }
+}
 
 const badgeCriteriaSchema = z.object({
   type: z.enum(['completion', 'streak', 'score', 'time', 'custom']),
@@ -28,9 +52,11 @@ const updateBadgeSchema = createBadgeSchema.partial();
  * Fetch all badge definitions
  * Response: { success: boolean; badges: Badge[] }
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // TODO: Add admin auth check here
+    const auth = await verifyAdminAuth(request);
+    if (!auth.authorized) return auth.error!;
+
     const badgesSnap = await adminDb.collection('badges').get();
 
     const badges = badgesSnap.docs.map((doc) => ({
@@ -62,7 +88,9 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   try {
-    // TODO: Add admin auth check here
+    const auth = await verifyAdminAuth(request);
+    if (!auth.authorized) return auth.error!;
+
     const body = await request.json();
 
     // Validate input
@@ -121,7 +149,9 @@ export async function POST(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
   try {
-    // TODO: Add admin auth check here
+    const auth = await verifyAdminAuth(request);
+    if (!auth.authorized) return auth.error!;
+
     const body = await request.json();
 
     // Validate input
@@ -187,7 +217,9 @@ export async function PUT(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
-    // TODO: Add admin auth check here
+    const auth = await verifyAdminAuth(request);
+    if (!auth.authorized) return auth.error!;
+
     const body = await request.json();
 
     const id = body.id as string;

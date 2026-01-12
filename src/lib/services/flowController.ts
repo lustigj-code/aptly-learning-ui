@@ -152,9 +152,10 @@ export async function startLearningFlow(
 
     // Determine session duration
     const duration = SESSION_LENGTHS[options?.sessionLength || 'medium']
+    const courseId = options?.courseId || 'ai-at-work'
 
     // Build the session using existing sessionBuilder
-    const session = await buildSession(userId, duration, {
+    const session = await buildSession(userId, courseId, duration, {
       learningPace: 'moderate',
       preferredFormat: 'mixed',
       includeWarmup: true,

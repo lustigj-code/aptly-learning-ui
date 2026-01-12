@@ -15,6 +15,7 @@ import { getSkillName } from '@/data/skillMap';
 
 interface AdaptiveSessionViewProps {
   userId: string;
+  courseId?: string;
   availableMinutes: number;
   onStartSession: (session: LearningSession) => void;
   onItemComplete: (item: SessionItem) => void;
@@ -294,6 +295,7 @@ export function SkipSuccessMessage({
 
 export default function AdaptiveSessionView({
   userId,
+  courseId = 'ai-at-work',
   availableMinutes,
   onStartSession,
   onItemComplete,
@@ -307,7 +309,7 @@ export default function AdaptiveSessionView({
     async function loadSession() {
       setIsLoading(true);
       try {
-        const newSession = await buildSession(userId, availableMinutes, {
+        const newSession = await buildSession(userId, courseId, availableMinutes, {
           learningPace: 'moderate',
           preferredFormat: 'mixed',
           includeWarmup: true,
@@ -322,7 +324,7 @@ export default function AdaptiveSessionView({
     }
 
     loadSession();
-  }, [userId, availableMinutes]);
+  }, [userId, courseId, availableMinutes]);
 
   const handleStart = () => {
     if (session) {
