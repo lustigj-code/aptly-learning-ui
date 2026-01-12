@@ -19,6 +19,7 @@ import {
   shouldUseVerticalList,
   type LayoutResult,
 } from '@/lib/mastery/mapLayout';
+import { SPRING, COLORS_RAW } from '@/lib/design-tokens';
 
 /**
  * Enhanced Mastery Map Component
@@ -124,22 +125,29 @@ export function EnhancedMasteryMap({
     return shouldUseVerticalList(layout, containerSize.width) || showMobileList;
   }, [layout, containerSize.width, showMobileList]);
 
-  // Observe container size
+  // Observe container size with debounce for performance
   useEffect(() => {
     if (!containerRef.current) return;
 
+    let timeoutId: ReturnType<typeof setTimeout>;
     const resizeObserver = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (entry) {
-        setContainerSize({
-          width: entry.contentRect.width,
-          height: entry.contentRect.height,
-        });
-      }
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        const entry = entries[0];
+        if (entry) {
+          setContainerSize({
+            width: entry.contentRect.width,
+            height: entry.contentRect.height,
+          });
+        }
+      }, 100); // 100ms debounce
     });
 
     resizeObserver.observe(containerRef.current);
-    return () => resizeObserver.disconnect();
+    return () => {
+      clearTimeout(timeoutId);
+      resizeObserver.disconnect();
+    };
   }, []);
 
   // Calculate initial viewport values (computed, not in effect)
@@ -378,7 +386,7 @@ export function EnhancedMasteryMap({
                 >
                   <polygon
                     points="0 0, 10 3.5, 0 7"
-                    fill={darkMode ? '#6b7280' : '#9ca3af'}
+                    fill={darkMode ? COLORS_RAW.grey : COLORS_RAW.lightGrey}
                   />
                 </marker>
                 <marker
@@ -389,7 +397,7 @@ export function EnhancedMasteryMap({
                   refY="3.5"
                   orient="auto"
                 >
-                  <polygon points="0 0, 10 3.5, 0 7" fill="#14b8a6" />
+                  <polygon points="0 0, 10 3.5, 0 7" fill={COLORS_RAW.teal} />
                 </marker>
                 <filter id="glow">
                   <feGaussianBlur stdDeviation="3" result="coloredBlur" />
@@ -423,7 +431,7 @@ export function EnhancedMasteryMap({
                       key={`edge-${i}`}
                       d={path}
                       fill="none"
-                      stroke={isActive ? '#14b8a6' : (darkMode ? '#4b5563' : '#d1d5db')}
+                      stroke={isActive ? COLORS_RAW.teal : (darkMode ? COLORS_RAW.grey : COLORS_RAW.lightGrey)}
                       strokeWidth={isHighlighted ? 3 : 2}
                       strokeDasharray={toNode.status === 'locked' ? '6 4' : 'none'}
                       markerEnd={
@@ -445,11 +453,8 @@ export function EnhancedMasteryMap({
                     initial={{ opacity: 0, scale: 0.5 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{
-                      duration: 0.3,
                       delay: i * 0.03,
-                      type: 'spring',
-                      stiffness: 200,
-                      damping: 20,
+                      ...SPRING.gentle,
                     }}
                   >
                     <MasteryMapNode
@@ -477,11 +482,11 @@ export function EnhancedMasteryMap({
           }`}
           style={{ backdropFilter: 'blur(8px)' }}
         >
-          <LegendItem color="#9ca3af" label="Locked" darkMode={darkMode} />
-          <LegendItem color="#14b8a6" label="Available" darkMode={darkMode} />
-          <LegendItem color="#f59e0b" label="Active" darkMode={darkMode} />
-          <LegendItem color="#22c55e" label="Mastered" darkMode={darkMode} />
-          <LegendItem color="#f97316" label="Review" darkMode={darkMode} />
+          <LegendItem color={COLORS_RAW.grey} label="Locked" darkMode={darkMode} />
+          <LegendItem color={COLORS_RAW.teal} label="Available" darkMode={darkMode} />
+          <LegendItem color={COLORS_RAW.yellow} label="Active" darkMode={darkMode} />
+          <LegendItem color={COLORS_RAW.success} label="Mastered" darkMode={darkMode} />
+          <LegendItem color={COLORS_RAW.warning} label="Review" darkMode={darkMode} />
         </div>
       )}
 
