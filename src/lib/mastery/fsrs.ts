@@ -281,8 +281,13 @@ function calculateForgetStability(
 
 /**
  * Calculate retrievability (probability of recall)
+ *
+ * Based on FSRS formula: R(t) = (1 + t/(9*S))^(-1)
+ * where t = elapsed days, S = stability
+ *
+ * Exported for use by interleaving algorithm (Phase 13)
  */
-function calculateRetrievability(stability: number, elapsedDays: number): number {
+export function calculateRetrievability(stability: number, elapsedDays: number): number {
   return Math.pow(1 + elapsedDays / (9 * stability), -1);
 }
 
@@ -470,4 +475,65 @@ export function predictMasteryDecay(
 
   const decayDate = new Date(mastery.lastReviewedAt.getTime() + daysUntilDecay * 24 * 60 * 60 * 1000);
   return decayDate;
+}
+
+// ============================================
+// INTERLEAVING SUPPORT (Phase 13)
+// ============================================
+
+/**
+ * Concept mastery with calculated retrievability
+ */
+export type ConceptMasteryWithRetrievability = ConceptMastery & {
+  retrievability: number;
+};
+
+/**
+ * Get concepts below retrievability threshold
+ *
+ * Used by adaptive interleaving (Phase 13) for review injection.
+ * Returns items sorted by urgency (lowest retrievability first).
+ *
+ * @param masteryRecords - User's concept mastery records
+ * @param threshold - Retrievability threshold (default 0.90 = 90%)
+ * @param maxItems - Maximum items to return
+ */
+export function getItemsBelowRetrievability(
+  masteryRecords: ConceptMastery[],
+  threshold: number = 0.90,
+  maxItems: number = 10
+): ConceptMasteryWithRetrievability[] {
+  const now = new Date();
+
+  return masteryRecords
+    .map(m => {
+      const { stability } = m.fsrsState;
+      const elapsedDays = (now.getTime() - m.lastReviewedAt.getTime()) / (24 * 60 * 60 * 1000);
+      const retrievability = stability > 0 ? calculateRetrievability(stability, elapsedDays) : 0;
+      return { ...m, retrievability };
+    })
+    .filter(m => m.retrievability < threshold && m.retrievability > 0)
+    .sort((a, b) => a.retrievability - b.retrievability) // Most urgent first (lowest R)
+    .slice(0, maxItems);
+}
+
+/**
+ * Get count of items below retrievability threshold
+ *
+ * Used to determine interleaving ratio (larger backlog = more reviews)
+ */
+export function getReviewBacklogSize(
+  masteryRecords: ConceptMastery[],
+  threshold: number = 0.90
+): number {
+  const now = new Date();
+
+  return masteryRecords.filter(m => {
+    const { stability } = m.fsrsState;
+    if (stability <= 0) return false;
+
+    const elapsedDays = (now.getTime() - m.lastReviewedAt.getTime()) / (24 * 60 * 60 * 1000);
+    const retrievability = calculateRetrievability(stability, elapsedDays);
+    return retrievability < threshold;
+  }).length;
 }
