@@ -3,12 +3,12 @@
 ## Current Position
 
 **Milestone:** v2.0 Adaptive Learning Evolution
-**Phase:** 13 COMPLETE, ready for Phase 14 (Mastery Map UX)
-**Plan:** Phase 13.2 Complete - Dynamic Queue + UI Badge
-**Status:** Phase 13 COMPLETE - Moving to Phase 14
-**Last activity:** 2026-01-11 - Implemented FSRS-based Adaptive Interleaving
+**Phase:** 14 COMPLETE, ready for Phase 15 (Hybrid Learner Model)
+**Plan:** Phase 14.2 Complete - API, Hook, and Page
+**Status:** Phase 14 COMPLETE - Moving to Phase 15
+**Last activity:** 2026-01-11 - Implemented Mastery Map visualization
 
-Progress: ██████████████░░░░░░ 60% (v2.0 Phase 13 of 15 complete)
+Progress: ████████████████░░░░ 70% (v2.0 Phase 14 of 15 complete)
 
 **Previous Milestone:** v1.0 Flawless Launch - Phase 4.2 Complete
 
@@ -71,6 +71,21 @@ Progress: ██████████████░░░░░░ 60% (v2.0
 ---
 
 ## Session Notes
+
+### 2026-01-11 (v2.0 Work - Phase 14)
+- **Phase 14.1 COMPLETE:** Mastery Map Visual Components
+  - Created src/components/mastery/ directory with types, layout, components
+  - SkillNodeStatus: locked → available → active → mastered → decaying
+  - Topological sort layout by prerequisite depth
+  - SVG visualization with zoom controls and legend
+  - FSRS retrievability integrated for decay detection
+  - Commit: 0e88ab3
+- **Phase 14.2 COMPLETE:** API and Integration
+  - GET /api/mastery/map fetches skill map + user progress + FSRS states
+  - useMasteryMap hook for client-side data fetching
+  - /mastery page with stats cards and full visualization
+  - Commit: f8ef59a
+- Based on NotebookLM research: hierarchical node-link diagram, traffic light system
 
 ### 2026-01-11 (v2.0 Work - Phase 13)
 - **Phase 13.1 COMPLETE:** Adaptive Interleaving Algorithm
@@ -197,7 +212,7 @@ Progress: ██████████████░░░░░░ 60% (v2.0
 ## Session Continuity
 
 Last session: 2026-01-11
-Stopped at: Completed Phase 13 (Adaptive Interleaving), ready for Phase 14 (Mastery Map UX)
+Stopped at: Completed Phase 14 (Mastery Map UX), ready for Phase 15 (Hybrid Learner Model)
 Resume file: None
 
 ---
