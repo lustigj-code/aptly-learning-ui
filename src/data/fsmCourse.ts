@@ -11,7 +11,7 @@
  * 7. Campaign Budgeting
  */
 
-import type { Module, Lesson, Atom } from '@/types'
+import type { Course, Module, Lesson, Atom } from '@/types'
 
 // ============================================
 // LESSON 1: HISTORY OF FACEBOOK
@@ -1437,4 +1437,26 @@ export const FSM_MODULE_1: Module = {
   estimatedMinutes: 132,
   lessons: [lesson1, lesson2, lesson3, lesson4, lesson5, lesson6, lesson7],
   isLocked: false,
+}
+
+// ============================================
+// EXPORT COURSE
+// ============================================
+
+export const FSM_COURSE: Course = {
+  id: 'fsm-course',
+  number: 1,
+  title: 'Social Media Marketing Fundamentals',
+  description: 'Master social media marketing with hands-on lessons covering Facebook, Instagram, Snapchat, and advertising strategies.',
+  objectives: [
+    'Master the major social media platforms',
+    'Develop effective content and engagement strategies',
+    'Create and manage advertising campaigns',
+    'Understand social media policies and best practices',
+  ],
+  estimatedHours: 3,
+  modules: [FSM_MODULE_1],
+  isLocked: false,
+  prerequisites: [],
+  domain: 'social-media-marketing',
 }

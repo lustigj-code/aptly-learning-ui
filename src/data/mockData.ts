@@ -1,13 +1,4 @@
 import type { Course, Module, Lesson, Atom, Badge, User, StreakData, UserProgress, UserPreferences } from '@/types';
-import {
-  AI_AT_WORK_COURSE,
-  AI_AT_WORK_MODULES,
-  AI_WORK_MODULE_1,
-  AI_WORK_MODULE_2,
-  AI_WORK_MODULE_3,
-  AI_WORK_MODULE_4,
-  getLessonById as getAIWorkLessonById,
-} from './aiAtWorkCourse';
 
 // ============================================
 // BADGES
@@ -680,35 +671,341 @@ Let's get started!`,
   isLocked: false,
 };
 
-// Add module to course 1
-COURSES[0].modules = [COURSE_1_MODULE_1];
+// Module 2 for Course 1
+export const COURSE_1_MODULE_2: Module = {
+  id: 'c1-m2',
+  courseId: 'course-1',
+  number: 2,
+  title: 'Building Your Social Media Strategy',
+  objectives: [
+    'Create a social media marketing plan',
+    'Define your target audience',
+    'Set measurable goals',
+  ],
+  estimatedMinutes: 50,
+  lessons: [
+    {
+      id: 'c1-m2-l1',
+      moduleId: 'c1-m2',
+      number: 1,
+      title: 'Defining Your Target Audience',
+      objectives: ['Identify and understand your ideal customer'],
+      estimatedMinutes: 20,
+      atoms: [
+        {
+          id: 'c1-m2-l1-a1',
+          lessonId: 'c1-m2-l1',
+          type: 'reading',
+          title: 'Understanding Your Audience',
+          content: {
+            body: `# Understanding Your Target Audience
 
-// ============================================
-// AI AT WORK COURSE INTEGRATION
-// ============================================
+Before you post a single piece of content, you need to know WHO you're talking to.
 
-// Create a complete AI at Work course entry for COURSES array
-const AI_WORK_COURSE_ENTRY: Course = {
-  ...AI_AT_WORK_COURSE,
-  id: 'ai-at-work',
-  modules: AI_AT_WORK_MODULES,
+## Why Audience Research Matters
+
+> "If you're marketing to everyone, you're marketing to no one."
+
+The most successful social media campaigns are laser-focused on a specific audience.
+
+## Building Your Customer Persona
+
+A customer persona is a fictional representation of your ideal customer. Include:
+
+- **Demographics**: Age, location, income, education
+- **Psychographics**: Values, interests, lifestyle
+- **Pain Points**: What problems do they face?
+- **Goals**: What do they want to achieve?
+- **Social Behavior**: Which platforms do they use? When?
+
+## Example Persona
+
+**Sarah, the Busy Professional**
+- 32 years old, marketing manager
+- Lives in a major city
+- Values efficiency and quality
+- Pain point: Not enough time to stay current
+- Goal: Advance her career
+- Social: LinkedIn daily, Instagram weekends
+
+## Your Turn
+
+As you go through this course, think about YOUR target audience. Who are they really?`,
+            highlights: [
+              'Know your audience before you post',
+              'Build detailed customer personas',
+              'Consider demographics AND psychographics',
+            ],
+            relatedResources: [],
+          },
+          estimatedMinutes: 8,
+          isRequired: true,
+          masteryThreshold: 70,
+        },
+        {
+          id: 'c1-m2-l1-a2',
+          lessonId: 'c1-m2-l1',
+          type: 'practice',
+          title: 'Create Your Persona',
+          content: {
+            type: 'ai-conversation',
+            prompt: 'Describe your ideal customer persona. Include their demographics, interests, pain points, and social media habits.',
+            context: 'Help the learner develop a detailed customer persona. Ask follow-up questions to make it more specific.',
+            expectedOutcomes: [
+              'Creates a specific persona',
+              'Includes multiple persona elements',
+            ],
+            rubric: [
+              { criterion: 'Includes demographics', weight: 25 },
+              { criterion: 'Describes psychographics/interests', weight: 25 },
+              { criterion: 'Identifies pain points', weight: 25 },
+              { criterion: 'Mentions social media behavior', weight: 25 },
+            ],
+          },
+          estimatedMinutes: 6,
+          isRequired: true,
+          masteryThreshold: 60,
+        },
+      ],
+      isLocked: false,
+    },
+    {
+      id: 'c1-m2-l2',
+      moduleId: 'c1-m2',
+      number: 2,
+      title: 'Setting SMART Goals',
+      objectives: ['Create measurable marketing objectives'],
+      estimatedMinutes: 15,
+      atoms: [
+        {
+          id: 'c1-m2-l2-a1',
+          lessonId: 'c1-m2-l2',
+          type: 'reading',
+          title: 'SMART Goal Framework',
+          content: {
+            body: `# Setting SMART Goals for Social Media
+
+Vague goals lead to vague results. Let's make yours specific.
+
+## The SMART Framework
+
+**S - Specific**: What exactly do you want to achieve?
+**M - Measurable**: How will you track progress?
+**A - Achievable**: Is it realistic with your resources?
+**R - Relevant**: Does it align with business objectives?
+**T - Time-bound**: What's your deadline?
+
+## Bad vs. Good Goals
+
+❌ "Get more followers"
+✅ "Gain 1,000 new Instagram followers in Q1 by posting 4x weekly"
+
+❌ "Increase engagement"
+✅ "Increase average post engagement rate from 2% to 4% by March 31"
+
+❌ "Go viral"
+✅ "Create 2 posts per month that reach 10,000+ people"
+
+## Common Social Media Goals
+
+1. **Brand Awareness**: Reach, impressions, follower growth
+2. **Engagement**: Likes, comments, shares, saves
+3. **Traffic**: Click-through rate, website visits
+4. **Leads**: Sign-ups, downloads, inquiries
+5. **Sales**: Conversions, revenue from social
+
+## Start Small
+
+Begin with 1-3 goals for the quarter. You can always add more once you're hitting your targets.`,
+            highlights: [
+              'SMART: Specific, Measurable, Achievable, Relevant, Time-bound',
+              'Start with 1-3 goals',
+              'Align goals with business objectives',
+            ],
+            relatedResources: [],
+          },
+          estimatedMinutes: 6,
+          isRequired: true,
+          masteryThreshold: 70,
+        },
+        {
+          id: 'c1-m2-l2-a2',
+          lessonId: 'c1-m2-l2',
+          type: 'quiz',
+          title: 'SMART Goals Quiz',
+          content: {
+            questions: [
+              {
+                id: 'q1',
+                type: 'multiple-choice',
+                question: 'Which of these is a SMART goal?',
+                options: [
+                  'Get more followers',
+                  'Increase engagement rate from 2% to 4% by end of Q2',
+                  'Become a thought leader',
+                  'Post more content',
+                ],
+                correctAnswer: 1,
+                explanation: 'This goal is Specific (engagement rate), Measurable (2% to 4%), and Time-bound (end of Q2).',
+                difficulty: 2,
+                skills: ['goal-setting'],
+              },
+              {
+                id: 'q2',
+                type: 'multiple-choice',
+                question: 'What does the "M" in SMART stand for?',
+                options: ['Motivating', 'Measurable', 'Marketing', 'Manageable'],
+                correctAnswer: 1,
+                explanation: 'M stands for Measurable - you need to track your progress with specific metrics.',
+                difficulty: 1,
+                skills: ['goal-setting'],
+              },
+            ],
+            passingScore: 70,
+            allowRetakes: true,
+            maxAttempts: 3,
+          },
+          estimatedMinutes: 4,
+          isRequired: true,
+          masteryThreshold: 70,
+        },
+      ],
+      isLocked: false,
+    },
+  ],
+  isLocked: false,
 };
 
-// Export AI at Work as the primary course
-export const AI_WORK_COURSES: Course[] = [AI_WORK_COURSE_ENTRY];
+// Module 3 for Course 1
+export const COURSE_1_MODULE_3: Module = {
+  id: 'c1-m3',
+  courseId: 'course-1',
+  number: 3,
+  title: 'Setting Up Your Accounts',
+  objectives: [
+    'Create professional business accounts',
+    'Optimize your profiles',
+    'Establish brand consistency',
+  ],
+  estimatedMinutes: 40,
+  lessons: [
+    {
+      id: 'c1-m3-l1',
+      moduleId: 'c1-m3',
+      number: 1,
+      title: 'Creating Business Accounts',
+      objectives: ['Set up optimized business profiles'],
+      estimatedMinutes: 20,
+      atoms: [
+        {
+          id: 'c1-m3-l1-a1',
+          lessonId: 'c1-m3-l1',
+          type: 'reading',
+          title: 'Business vs Personal Accounts',
+          content: {
+            body: `# Setting Up Business Accounts
 
-// Export AI at Work modules for direct access
-export { AI_WORK_MODULE_1, AI_WORK_MODULE_2, AI_WORK_MODULE_3, AI_WORK_MODULE_4 };
+Personal accounts won't cut it for serious marketing. Here's why business accounts matter.
 
-// Helper to get any lesson from AI at Work course
-export function getAIWorkLesson(lessonId: string): Lesson | undefined {
-  return getAIWorkLessonById(lessonId);
-}
+## Why Business Accounts?
 
-// Get all lessons from AI at Work course
-export function getAllAIWorkLessons(): Lesson[] {
-  return AI_AT_WORK_MODULES.flatMap(module => module.lessons);
-}
+Business accounts unlock:
+- **Analytics**: See who's engaging with your content
+- **Advertising**: Run paid promotions
+- **Contact buttons**: Let customers reach you easily
+- **Shopping features**: Sell directly on social
+- **Credibility**: Look professional
+
+## Platform Setup Checklist
+
+### Facebook
+1. Create a Facebook Page (not a personal profile)
+2. Choose the right category
+3. Complete all profile sections
+4. Add a professional cover photo
+5. Connect to Instagram
+
+### Instagram
+1. Convert to Professional Account
+2. Choose Business (not Creator)
+3. Connect to Facebook Page
+4. Enable shopping (if applicable)
+5. Set up action buttons
+
+### LinkedIn
+1. Create a Company Page
+2. Add your logo and banner
+3. Write a compelling "About" section
+4. Add your website and specialties
+
+## Profile Optimization Tips
+
+- Use consistent branding across platforms
+- Include keywords in your bio
+- Add a clear call-to-action
+- Keep profile photos high quality
+- Update contact information`,
+            highlights: [
+              'Business accounts unlock analytics and ads',
+              'Complete all profile sections',
+              'Maintain consistent branding',
+            ],
+            relatedResources: [],
+          },
+          estimatedMinutes: 8,
+          isRequired: true,
+          masteryThreshold: 70,
+        },
+        {
+          id: 'c1-m3-l1-a2',
+          lessonId: 'c1-m3-l1',
+          type: 'quiz',
+          title: 'Account Setup Quiz',
+          content: {
+            questions: [
+              {
+                id: 'q1',
+                type: 'multiple-choice',
+                question: 'Which feature is NOT available on personal social media accounts?',
+                options: [
+                  'Posting photos',
+                  'Detailed analytics',
+                  'Sending messages',
+                  'Following others',
+                ],
+                correctAnswer: 1,
+                explanation: 'Detailed analytics and insights are only available with business or professional accounts.',
+                difficulty: 1,
+                skills: ['account-setup'],
+              },
+              {
+                id: 'q2',
+                type: 'true-false',
+                question: 'You should use different branding and logos on each social media platform.',
+                options: ['True', 'False'],
+                correctAnswer: 1,
+                explanation: 'False! Consistent branding across all platforms builds recognition and trust.',
+                difficulty: 1,
+                skills: ['branding'],
+              },
+            ],
+            passingScore: 70,
+            allowRetakes: true,
+            maxAttempts: 3,
+          },
+          estimatedMinutes: 4,
+          isRequired: true,
+          masteryThreshold: 70,
+        },
+      ],
+      isLocked: false,
+    },
+  ],
+  isLocked: false,
+};
+
+// Add all modules to course 1
+COURSES[0].modules = [COURSE_1_MODULE_1, COURSE_1_MODULE_2, COURSE_1_MODULE_3];
 
 // ============================================
 // DEMO USER DATA

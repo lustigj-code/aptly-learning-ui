@@ -18,9 +18,12 @@ import {
   COURSES,
   COURSE_1_MODULE_1,
   COURSE_3_MODULE_1,
-  AI_WORK_COURSES,
 } from '../data/mockData';
-import { AI_AT_WORK_MODULES } from '../data/aiAtWorkCourse';
+import { FSM_COURSE, FSM_MODULE_1 } from '../data/fsmCourse';
+
+// Use FSM course as the primary course
+const AI_WORK_COURSES = [FSM_COURSE];
+const AI_AT_WORK_MODULES = [FSM_MODULE_1];
 import { chunkLesson, type ContentChunk } from '../lib/ai/contentChunker';
 import type { Course, Lesson } from '../types';
 

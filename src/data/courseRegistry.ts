@@ -2,20 +2,11 @@
  * Course Registry
  *
  * Single source of truth for all course data in Aptly Learning.
- * Consolidates AI at Work and Social Media Marketing courses.
- * Now includes domain configuration for content-agnostic architecture.
+ * Now uses FSM (Social Media Marketing) course as the only active course.
  */
 
 import type { Course, Module, Lesson, Atom } from '@/types';
-import {
-  AI_AT_WORK_COURSE,
-  AI_WORK_MODULE_1,
-  AI_WORK_MODULE_2,
-  AI_WORK_MODULE_3,
-  AI_WORK_MODULE_4,
-  AI_AT_WORK_MODULES,
-} from './aiAtWorkCourse';
-import { COURSES as SOCIAL_MEDIA_COURSES, COURSE_1_MODULE_1 } from './mockData';
+import { FSM_COURSE, FSM_MODULE_1 } from './fsmCourse';
 import {
   getDomainConfig,
   getDomainFromCourse,
@@ -28,26 +19,16 @@ import {
 
 /**
  * All available courses in the platform
- * Each course is tagged with its domain for content-agnostic filtering
+ * Currently only FSM course is active
  */
 export const ALL_COURSES: Course[] = [
-  // Primary course: AI at Work
-  {
-    ...AI_AT_WORK_COURSE,
-    modules: AI_AT_WORK_MODULES,
-    domain: 'ai-at-work',
-  },
-  // Social Media Marketing courses (for future use)
-  ...SOCIAL_MEDIA_COURSES.map(course => ({
-    ...course,
-    domain: 'social-media-marketing',
-  })),
+  FSM_COURSE,
 ];
 
 /**
  * Default course ID for new users
  */
-export const DEFAULT_COURSE_ID = 'ai-at-work';
+export const DEFAULT_COURSE_ID = 'fsm-course';
 
 /**
  * Course metadata for quick lookups (without full module data)
@@ -74,7 +55,7 @@ export function getCourse(courseId: string): Course | undefined {
 }
 
 /**
- * Get the default course (AI at Work)
+ * Get the default course (FSM - Social Media Marketing)
  */
 export function getDefaultCourse(): Course {
   const course = getCourse(DEFAULT_COURSE_ID);
@@ -360,18 +341,8 @@ export function getNextAtom(
 // EXPORTS FOR BACKWARDS COMPATIBILITY
 // ============================================
 
-// Re-export AI at Work modules for direct access
-export {
-  AI_AT_WORK_COURSE,
-  AI_WORK_MODULE_1,
-  AI_WORK_MODULE_2,
-  AI_WORK_MODULE_3,
-  AI_WORK_MODULE_4,
-  AI_AT_WORK_MODULES,
-} from './aiAtWorkCourse';
-
-// Re-export Social Media modules for direct access
-export { COURSE_1_MODULE_1 } from './mockData';
+// Re-export FSM course and module for direct access
+export { FSM_COURSE, FSM_MODULE_1 } from './fsmCourse';
 
 // ============================================
 // DOMAIN-RELATED FUNCTIONS
