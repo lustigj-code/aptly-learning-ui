@@ -2,6 +2,11 @@
  * Coach Module Index
  *
  * Exports for Socratic coaching functionality:
+ * - Intervention state management (Firestore-based)
+ * - Coach routing (model selection)
+ * - Socratic handler (RAG-grounded responses)
+ * - RAG coordinator (unified RAG operations)
+ * - Token usage tracking
  * - Socratic prompts (Phase 12.2)
  * - Intervention hierarchy (Phase 12.2)
  * - LearnLM prompts (Phase 12.2)
@@ -13,6 +18,104 @@
  * Part of Phase 12.2: Socratic Prompt Architecture
  * Part of Phase 12.3: RAG Retrieval Integration
  */
+
+// ============================================
+// INTERVENTION STATE MANAGER (Firestore-based)
+// ============================================
+
+export {
+  getInterventionState,
+  getOrCreateInterventionState,
+  saveInterventionState,
+  escalateIntervention,
+  resetInterventionState as resetPersistedState,
+  getUserInterventionStates,
+  cleanupStaleStates,
+  clearCache as clearInterventionCache,
+} from './interventionStateManager';
+
+export type {
+  InterventionStateDocument,
+} from './interventionStateManager';
+
+// ============================================
+// COACH ROUTER (Model Selection)
+// ============================================
+
+export {
+  selectCoachModel,
+  selectCoachModelAsync,
+  getRoutingConfig,
+  getAbTestVariant,
+  isSageModelConfigured,
+  isSocraticModeAvailable,
+  getAvailableModels,
+  logModelSelection,
+} from './coachRouter';
+
+export type {
+  CoachModel,
+  CoachRoutingConfig,
+  ModelSelectionResult,
+} from './coachRouter';
+
+// ============================================
+// SOCRATIC HANDLER (RAG-Grounded Responses)
+// ============================================
+
+export {
+  handleSocraticMode,
+  getSocraticErrorResponse,
+} from './socraticHandler';
+
+export type {
+  SocraticRequestContext,
+  SocraticMessage,
+  EnhancedSocraticResult,
+} from './socraticHandler';
+
+// ============================================
+// RAG COORDINATOR (Unified RAG Operations)
+// ============================================
+
+export {
+  getCoachingContext,
+  getMisconceptionContext,
+  getHintForContext,
+  getContentContext,
+  buildCoachingPromptContext,
+  formatSourceReferences,
+  hasAdequateContext,
+  getRAGStats,
+} from './ragCoordinator';
+
+export type {
+  RAGContext,
+  SourceReference,
+  CoachingContextOptions,
+  MisconceptionResult,
+  HintResult,
+} from './ragCoordinator';
+
+// ============================================
+// TOKEN USAGE TRACKER
+// ============================================
+
+export {
+  recordTokenUsage,
+  getUserTokenUsage,
+  getUserUsageSummary,
+  getUsageByModel,
+  getDailyUsage,
+  createTokenUsage,
+  checkUsageLimits,
+} from './tokenUsageTracker';
+
+export type {
+  TokenUsage,
+  UsageSummary,
+  ModelUsageBreakdown,
+} from './tokenUsageTracker';
 
 // ============================================
 // SOCRATIC PROMPTS (Phase 12.2)
