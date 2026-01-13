@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useUser } from '@/store/unifiedStore';
+import { useUser } from '@/store/userProfileStore';
 
 interface ExperimentConfig {
   useAdaptiveSequencing: boolean;

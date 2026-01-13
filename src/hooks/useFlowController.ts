@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { useUser } from '@/store/unifiedStore'
+import { useUser } from '@/store/userProfileStore'
 import type { FlowState, FlowOptions, CompletionData, QuizAnswer } from '@/lib/services/flowController'
 import type { SessionItem } from '@/lib/adaptive/sessionBuilder'
 

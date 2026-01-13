@@ -23,13 +23,26 @@ import {
   COURSES,
   COURSE_1_MODULE_1,
   COURSE_3_MODULE_1,
-  AI_WORK_MODULE_1,
-  AI_WORK_MODULE_2,
-  AI_WORK_MODULE_3,
-  AI_WORK_MODULE_4,
-  AI_WORK_COURSES,
-  getAllAIWorkLessons,
 } from '@/data/mockData';
+import {
+  getAllCourses,
+  getModule,
+  getLesson,
+  getCourseModules,
+  getModuleLessons,
+  FSM_COURSE,
+  FSM_MODULE_1,
+} from '@/data/courseRegistry';
+
+// Provide backwards-compatible functions
+const AI_WORK_COURSES: Course[] = [FSM_COURSE];
+const AI_WORK_MODULE_1 = FSM_MODULE_1;
+const AI_WORK_MODULE_2 = FSM_MODULE_1; // Fallback to same module
+const AI_WORK_MODULE_3 = FSM_MODULE_1; // Fallback to same module
+const AI_WORK_MODULE_4 = FSM_MODULE_1; // Fallback to same module
+function getAllAIWorkLessons() {
+  return FSM_MODULE_1.lessons || [];
+}
 import type { Course, Module, Lesson, Atom } from '@/types';
 
 // Flag to use Firestore (set to true when content is migrated)

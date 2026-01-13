@@ -2,8 +2,9 @@
 
 import { useCallback } from 'react';
 import { useCelebration } from '@/components/celebration/CelebrationSystem';
-import { useUnifiedStore, useUser } from '@/store/unifiedStore';
+import { useUser, useUserProfileStore } from '@/store/userProfileStore';
 import type { Badge } from '@/types';
+import { SCORE_THRESHOLDS, XP, STREAK } from '@/config/constants';
 
 /**
  * Hook that wraps progress actions with celebration effects
@@ -15,10 +16,10 @@ export function useCelebratedProgress() {
   const { user, addXP, earnBadge: baseEarnBadge, checkAndUpdateStreak } = useUser();
 
   // Store methods
-  const completeAtom = useUnifiedStore((state) => state.completeAtom);
-  const completeLesson = useUnifiedStore((state) => state.completeLesson);
-  const completeModule = useUnifiedStore((state) => state.completeModule);
-  const completeCourse = useUnifiedStore((state) => state.completeCourse);
+  const completeAtom = useUserProfileStore((state) => state.completeAtom);
+  const completeLesson = useUserProfileStore((state) => state.completeLesson);
+  const completeModule = useUserProfileStore((state) => state.completeModule);
+  const completeCourse = useUserProfileStore((state) => state.completeCourse);
 
   /**
    * Add XP with celebration effect
@@ -113,7 +114,7 @@ export function useCelebratedProgress() {
     const newStreak = currentStreak + 1;
 
     // Celebrate milestones
-    if (newStreak === 7 || newStreak === 30 || newStreak === 100 || newStreak === 365) {
+    if (STREAK.MILESTONE_DAYS.includes(newStreak)) {
       celebrateStreak(newStreak);
     }
   }, [user?.streak?.currentStreak, checkAndUpdateStreak, celebrateStreak]);
@@ -167,7 +168,7 @@ export function useQuizCelebration() {
   const onQuizComplete = useCallback(
     async (score: number, passed: boolean) => {
       if (passed) {
-        const xp = score >= 90 ? 100 : score >= 70 ? 75 : 50;
+        const xp = score >= SCORE_THRESHOLDS.EXCELLENT ? SCORE_THRESHOLDS.EXCELLENT_XP : score >= SCORE_THRESHOLDS.GOOD ? SCORE_THRESHOLDS.GOOD_XP : SCORE_THRESHOLDS.FAIR_XP;
         await addXP(xp);
         celebrate(2, score === 100 ? 'Perfect Score!' : 'Quiz Passed!');
       }
@@ -176,7 +177,7 @@ export function useQuizCelebration() {
   );
 
   const onCorrectAnswer = useCallback(() => {
-    celebrateXP(10);
+    celebrateXP(XP.ATOM_COMPLETION);
   }, [celebrateXP]);
 
   const onIncorrectAnswer = useCallback(() => {

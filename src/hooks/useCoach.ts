@@ -1,7 +1,11 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-import { useUser } from '@/store/unifiedStore';
+import { useReducer, useCallback } from 'react';
+import { useUser } from '@/store/userProfileStore';
+
+// ============================================
+// TYPES
+// ============================================
 
 type Message = {
   id: string;
@@ -21,22 +25,122 @@ type CoachContext = {
 
 type MessageType = 'chat' | 'practice_feedback' | 'quiz_help' | 'summary';
 
+// ============================================
+// STATE TYPES
+// ============================================
+
+interface CoachState {
+  messages: Message[];
+  isLoading: boolean;
+  error: string | null;
+  conversationId: string | null;
+  conversationLoaded: boolean;
+  showLoadIndicator: boolean;
+}
+
+// ============================================
+// ACTIONS
+// ============================================
+
+type CoachAction =
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_ERROR'; payload: string | null }
+  | { type: 'SET_LOAD_INDICATOR'; payload: boolean }
+  | { type: 'ADD_MESSAGE'; payload: Message }
+  | { type: 'SET_MESSAGES'; payload: Message[] }
+  | { type: 'SET_CONVERSATION'; payload: { id: string; messages: Message[] } }
+  | { type: 'SET_CONVERSATION_ID'; payload: string | null }
+  | { type: 'SET_CONVERSATION_LOADED'; payload: boolean }
+  | { type: 'CLEAR_MESSAGES' }
+  | { type: 'RESET_CONVERSATION' }
+  | { type: 'LOADING_START' }
+  | { type: 'LOADING_END' };
+
+// ============================================
+// REDUCER
+// ============================================
+
+const initialState: CoachState = {
+  messages: [],
+  isLoading: false,
+  error: null,
+  conversationId: null,
+  conversationLoaded: false,
+  showLoadIndicator: false,
+};
+
+function coachReducer(state: CoachState, action: CoachAction): CoachState {
+  switch (action.type) {
+    case 'SET_LOADING':
+      return { ...state, isLoading: action.payload };
+
+    case 'SET_ERROR':
+      return { ...state, error: action.payload };
+
+    case 'SET_LOAD_INDICATOR':
+      return { ...state, showLoadIndicator: action.payload };
+
+    case 'ADD_MESSAGE':
+      return { ...state, messages: [...state.messages, action.payload] };
+
+    case 'SET_MESSAGES':
+      return { ...state, messages: action.payload };
+
+    case 'SET_CONVERSATION':
+      return {
+        ...state,
+        conversationId: action.payload.id,
+        messages: action.payload.messages,
+        conversationLoaded: true,
+        isLoading: false,
+        showLoadIndicator: false,
+      };
+
+    case 'SET_CONVERSATION_ID':
+      return { ...state, conversationId: action.payload };
+
+    case 'SET_CONVERSATION_LOADED':
+      return { ...state, conversationLoaded: action.payload };
+
+    case 'CLEAR_MESSAGES':
+      return { ...state, messages: [], error: null };
+
+    case 'RESET_CONVERSATION':
+      return {
+        ...state,
+        conversationId: null,
+        messages: [],
+        conversationLoaded: false,
+      };
+
+    case 'LOADING_START':
+      return { ...state, isLoading: true, showLoadIndicator: true };
+
+    case 'LOADING_END':
+      return { ...state, isLoading: false, showLoadIndicator: false };
+
+    default:
+      return state;
+  }
+}
+
+// ============================================
+// HOOK
+// ============================================
+
 export function useCoach() {
   const { user } = useUser();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [conversationId, setConversationId] = useState<string | null>(null);
-  const [conversationLoaded, setConversationLoaded] = useState(false);
-  const [showLoadIndicator, setShowLoadIndicator] = useState(false);
+  const [state, dispatch] = useReducer(coachReducer, initialState);
+
+  const { messages, isLoading, error, conversationId, conversationLoaded, showLoadIndicator } =
+    state;
 
   /**
    * Load previous conversation by ID
    */
   const loadConversation = useCallback(async (convId: string) => {
     try {
-      setShowLoadIndicator(true);
-      setIsLoading(true);
+      dispatch({ type: 'LOADING_START' });
 
       const response = await fetch(`/api/coach/${convId}`);
 
@@ -60,15 +164,17 @@ export function useCoach() {
         timestamp: msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp),
       }));
 
-      setMessages(loadedMessages);
-      setConversationId(convId);
-      setConversationLoaded(true);
+      dispatch({
+        type: 'SET_CONVERSATION',
+        payload: { id: convId, messages: loadedMessages },
+      });
     } catch (err) {
       console.error('Error loading conversation:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load conversation');
-    } finally {
-      setIsLoading(false);
-      setShowLoadIndicator(false);
+      dispatch({
+        type: 'SET_ERROR',
+        payload: err instanceof Error ? err.message : 'Failed to load conversation',
+      });
+      dispatch({ type: 'LOADING_END' });
     }
   }, []);
 
@@ -83,7 +189,7 @@ export function useCoach() {
           return conversationId;
         }
 
-        setIsLoading(true);
+        dispatch({ type: 'SET_LOADING', payload: true });
 
         // Create new conversation via API
         const response = await fetch('/api/coach', {
@@ -116,15 +222,18 @@ export function useCoach() {
         const data = await response.json();
 
         if (data.conversationId) {
-          setConversationId(data.conversationId);
-          setConversationLoaded(true);
+          dispatch({ type: 'SET_CONVERSATION_ID', payload: data.conversationId });
+          dispatch({ type: 'SET_CONVERSATION_LOADED', payload: true });
           return data.conversationId;
         }
       } catch (err) {
         console.error('Error initializing conversation:', err);
-        setError(err instanceof Error ? err.message : 'Failed to initialize conversation');
+        dispatch({
+          type: 'SET_ERROR',
+          payload: err instanceof Error ? err.message : 'Failed to initialize conversation',
+        });
       } finally {
-        setIsLoading(false);
+        dispatch({ type: 'SET_LOADING', payload: false });
       }
 
       return null;
@@ -149,12 +258,13 @@ export function useCoach() {
         throw new Error('Failed to delete conversation');
       }
 
-      setConversationId(null);
-      setMessages([]);
-      setConversationLoaded(false);
+      dispatch({ type: 'RESET_CONVERSATION' });
     } catch (err) {
       console.error('Error deleting conversation:', err);
-      setError(err instanceof Error ? err.message : 'Failed to delete conversation');
+      dispatch({
+        type: 'SET_ERROR',
+        payload: err instanceof Error ? err.message : 'Failed to delete conversation',
+      });
     }
   }, [conversationId]);
 
@@ -162,16 +272,16 @@ export function useCoach() {
     async (content: string, type: MessageType = 'chat', context?: CoachContext) => {
       if (!content.trim()) return;
 
-      setIsLoading(true);
-      setError(null);
+      dispatch({ type: 'SET_LOADING', payload: true });
+      dispatch({ type: 'SET_ERROR', payload: null });
 
       // Ensure we have a conversation
       let currentConvId = conversationId;
       if (!currentConvId) {
         currentConvId = await initializeConversation(context?.currentLesson);
         if (!currentConvId) {
-          setError('Failed to create conversation');
-          setIsLoading(false);
+          dispatch({ type: 'SET_ERROR', payload: 'Failed to create conversation' });
+          dispatch({ type: 'SET_LOADING', payload: false });
           return null;
         }
       }
@@ -184,7 +294,7 @@ export function useCoach() {
         timestamp: new Date(),
       };
 
-      setMessages((prev) => [...prev, userMessage]);
+      dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
 
       try {
         // Build conversation history for API
@@ -242,17 +352,17 @@ export function useCoach() {
           timestamp: new Date(),
         };
 
-        setMessages((prev) => [...prev, assistantMessage]);
+        dispatch({ type: 'ADD_MESSAGE', payload: assistantMessage });
 
         // Update conversation ID if new
         if (data.conversationId) {
-          setConversationId(data.conversationId);
+          dispatch({ type: 'SET_CONVERSATION_ID', payload: data.conversationId });
         }
 
         return assistantMessage;
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Something went wrong';
-        setError(errorMessage);
+        dispatch({ type: 'SET_ERROR', payload: errorMessage });
 
         // Enhanced error logging for debugging
         console.error('[useCoach] API request failed:', {
@@ -271,18 +381,17 @@ export function useCoach() {
           timestamp: new Date(),
         };
 
-        setMessages((prev) => [...prev, errorResponse]);
+        dispatch({ type: 'ADD_MESSAGE', payload: errorResponse });
         return errorResponse;
       } finally {
-        setIsLoading(false);
+        dispatch({ type: 'SET_LOADING', payload: false });
       }
     },
     [messages, user, conversationId, initializeConversation]
   );
 
   const clearMessages = useCallback(() => {
-    setMessages([]);
-    setError(null);
+    dispatch({ type: 'CLEAR_MESSAGES' });
   }, []);
 
   // Get a summary of current content
@@ -320,7 +429,7 @@ export function useCoach() {
 Ask me anything about the content, request examples, or let me quiz you on what you've learned. What would you like to explore today?`,
         timestamp: new Date(),
       };
-      setMessages([welcomeMessage]);
+      dispatch({ type: 'SET_MESSAGES', payload: [welcomeMessage] });
     }
   }, [messages.length, conversationLoaded, user?.name]);
 

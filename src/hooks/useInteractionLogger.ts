@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useRef, useEffect, useMemo } from 'react';
-import { useUnifiedStore } from '@/store/unifiedStore';
+import { useUserProfileStore, useAuthStore } from '@/store';
 import type { InteractionType, InteractionLogInput, AtomType, DeviceType } from '@/types';
+import { INTERACTION } from '@/config/constants';
 
 /**
  * Detect device type based on screen width and user agent
@@ -80,18 +81,15 @@ type ReviewAttemptParams = {
   pMasteryAfter: number;
 };
 
-// Session management
-const SESSION_KEY = 'aptly_learning_session';
-const BATCH_FLUSH_INTERVAL = 10000; // 10 seconds
-const MAX_BATCH_SIZE = 50;
+// Session management uses constants from config
 
 function getOrCreateSessionId(): string {
   if (typeof window === 'undefined') return 'ssr-session';
 
-  let sessionId = sessionStorage.getItem(SESSION_KEY);
+  let sessionId = sessionStorage.getItem(INTERACTION.SESSION_KEY);
   if (!sessionId) {
     sessionId = `session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    sessionStorage.setItem(SESSION_KEY, sessionId);
+    sessionStorage.setItem(INTERACTION.SESSION_KEY, sessionId);
   }
   return sessionId;
 }
@@ -106,8 +104,8 @@ export function useInteractionLogger() {
   const consecutiveWrongRef = useRef<Record<string, number>>({});
   const hintsUsedRef = useRef<Record<string, number>>({});
 
-  const user = useUnifiedStore((state) => state.user);
-  const authUser = useUnifiedStore((state) => state.authUser);
+  const user = useUserProfileStore((state) => state.user);
+  const authUser = useAuthStore((state) => state.authUser);
 
   // Memoize device type (only detect once per session)
   const deviceType = useMemo(() => detectDeviceType(), []);
@@ -164,7 +162,7 @@ export function useInteractionLogger() {
       batchRef.current.push(fullInteraction);
 
       // Flush if batch is full
-      if (batchRef.current.length >= MAX_BATCH_SIZE) {
+      if (batchRef.current.length >= INTERACTION.BATCH_SIZE) {
         flushBatch();
       }
     },
@@ -406,7 +404,7 @@ export function useInteractionLogger() {
 
   // Periodic flush interval
   useEffect(() => {
-    const intervalId = setInterval(flushBatch, BATCH_FLUSH_INTERVAL);
+    const intervalId = setInterval(flushBatch, INTERACTION.FLUSH_INTERVAL_MS);
 
     // Flush on unmount
     return () => {

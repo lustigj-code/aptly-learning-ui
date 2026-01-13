@@ -8,7 +8,18 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { getLessonById, getModuleByLessonId } from '@/data/aiAtWorkCourse';
+import { getLesson, getLessonWithContext, getModule } from '@/data/courseRegistry';
+
+// Helper to match old interface
+function getLessonById(lessonId: string) {
+  return getLesson(lessonId);
+}
+
+function getModuleByLessonId(lessonId: string) {
+  const context = getLessonWithContext(lessonId);
+  if (!context) return undefined;
+  return getModule(context.moduleId);
+}
 import { parseSequencerItemId, type ContentType } from '@/lib/adaptive/idResolver';
 import type { Lesson, Atom, Module } from '@/types';
 
