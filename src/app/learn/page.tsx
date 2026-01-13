@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import { CoachLearningView } from '@/components/learning/CoachLearningView'
-import { useUser } from '@/store/unifiedStore'
+import { useUser } from '@/store/userProfileStore'
 
 function LearnPageContent() {
   const router = useRouter()

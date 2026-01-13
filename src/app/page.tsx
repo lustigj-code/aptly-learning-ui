@@ -3,7 +3,8 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { useUser, useAuth } from '@/store/unifiedStore';
+import { useUser } from '@/store/userProfileStore';
+import { useAuth } from '@/store/authStore';
 
 export default function HomePage() {
   const router = useRouter();

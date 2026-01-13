@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useUser } from '@/store/unifiedStore';
+import { useUser } from '@/store/userProfileStore';
 import { useRouter } from 'next/navigation';
 import { CreateExperimentForm } from '@/components/admin/CreateExperimentForm';
 import { FlaskConical, ArrowLeft } from 'lucide-react';

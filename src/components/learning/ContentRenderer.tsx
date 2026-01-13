@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import React, { useState, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import {
   Play,
@@ -109,11 +109,6 @@ function VideoRenderer({
   const [videoLoading, setVideoLoading] = useState(true)
   const [videoError, setVideoError] = useState(false)
 
-  // Log video URL for debugging
-  if (typeof window !== 'undefined') {
-    console.log('[Video] Attempting to load:', content.videoUrl)
-  }
-
   const togglePlay = () => {
     if (videoRef.current && !videoError) {
       if (isPlaying) {
@@ -217,6 +212,7 @@ function VideoRenderer({
           )}
 
           <video
+            key={content.videoUrl}
             ref={videoRef}
             src={content.videoUrl}
             className={`w-full h-full object-contain ${videoError ? 'hidden' : ''}`}
@@ -228,6 +224,7 @@ function VideoRenderer({
             onLoadedData={handleVideoLoaded}
             onCanPlay={handleVideoLoaded}
             controls
+            preload="auto"
           />
 
           {/* Play overlay */}
@@ -298,10 +295,10 @@ function ReadingRenderer({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="h-full flex flex-col relative"
+      className="pb-20"
     >
-      {/* Scrollable Content Area */}
-      <div className="flex-1 overflow-y-auto min-h-0">
+      {/* Content Area */}
+      <div>
         {/* Article Card */}
         <article className="max-w-3xl mx-auto bg-white rounded-xl shadow-sm border border-grey/10 overflow-hidden">
           {/* Header */}
@@ -348,17 +345,14 @@ function ReadingRenderer({
             )}
           </div>
         </article>
-
-        {/* Bottom spacing for continue button */}
-        <div className="h-24" />
       </div>
 
-      {/* Continue button - Sticky at bottom */}
+      {/* Continue button */}
       {isActive && (
-        <div className="sticky bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent flex-shrink-0">
+        <div className="mt-6 max-w-3xl mx-auto">
           <button
             onClick={handleContinue}
-            className="w-full max-w-3xl mx-auto py-3 bg-teal text-white font-medium rounded-lg hover:bg-teal-dark transition-colors flex items-center justify-center gap-2 shadow-lg"
+            className="w-full py-3 bg-teal text-white font-medium rounded-lg hover:bg-teal-dark transition-colors flex items-center justify-center gap-2 shadow-lg"
           >
             Continue
             <ChevronRight className="w-5 h-5" />
@@ -448,14 +442,19 @@ function QuizRenderer({
   }
 
   const handleContinueAfterQuiz = () => {
-    const passed = quizState.score >= content.passingScore
+    const passingScore = content.passingScore ?? 70 // Default to 70% if not set
+    const passed = quizState.score >= passingScore
+    console.log('[Quiz] Continue after quiz - score:', quizState.score, 'passingScore:', passingScore, 'passed:', passed)
     if (passed) {
+      console.log('[Quiz] Passed! Calling onComplete and onContinue')
       onComplete(atom.id, quizState.score)
       onContinue?.()
     } else if (onQuizFail) {
+      console.log('[Quiz] Failed! Calling onQuizFail')
       onQuizFail(atom.id, quizState.score)
     } else {
       // Fallback: complete anyway if no fail handler
+      console.log('[Quiz] Failed but no fail handler, completing anyway')
       onComplete(atom.id, quizState.score)
       onContinue?.()
     }
@@ -463,12 +462,13 @@ function QuizRenderer({
 
   // Quiz Complete View
   if (quizState.isComplete) {
-    const passed = quizState.score >= content.passingScore
+    const passingScoreValue = content.passingScore ?? 70
+    const passed = quizState.score >= passingScoreValue
     return (
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="h-full flex flex-col items-center justify-center"
+        className="h-full flex flex-col items-center justify-center p-6 relative z-10"
       >
         <div className={`text-7xl font-bold ${passed ? 'text-green-500' : 'text-orange-500'}`}>
           {quizState.score}%
@@ -479,13 +479,20 @@ function QuizRenderer({
         <p className="text-grey mt-1 mb-6 text-center">
           {passed
             ? "Ready for the next lesson."
-            : `Need ${content.passingScore}% to continue.`}
+            : `Need ${passingScoreValue}% to continue.`}
         </p>
 
         {passed ? (
           <button
-            onClick={handleContinueAfterQuiz}
-            className="px-6 py-3 bg-teal text-white font-medium rounded-lg hover:bg-teal-dark transition-colors flex items-center gap-2"
+            type="button"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              console.log('[Quiz] Continue button clicked!')
+              alert('Continue clicked!') // Temporary debug
+              handleContinueAfterQuiz()
+            }}
+            className="px-6 py-3 bg-teal text-white font-medium rounded-lg hover:bg-teal-dark transition-colors flex items-center gap-2 relative z-20 cursor-pointer"
           >
             Continue
             <ChevronRight className="w-5 h-5" />

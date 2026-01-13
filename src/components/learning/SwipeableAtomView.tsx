@@ -127,44 +127,10 @@ export function SwipeableAtomView({
         </motion.div>
       )}
 
-      {/* Swipeable Content */}
-      <motion.div
-        drag={disabled ? false : "x"}
-        dragConstraints={dragConstraints}
-        dragElastic={0.2}
-        dragMomentum={false}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        style={{ x, opacity, scale }}
-        className={cn(
-          "h-full w-full",
-          isDragging && "cursor-grabbing",
-          !disabled && !isDragging && "cursor-grab"
-        )}
-      >
-        {/* Edge Glow Indicators */}
-        {isDragging && (
-          <>
-            {/* Left edge glow (previous) */}
-            <motion.div
-              className="absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-r from-teal/50 to-transparent pointer-events-none z-10"
-              style={{
-                opacity: leftGlowOpacity,
-              }}
-            />
-            {/* Right edge glow (next) */}
-            <motion.div
-              className="absolute right-0 top-0 bottom-0 w-2 bg-gradient-to-l from-teal/50 to-transparent pointer-events-none z-10"
-              style={{
-                opacity: rightGlowOpacity,
-              }}
-            />
-          </>
-        )}
-
-        {/* Content */}
+      {/* Content - drag disabled to fix scroll */}
+      <div className="h-full w-full overflow-y-auto">
         {children}
-      </motion.div>
+      </div>
 
       {/* Mobile Progress Dots */}
       {totalCount > 1 && (

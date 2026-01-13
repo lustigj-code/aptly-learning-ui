@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, Award, Zap, Trophy, Flame, X, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { useUnifiedStore } from '@/store/unifiedStore';
+import { useUserProfileStore } from '@/store/userProfileStore';
 import { formatTime } from '@/lib/utils';
 
 type Notification = {
@@ -32,7 +32,7 @@ type NotificationCenterProps = {
 };
 
 export function NotificationCenter({ isOpen, onClose }: NotificationCenterProps) {
-  const user = useUnifiedStore((state) => state.user);
+  const user = useUserProfileStore((state) => state.user);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
 

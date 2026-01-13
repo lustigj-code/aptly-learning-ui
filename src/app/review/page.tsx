@@ -22,7 +22,7 @@ import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { cn } from '@/lib/utils';
-import { useUser } from '@/store/unifiedStore';
+import { useUser } from '@/store/userProfileStore';
 import { useReviewQueue, type DueReviewItem } from '@/hooks/useReviewQueue';
 import { post, isSuccess } from '@/lib/api/client';
 

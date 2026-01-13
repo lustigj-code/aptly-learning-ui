@@ -18,7 +18,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { InlineStreak } from '@/components/progress/StreakCounter';
-import { useUser, useUnifiedStore } from '@/store/unifiedStore';
+import { useUser } from '@/store/userProfileStore';
+import { useUIStore } from '@/store/uiStore';
 
 type NavItem = {
   label: string;
@@ -41,10 +42,10 @@ export function Sidebar() {
   const [showCoach, setShowCoach] = useState(false);
   const pathname = usePathname();
   const { user } = useUser();
-  const isCollapsed = useUnifiedStore((state) => state.sidebarCollapsed);
-  const toggleSidebar = useUnifiedStore((state) => state.toggleSidebar);
-  const mobileMenuOpen = useUnifiedStore((state) => state.mobileMenuOpen);
-  const setMobileMenuOpen = useUnifiedStore((state) => state.setMobileMenuOpen);
+  const isCollapsed = useUIStore((state) => state.sidebarCollapsed);
+  const toggleSidebar = useUIStore((state) => state.toggleSidebar);
+  const mobileMenuOpen = useUIStore((state) => state.mobileMenuOpen);
+  const setMobileMenuOpen = useUIStore((state) => state.setMobileMenuOpen);
 
   // Close mobile menu on route change
   useEffect(() => {

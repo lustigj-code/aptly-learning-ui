@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowRight, Clock, BookOpen, Target, Lock, CheckCircle, Zap, Play, MessageCircle, Flame, Brain } from 'lucide-react';
+import { ArrowRight, Clock, BookOpen, Target, Lock, CheckCircle, Zap, Play, MessageCircle, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/Card';
 import { ProgressBar, CircularProgress } from '@/components/ui/ProgressBar';
@@ -10,19 +10,16 @@ import { AchievementBadge } from '@/components/ui/Badge';
 import { SkeletonDashboard } from '@/components/ui/Skeleton';
 import { Section } from '@/components/layout/AppLayout';
 import { ExamReadinessWidget } from '@/components/dashboard/ExamReadinessWidget';
-import { ReviewQueueWidget } from '@/components/dashboard/ReviewQueueWidget';
-import { AIInsightsWidget } from '@/components/dashboard/AIInsightsWidget';
 import PathVisualization from '@/components/learning/PathVisualization';
-import { useUser, useSyncStatus } from '@/store/unifiedStore';
-import { useReviewQueue } from '@/hooks/useReviewQueue';
+import { useUser } from '@/store/userProfileStore';
+import { useSyncStatus } from '@/store/syncStore';
 import { getCourse, getDefaultCourse, DEFAULT_COURSE_ID } from '@/data/courseRegistry';
 import { cn } from '@/lib/utils';
 
 export default function DashboardPage() {
   const router = useRouter();
   const { user: authUser, isLoading } = useUser();
-  const { syncStatus, isSyncing } = useSyncStatus();
-  const { dueCount } = useReviewQueue(authUser?.id || null);
+  const { status: syncStatus, isSyncing } = useSyncStatus();
 
   // Show loading skeleton while checking auth
   if (isLoading) {
@@ -126,13 +123,6 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      {/* Review Queue Widget - Full widget with top 5 items */}
-      {dueCount > 0 && (
-        <Section delay={0}>
-          <ReviewQueueWidget userId={user.id} maxItems={5} />
-        </Section>
-      )}
-
       {/* Exam Readiness Widget - Only show when exam mode is enabled */}
       {user.preferences?.examModeEnabled && user.preferences?.certificationExamDate && (
         <Section delay={0.05}>
@@ -141,13 +131,6 @@ export default function DashboardPage() {
             targetRetention={user.preferences.targetRetention || 0.95}
             userId={user.id}
           />
-        </Section>
-      )}
-
-      {/* AI Insights Widget - ML-driven learning insights with explanations */}
-      {!isNewUser && (
-        <Section delay={0.08}>
-          <AIInsightsWidget userId={user.id} />
         </Section>
       )}
 
@@ -315,25 +298,6 @@ export default function DashboardPage() {
                   <p className="text-xs text-rich-black/60">complete</p>
                 </div>
               </div>
-
-              {/* Due for Review */}
-              {dueCount > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex items-center gap-3 p-3 bg-purple/5 rounded-lg cursor-pointer hover:bg-purple/10 transition-colors"
-                  onClick={() => router.push('/review')}
-                >
-                  <div className="w-10 h-10 bg-purple/20 rounded-lg flex items-center justify-center">
-                    <Brain size={20} className="text-purple" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-2xl font-bold text-navy">{dueCount}</p>
-                    <p className="text-xs text-rich-black/60">due for review</p>
-                  </div>
-                  <ArrowRight size={16} className="text-purple" />
-                </motion.div>
-              )}
 
               {/* Longest Streak Info */}
               {streak.longestStreak > streak.currentStreak && (

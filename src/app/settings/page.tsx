@@ -28,7 +28,8 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Section } from '@/components/layout/AppLayout';
 import { ExamModeSettings } from '@/components/settings/ExamModeSettings';
-import { useUser, useAuth, useUnifiedStore } from '@/store/unifiedStore';
+import { useAuth } from '@/store/authStore';
+import { useUser, useUserProfileStore } from '@/store/userProfileStore';
 import { cn } from '@/lib/utils';
 import type { LearningPace, InterleavingIntensity } from '@/types';
 
@@ -36,8 +37,8 @@ export default function SettingsPage() {
   const router = useRouter();
   const { user, updatePreferences } = useUser();
   const { signOut } = useAuth();
-  const setUser = useUnifiedStore((state) => state.setUser);
-  const resetUser = useUnifiedStore((state) => state.resetUser);
+  const setUser = useUserProfileStore((state) => state.setUser);
+  const resetUser = useUserProfileStore((state) => state.resetUser);
 
   const [soundEffects, setSoundEffects] = useState(user?.preferences.soundEffectsEnabled ?? true);
   const [voiceEnabled, setVoiceEnabled] = useState(user?.preferences.voiceEnabled ?? true);

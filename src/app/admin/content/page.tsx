@@ -19,7 +19,7 @@ import {
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { CourseUploader } from '@/components/admin/CourseUploader'
-import { useUser } from '@/store/unifiedStore'
+import { useUser } from '@/store/userProfileStore'
 
 type ContentStats = {
   totalCourses: number

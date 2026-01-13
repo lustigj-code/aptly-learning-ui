@@ -25,7 +25,8 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Character } from '@/components/characters/Character';
-import { useUnifiedStore, createNewUser } from '@/store/unifiedStore';
+import { useAuthStore } from '@/store/authStore';
+import { useUserProfileStore, createNewUser } from '@/store/userProfileStore';
 import { BADGES } from '@/data/mockData';
 import { updateProfile, updatePreferences } from '@/lib/api/userApi';
 import { cn, calculateWeeksToComplete } from '@/lib/utils';
@@ -97,7 +98,7 @@ const timeCommitments: { minutes: number; pace: LearningPace; label: string }[] 
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const setUser = useUnifiedStore((state) => state.setUser);
+  const setUser = useUserProfileStore((state) => state.setUser);
 
   const [currentStep, setCurrentStep] = useState<OnboardingStep>('welcome');
   const [name, setName] = useState('');
@@ -138,7 +139,7 @@ export default function OnboardingPage() {
 
   const handleComplete = async () => {
     // Get the Firebase auth user to use their UID
-    const authUser = useUnifiedStore.getState().authUser;
+    const authUser = useAuthStore.getState().authUser;
 
     // Create a fresh user with actual onboarding data
     const newUser = createNewUser(

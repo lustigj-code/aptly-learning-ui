@@ -51,7 +51,7 @@ function CustomTooltip({
     return (
       <div className="bg-white border border-grey/20 rounded-lg shadow-lg p-3">
         <p className="text-sm text-grey">{fullDate}</p>
-        <p className="text-lg font-bold text-navy">{value}% mastery</p>
+        <p className="text-lg font-bold text-navy">{value}%</p>
       </div>
     );
   }
@@ -61,7 +61,7 @@ function CustomTooltip({
 export function MasteryTrajectoryChart({
   data,
   targetMastery = MASTERY_TARGET,
-  title = 'Mastery Over Time',
+  title = 'Learning Progress',
   description = 'Track your learning progress',
   className,
 }: MasteryTrajectoryChartProps) {
@@ -101,7 +101,7 @@ export function MasteryTrajectoryChart({
         <CardContent>
           <div className="flex flex-col items-center justify-center h-48 text-grey">
             <TrendingUp size={32} className="mb-2 opacity-50" />
-            <p>No mastery data yet</p>
+            <p>No progress data yet</p>
             <p className="text-sm">Complete lessons to see your progress</p>
           </div>
         </CardContent>
@@ -165,7 +165,7 @@ export function MasteryTrajectoryChart({
                 strokeDasharray="5 5"
                 strokeWidth={2}
                 label={{
-                  value: `Target ${targetMastery * 100}%`,
+                  value: `Goal ${targetMastery * 100}%`,
                   position: 'right',
                   fill: '#22c55e',
                   fontSize: 12,
@@ -199,7 +199,7 @@ export function MasteryTrajectoryChart({
           </div>
           <div className="flex items-center gap-2">
             <div className="w-6 h-0.5 bg-success border-dashed border-t-2 border-success" />
-            <span className="text-grey">Mastery Target</span>
+            <span className="text-grey">Goal</span>
           </div>
         </div>
       </CardContent>

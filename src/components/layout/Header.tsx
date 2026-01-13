@@ -5,7 +5,8 @@ import { Bell, User, ChevronDown, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getGreeting } from '@/lib/utils';
 import { InlineStreak } from '@/components/progress/StreakCounter';
-import { useUser, useUnifiedStore } from '@/store/unifiedStore';
+import { useUser } from '@/store/userProfileStore';
+import { useUIStore } from '@/store/uiStore';
 
 type HeaderProps = {
   showGreeting?: boolean;
@@ -22,7 +23,7 @@ export function Header({
 }: HeaderProps) {
   const { user } = useUser();
   const greeting = getGreeting();
-  const toggleMobileMenu = useUnifiedStore((state) => state.toggleMobileMenu);
+  const toggleMobileMenu = useUIStore((state) => state.toggleMobileMenu);
 
   return (
     <motion.header

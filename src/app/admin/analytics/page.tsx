@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useUser } from '@/store/unifiedStore';
+import { useUser } from '@/store/userProfileStore';
 import { useRouter } from 'next/navigation';
 import { OverviewPanel } from '@/components/admin/OverviewPanel';
 import { ExperimentPanel } from '@/components/admin/ExperimentPanel';

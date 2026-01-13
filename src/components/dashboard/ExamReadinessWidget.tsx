@@ -12,22 +12,12 @@ import {
   ChevronRight,
   TrendingUp,
   Clock,
-  Brain,
-  Info,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { CircularProgress } from '@/components/ui/ProgressBar';
 import { cn } from '@/lib/utils';
 import type { ExamReadinessResult } from '@/lib/mastery/examReadiness';
-
-type ModelInfo = {
-  currentModel: 'bkt' | 'blended' | 'hybrid';
-  usingHybrid: boolean;
-  interactionCount: number;
-  hybridThreshold: number;
-  avgConfidence: number;
-};
 
 type ExamReadinessWidgetProps = {
   examDate: Date;
@@ -42,11 +32,8 @@ export function ExamReadinessWidget({
 }: ExamReadinessWidgetProps) {
   const router = useRouter();
   const [readiness, setReadiness] = useState<ExamReadinessResult | null>(null);
-  const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
   const [avgMastery, setAvgMastery] = useState<number>(0);
-  const [avgConfidence, setAvgConfidence] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [showModelTooltip, setShowModelTooltip] = useState(false);
 
   useEffect(() => {
     async function fetchReadinessData() {
@@ -73,18 +60,11 @@ export function ExamReadinessWidget({
         if (response.ok) {
           const data = await response.json();
 
-          // Extract model info
-          if (data.modelInfo) {
-            setModelInfo(data.modelInfo);
-          }
-
-          // Calculate average mastery and confidence from nodes
+          // Calculate average mastery from nodes
           if (data.data?.nodes && data.data.nodes.length > 0) {
             const nodes = data.data.nodes;
             const totalMastery = nodes.reduce((sum: number, n: any) => sum + (n.mlMastery ?? n.mastery ?? 0), 0);
-            const totalConfidence = nodes.reduce((sum: number, n: any) => sum + (n.confidence ?? 0.5), 0);
             setAvgMastery(totalMastery / nodes.length);
-            setAvgConfidence(totalConfidence / nodes.length);
           }
         }
       } catch (error) {
@@ -234,14 +214,14 @@ export function ExamReadinessWidget({
           </div>
 
           {/* Metrics Row */}
-          <div className="grid grid-cols-3 gap-3 pt-2 border-t border-grey/20">
+          <div className="grid grid-cols-2 gap-4 pt-2 border-t border-grey/20">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-purple/10 flex items-center justify-center">
                 <Target size={16} className="text-purple" />
               </div>
               <div>
                 <p className="text-sm font-medium text-navy">{Math.round(projectedRetention)}%</p>
-                <p className="text-xs text-rich-black/60">Projected</p>
+                <p className="text-xs text-rich-black/60">Projected Score</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -252,52 +232,6 @@ export function ExamReadinessWidget({
                 <p className="text-sm font-medium text-navy">{dailyReviewsNeeded}/day</p>
                 <p className="text-xs text-rich-black/60">Reviews needed</p>
               </div>
-            </div>
-            {/* AI Confidence - ML Model Info */}
-            <div
-              className="flex items-center gap-2 relative"
-              onMouseEnter={() => setShowModelTooltip(true)}
-              onMouseLeave={() => setShowModelTooltip(false)}
-            >
-              <div className="w-8 h-8 rounded-lg bg-navy/10 flex items-center justify-center">
-                <Brain size={16} className="text-navy" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-navy flex items-center gap-1">
-                  {Math.round(avgConfidence * 100)}%
-                  <Info size={12} className="text-rich-black/40" />
-                </p>
-                <p className="text-xs text-rich-black/60">
-                  {modelInfo?.usingHybrid ? 'AI Confidence' : 'Building profile'}
-                </p>
-              </div>
-              {/* Tooltip */}
-              {showModelTooltip && (
-                <motion.div
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="absolute bottom-full left-0 mb-2 p-2 bg-navy text-white text-xs rounded-lg shadow-lg z-10 w-48"
-                >
-                  {modelInfo?.usingHybrid ? (
-                    <>
-                      <p className="font-medium mb-1">Hybrid ML Model Active</p>
-                      <p className="text-white/80">
-                        Using {modelInfo.interactionCount} interactions to predict your mastery with{' '}
-                        {Math.round(avgConfidence * 100)}% confidence.
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="font-medium mb-1">Building Your Profile</p>
-                      <p className="text-white/80">
-                        {modelInfo?.hybridThreshold
-                          ? `${modelInfo.hybridThreshold - (modelInfo?.interactionCount || 0)} more interactions needed for personalized AI predictions.`
-                          : 'Keep practicing to unlock personalized predictions!'}
-                      </p>
-                    </>
-                  )}
-                </motion.div>
-              )}
             </div>
           </div>
 

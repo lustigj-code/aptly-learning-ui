@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, use } from 'react';
-import { useUser } from '@/store/unifiedStore';
+import { useUser } from '@/store/userProfileStore';
 import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';

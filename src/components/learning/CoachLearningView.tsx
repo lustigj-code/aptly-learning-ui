@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/Button'
 import { useCoach } from '@/hooks/useCoach'
 import { useReviewQueue } from '@/hooks/useReviewQueue'
 import { useOfflineSync } from '@/hooks/useOfflineSync'
-import { useUser } from '@/store/unifiedStore'
+import { useUser } from '@/store/userProfileStore'
 import { cn } from '@/lib/utils'
 import { getCourse, getDefaultCourse, DEFAULT_COURSE_ID } from '@/data/courseRegistry'
 import type { Atom, Lesson, Module } from '@/types'
@@ -189,6 +189,24 @@ function getModule(courseId?: string, moduleId?: string): Module {
     lessons: [],
     isLocked: false,
   }
+}
+
+/**
+ * Find the next uncompleted lesson in a module
+ * Returns the lesson and its index, or null if all lessons are complete
+ */
+function findNextUncompletedLesson(
+  module: Module,
+  lessonsCompleted: string[],
+  startIndex: number = 0
+): { lesson: Lesson; index: number } | null {
+  for (let i = startIndex; i < module.lessons.length; i++) {
+    const lesson = module.lessons[i]
+    if (!lessonsCompleted.includes(lesson.id)) {
+      return { lesson, index: i }
+    }
+  }
+  return null // All lessons in module are completed
 }
 
 // ============================================
@@ -635,6 +653,64 @@ export function CoachLearningView({
     saveSession(sessionState)
   }, [sessionState])
 
+  // Sync server progress and auto-advance past completed lessons
+  // This runs when component mounts or when server progress updates
+  const hasAutoAdvancedRef = useRef(false)
+  useEffect(() => {
+    // Get completed lessons from server (Firebase user progress)
+    const serverLessonsCompleted = user?.progress?.lessonsCompleted || []
+
+    // Don't run if no server data yet
+    if (serverLessonsCompleted.length === 0) return
+
+    // Get current lesson
+    const currentLessonId = module.lessons[sessionState.currentLessonIndex]?.id
+
+    // Check if current lesson is already completed on server
+    if (currentLessonId && serverLessonsCompleted.includes(currentLessonId)) {
+      // Find next uncompleted lesson starting from current position
+      const next = findNextUncompletedLesson(
+        module,
+        serverLessonsCompleted,
+        sessionState.currentLessonIndex
+      )
+
+      if (next && !hasAutoAdvancedRef.current) {
+        // Navigate to next uncompleted lesson
+        hasAutoAdvancedRef.current = true
+        setSessionState(prev => ({
+          ...prev,
+          currentLessonIndex: next.index,
+          currentAtomIndex: 0,
+          // Sync completedLessonIds from server
+          completedLessonIds: serverLessonsCompleted,
+        }))
+        console.log(`[CoachLearningView] Auto-advanced from completed lesson to: ${next.lesson.title}`)
+      } else if (!next) {
+        // All lessons in module are completed - just sync the state
+        setSessionState(prev => ({
+          ...prev,
+          completedLessonIds: serverLessonsCompleted,
+        }))
+        console.log('[CoachLearningView] All lessons in module completed')
+      }
+    } else {
+      // Current lesson is not completed, sync completedLessonIds from server
+      setSessionState(prev => {
+        // Only update if different to avoid unnecessary re-renders
+        const currentIds = prev.completedLessonIds.sort().join(',')
+        const serverIds = serverLessonsCompleted.sort().join(',')
+        if (currentIds !== serverIds) {
+          return {
+            ...prev,
+            completedLessonIds: serverLessonsCompleted,
+          }
+        }
+        return prev
+      })
+    }
+  }, [user?.progress?.lessonsCompleted, module.id])
+
   // Set initial coach tip - personalized based on insights
   useEffect(() => {
     if (currentAtom && currentLesson) {
@@ -867,6 +943,10 @@ export function CoachLearningView({
 
   // Handle continue button
   const handleContinue = useCallback(() => {
+    console.log('[CoachLearningView] handleContinue called')
+    console.log('[CoachLearningView] isLastAtomInLesson:', isLastAtomInLesson, 'isLastLesson:', isLastLesson)
+    console.log('[CoachLearningView] currentAtomIndex:', sessionState.currentAtomIndex, 'totalAtoms:', currentLesson.atoms.length)
+
     if (isLastAtomInLesson) {
       // Complete current lesson
       if (!sessionState.completedLessonIds.includes(currentLesson.id)) {
@@ -901,9 +981,11 @@ export function CoachLearningView({
 
       if (isLastLesson) {
         // Module complete!
+        console.log('[CoachLearningView] Module complete!')
         setCoachTip("Congratulations! You've completed this module!")
       } else {
         // Move to next lesson
+        console.log('[CoachLearningView] Moving to next lesson')
         setSessionState(prev => ({
           ...prev,
           currentLessonIndex: prev.currentLessonIndex + 1,
@@ -912,6 +994,7 @@ export function CoachLearningView({
       }
     } else {
       // Move to next atom
+      console.log('[CoachLearningView] Moving to next atom')
       setSessionState(prev => ({
         ...prev,
         currentAtomIndex: prev.currentAtomIndex + 1,
@@ -919,6 +1002,7 @@ export function CoachLearningView({
     }
 
     setContentComplete(false)
+    console.log('[CoachLearningView] setContentComplete(false) called')
   }, [isLastAtomInLesson, isLastLesson, currentLesson, sessionState.completedLessonIds, onLessonComplete, effectiveCourseId, withOfflineSupport])
 
   // Handle swipe to previous atom
@@ -957,13 +1041,34 @@ export function CoachLearningView({
     // const prereqsMet = areLessonPrerequisitesMet(targetLesson.id, masteryLevels)
     // if (!prereqsMet) { ... }
 
+    // Get server-side completed lessons
+    const serverLessonsCompleted = user?.progress?.lessonsCompleted || []
+
+    // If selected lesson is already completed, find next uncompleted lesson
+    if (serverLessonsCompleted.includes(targetLesson.id)) {
+      const next = findNextUncompletedLesson(module, serverLessonsCompleted, index)
+      if (next) {
+        // Navigate to next uncompleted lesson instead
+        setSessionState(prev => ({
+          ...prev,
+          currentLessonIndex: next.index,
+          currentAtomIndex: 0,
+          completedLessonIds: serverLessonsCompleted,
+        }))
+        setContentComplete(false)
+        console.log(`[CoachLearningView] Redirected from completed lesson to: ${next.lesson.title}`)
+        return
+      }
+      // All lessons completed - let them view the last one
+    }
+
     setSessionState(prev => ({
       ...prev,
       currentLessonIndex: index,
       currentAtomIndex: 0,
     }))
     setContentComplete(false)
-  }, [module.lessons])
+  }, [module.lessons, module, user?.progress?.lessonsCompleted])
 
   // Handle struggle intervention acceptance
   const handleStruggleIntervention = useCallback((intervention: StruggleInterventionType) => {
@@ -1070,7 +1175,7 @@ export function CoachLearningView({
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Content Area - Full Screen */}
-        <div className="flex-1 flex flex-col px-4 sm:px-6 md:px-8 py-4 sm:py-6">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden px-4 sm:px-6 md:px-8 py-4 sm:py-6">
           {/* Inline Header */}
           <div className="flex items-center justify-between mb-4 flex-shrink-0">
             <div className="flex items-center gap-3 min-w-0">
@@ -1158,44 +1263,11 @@ export function CoachLearningView({
             </div>
           </div>
 
-          {/* Real-Time Mastery Bar (Phase 3-2) */}
-          {currentSkillMastery > 0 && (
-            <div className="mb-3 flex-shrink-0">
-              <RealTimeMasteryBar
-                currentMastery={currentSkillMastery}
-                previousMastery={previousSkillMastery}
-                skillName={currentLesson.title}
-                size="sm"
-                showChange={previousSkillMastery !== undefined}
-              />
-            </div>
-          )}
-
-          {/* Why This Content explanation (Phase 3-2) */}
-          {contentReason && sessionState.currentAtomIndex === 0 && (
-            <div className="mb-3 flex-shrink-0">
-              <WhyThisContent
-                reason={contentReason}
-                skillName={currentLesson.title}
-                currentMastery={currentSkillMastery}
-                targetMastery={85}
-                size="sm"
-                expandable={true}
-              />
-            </div>
-          )}
-
-          {/* Content Skip Option for mastered content (Phase 3-2) */}
-          {currentSkillMastery >= 85 && currentAtom.type !== 'quiz' && (
-            <div className="mb-3 flex-shrink-0">
-              <ContentSkipOption
-                mastery={currentSkillMastery}
-                masteryThreshold={85}
-                skillName={currentLesson.title}
-                onSkip={handleSkipToQuiz}
-              />
-            </div>
-          )}
+          {/* Phase 3-2 intelligence components hidden for cleaner UI
+              - RealTimeMasteryBar (duplicate with header progress)
+              - WhyThisContent (yellow explanation box)
+              - ContentSkipOption (green skip box)
+          */}
 
           {/* Content - Fills remaining space */}
           <div className="flex-1 min-h-0 relative overflow-hidden">

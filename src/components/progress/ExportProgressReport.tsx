@@ -51,7 +51,7 @@ export type ProgressReportData = {
 type ExportProgressReportProps = {
   data: ProgressReportData | null;
   isLoading?: boolean;
-  onExport?: () => Promise<ProgressReportData>;
+  onExport?: () => Promise<ProgressReportData | null | undefined>;
   className?: string;
 };
 
@@ -142,7 +142,7 @@ https://aptlylearning.com
     setError(null);
 
     try {
-      let reportData = data;
+      let reportData: ProgressReportData | null | undefined = data;
 
       // If onExport is provided, fetch fresh data
       if (onExport) {

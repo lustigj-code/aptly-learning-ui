@@ -14,10 +14,10 @@ import { Brain, TrendingUp, Calendar, Target, Lightbulb } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { generateDashboardInsights } from '@/lib/ai/dashboard-insights';
-import { useUnifiedStore } from '@/store/unifiedStore';
+import { useUserProfileStore } from '@/store/userProfileStore';
 
 export function DashboardAIInsights() {
-  const user = useUnifiedStore((state) => state.user);
+  const user = useUserProfileStore((state) => state.user);
   const [insights, setInsights] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 

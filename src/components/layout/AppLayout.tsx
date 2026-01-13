@@ -4,7 +4,9 @@ import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
-import { useUnifiedStore, useUser } from '@/store/unifiedStore';
+import { useAuthStore } from '@/store/authStore';
+import { useUser } from '@/store/userProfileStore';
+import { useUIStore } from '@/store/uiStore';
 import { cn } from '@/lib/utils';
 import { useHydration } from '@/hooks/useHydration';
 
@@ -16,8 +18,8 @@ export function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname();
   const hydrated = useHydration();
   const { user, isLoading } = useUser();
-  const isAuthenticated = useUnifiedStore((state) => state.isAuthenticated);
-  const sidebarCollapsed = useUnifiedStore((state) => state.sidebarCollapsed);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const sidebarCollapsed = useUIStore((state) => state.sidebarCollapsed);
 
   // Skip layout for onboarding, root, and learn (learning has its own full-screen layout)
   const skipLayout = pathname === '/onboarding' || pathname === '/' || pathname === '/learn';

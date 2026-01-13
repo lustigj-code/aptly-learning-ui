@@ -14,7 +14,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ReviewQueue } from '@/components/mastery/ReviewQueue';
-import { useUnifiedStore } from '@/store/unifiedStore';
+import { useUserProfileStore } from '@/store/userProfileStore';
 import { get, post } from '@/lib/api/client';
 import { SOCIAL_MEDIA_MARKETING_GRAPH } from '@/lib/mastery/knowledgeGraph';
 import type { ConceptMastery } from '@/lib/mastery/knowledgeGraph';
@@ -33,7 +33,7 @@ type ReviewItem = {
 };
 
 export function ReviewTab() {
-  const user = useUnifiedStore((state) => state.user);
+  const user = useUserProfileStore((state) => state.user);
   const [reviewItems, setReviewItems] = useState<ConceptMastery[]>([]);
   const [dueCount, setDueCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);

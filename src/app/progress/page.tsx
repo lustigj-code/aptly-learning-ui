@@ -18,15 +18,12 @@ import { SkeletonProgressPage } from '@/components/ui/Skeleton';
 import {
   StreakCalendar,
   MasteryTrajectoryChart,
-  PredictionAccuracyWidget,
-  SkillGapAnalysis,
-  TimeToMasteryWidget,
   ExportProgressReport,
 } from '@/components/progress';
 import { Section } from '@/components/layout/AppLayout';
 import { SkillMap } from '@/components/mastery/SkillMap';
-import { useUser } from '@/store/unifiedStore';
-import { useProgressReport, generateMockProgressData } from '@/hooks/useProgressReport';
+import { useUser } from '@/store/userProfileStore';
+import { useProgressReport } from '@/hooks/useProgressReport';
 import { COURSES } from '@/data/mockData';
 import { cn, formatDuration } from '@/lib/utils';
 
@@ -41,18 +38,13 @@ export default function ProgressPage() {
     refresh: refreshReport,
   } = useProgressReport(user?.id ?? null);
 
-  // Use mock data for demo if no real data available
-  const mockData = generateMockProgressData();
-  const displayVisualization = visualization || mockData.visualization;
-  const displayReport = report || mockData.report;
-
-  // Handler for export
+  // Handler for export - only export real data
   const handleExport = useCallback(async () => {
     if (report) return report;
     // Generate fresh report data
     await refreshReport();
-    return report || mockData.report;
-  }, [report, refreshReport, mockData.report]);
+    return report;
+  }, [report, refreshReport]);
 
   if (isLoading || !user) {
     return <SkeletonProgressPage />;
@@ -62,7 +54,10 @@ export default function ProgressPage() {
   const userProgress = user.progress || {};
   const streak = user.streak || { currentStreak: 0, longestStreak: 0, freezesAvailable: 2, streakHistory: [] };
 
-  const totalLessons = 47; // Demo value
+  // Calculate total lessons from actual course data
+  const totalLessons = COURSES.reduce((total, course) => {
+    return total + course.modules.reduce((modTotal, mod) => modTotal + mod.lessons.length, 0);
+  }, 0) || 47; // Fallback if modules not populated
   const completedPercentage = userProgress.overallPercentage || 0;
   const estimatedCompletion = new Date();
   estimatedCompletion.setDate(estimatedCompletion.getDate() + 45); // Estimate
@@ -84,7 +79,7 @@ export default function ProgressPage() {
               <span>Started {new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
             </div>
             <ExportProgressReport
-              data={displayReport}
+              data={report}
               isLoading={isReportLoading}
               onExport={handleExport}
             />
@@ -137,39 +132,31 @@ export default function ProgressPage() {
         </Card>
       </Section>
 
-      {/* ML-Powered Visualizations Grid */}
-      <Section delay={0.15}>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Mastery Over Time */}
+      {/* Learning Progress Chart - Only show with real data */}
+      {visualization && visualization.masteryHistory.length > 0 && (
+        <Section delay={0.15}>
           <MasteryTrajectoryChart
-            data={displayVisualization.masteryHistory}
-            title="Mastery Trajectory"
-            description="Your learning progress over time"
+            data={visualization.masteryHistory}
+            title="Learning Progress"
+            description="Your progress over time"
           />
+        </Section>
+      )}
 
-          {/* AI Prediction Accuracy */}
-          <PredictionAccuracyWidget
-            stats={displayVisualization.predictionStats}
-          />
-        </div>
-      </Section>
-
-      {/* Skill Analysis Grid */}
-      <Section delay={0.2}>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Skill Gap Analysis - Analytics view (no action buttons) */}
-          <SkillGapAnalysis
-            gaps={displayVisualization.skillGaps}
-            maxItems={5}
-          />
-
-          {/* Time to Mastery */}
-          <TimeToMasteryWidget
-            predictions={displayVisualization.masteryPredictions}
-            maxItems={5}
-          />
-        </div>
-      </Section>
+      {/* Empty state for new users without progress data */}
+      {!visualization && !isReportLoading && (
+        <Section delay={0.15}>
+          <Card variant="outlined" padding="lg" className="text-center">
+            <div className="py-8">
+              <TrendingUp size={48} className="mx-auto text-grey mb-4" />
+              <h3 className="h4 text-navy mb-2">Start Learning to See Your Progress</h3>
+              <p className="text-rich-black/60 max-w-md mx-auto">
+                Complete lessons to see your learning progress tracked over time.
+              </p>
+            </div>
+          </Card>
+        </Section>
+      )}
 
       {/* Course Progress */}
       <Section delay={0.25}>
@@ -187,8 +174,8 @@ export default function ProgressPage() {
                   (userProgress.coursesCompleted || []).includes(p)
                 );
 
-                // Calculate course progress
-                const moduleCount = 3;
+                // Calculate course progress dynamically
+                const moduleCount = course.modules.length || 3; // Fallback to 3 if not populated
                 const completedModules = (userProgress.modulesCompleted || []).filter(
                   m => m.startsWith(`c${course.number}-`)
                 ).length;
