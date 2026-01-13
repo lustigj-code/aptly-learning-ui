@@ -1,3 +1,11 @@
+/**
+ * @deprecated This endpoint writes to the legacy `userProgress` collection.
+ * The main learning flow uses `/api/progress/sync` instead, which writes to
+ * the correct `users.progress` location.
+ *
+ * TODO: Migrate this endpoint to use `users` collection with `progress.*` fields
+ * once legacy atom components are removed.
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminAuth } from '@/lib/firebase/admin';
 import { z } from 'zod';

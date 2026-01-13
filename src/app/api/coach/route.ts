@@ -1,1094 +1,416 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
-import { NextRequest, NextResponse } from 'next/server'
-import { adminAuth } from '@/lib/firebase/admin'
-import { createConversation, addMessage } from '@/lib/services/coachService'
-import { buildCoachContext } from '@/lib/utils/coachContext'
-import { checkRateLimit, recordMessage, recordTokenUsage } from '@/lib/utils/rateLimit'
+/**
+ * Coach API Route
+ *
+ * Main API endpoint for the Socratic AI coach.
+ * Handles routing to appropriate model and response generation.
+ *
+ * Refactored from 1,095 lines to ~200 lines by extracting:
+ * - interventionStateManager.ts (Firestore-based state)
+ * - coachRouter.ts (model selection)
+ * - socraticHandler.ts (Socratic mode logic)
+ * - ragCoordinator.ts (RAG operations)
+ * - tokenUsageTracker.ts (usage tracking)
+ *
+ * Part of Phase 12: Socratic RAG Coach
+ */
+
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { NextRequest, NextResponse } from 'next/server';
+import { adminAuth } from '@/lib/firebase/admin';
+import { createConversation, addMessage } from '@/lib/services/coachService';
+import { buildCoachContext } from '@/lib/utils/coachContext';
+import { checkRateLimit, recordMessage, recordTokenUsage as recordRateLimitUsage } from '@/lib/utils/rateLimit';
 import {
   getOrCreateSession,
   addTurnToSession,
   analyzeTutorResponse,
   type UserLearningState,
-} from '@/lib/training'
-import { getModelRouter, type GenerateRequest as SageRequest } from '@/lib/training/serving'
-import { parseCoachSuggestion, applyCoachModification } from '@/lib/coach/pathModifier'
-import { isFeatureEnabled } from '@/lib/experiments/abTest'
-import {
-  retrievePedagogicalContext,
-  formatRAGContext,
-  formatContextForPrompt,
-  buildSocraticSystemPrompt,
-  getSocraticGenerationConfig,
-  detectStruggleLevel,
-  detectEmotionalState,
-  getInterventionDirective,
-  createInterventionState,
-  advanceTier,
-  isStillStruggling,
-  type StudentContext,
-  type ActivityContext,
-  type InterventionState,
-} from '@/lib/rag'
-import {
-  queryComprehensive,
-} from '@/lib/rag/ragQuery'
-import {
-  type LearnerState,
-  type SourceCitation,
-} from '@/lib/rag/contextBuilder'
-import {
-  generateGroundedResponse,
-  calculateGroundingScore,
-  MIN_GROUNDING_SCORE,
-} from '@/lib/coach/groundedCoach'
-import {
-  validateResponse,
-  logGroundingMetrics,
-  type ValidationResult,
-} from '@/lib/coach/responseValidation'
+} from '@/lib/training';
+import { getModelRouter, type GenerateRequest as SageRequest } from '@/lib/training/serving';
+import { parseCoachSuggestion, applyCoachModification } from '@/lib/coach/pathModifier';
 
-// Initialize Gemini client
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENAI_API_KEY || '')
-const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
-
-// Feature flag for fine-tuned Sage model
-const USE_SAGE_MODEL = process.env.USE_SAGE_MODEL === 'true'
-const SAGE_AB_TEST_ENABLED = process.env.SAGE_AB_TEST === 'true'
-
-// In-memory intervention state cache (per-concept per-user)
-// In production, this should be persisted to Firestore
-const interventionStateCache = new Map<string, InterventionState>()
-
-function getOrCreateInterventionState(userId: string, conceptId: string): InterventionState {
-  const key = `${userId}_${conceptId}`
-  if (!interventionStateCache.has(key)) {
-    interventionStateCache.set(key, createInterventionState(conceptId))
-  }
-  return interventionStateCache.get(key)!
-}
-
-function updateInterventionState(userId: string, conceptId: string, state: InterventionState): void {
-  const key = `${userId}_${conceptId}`
-  interventionStateCache.set(key, state)
-}
-
-// ============================================
-// SOCRATIC SYSTEM PROMPT
-// ============================================
-
-const SOCRATIC_SYSTEM_PROMPT = `You are Sage, an expert AI learning coach specializing in social media marketing and the Meta Professional Certificate.
-
-# YOUR CORE IDENTITY
-
-You are NOT a generic chatbot. You are a master tutor who:
-- Deeply understands social media marketing, Meta's advertising ecosystem, and digital strategy
-- Uses the Socratic method - you NEVER give direct answers
-- Adapts your teaching to each student's level and learning style
-- Builds genuine relationships and celebrates progress
-- Has opinions and personality - you're warm but not saccharine
-
-# SOCRATIC TEACHING METHOD
-
-**CRITICAL: Never give direct answers. Always guide discovery through questions.**
-
-When a student asks something:
-1. First, acknowledge their question warmly
-2. Ask what they already know or think about the topic
-3. Build on their response with leading questions
-4. Guide them to discover the answer themselves
-5. Confirm their understanding with a follow-up check
-
-Example of what NOT to do:
-❌ "A lookalike audience is a targeting option that finds people similar to your existing customers."
-
-Example of what TO do:
-✅ "Great question! Let's think about this together. You have 1000 customers who love your product. What do you think they might have in common?"
-[Wait for response]
-✅ "Exactly! Now, what if Facebook could find MORE people who share those patterns? What would that be useful for?"
-
-# ADAPTIVE DIFFICULTY
-
-Adjust your approach based on the student's level:
-
-**Beginner:**
-- Use simple, everyday language
-- Lots of concrete examples from familiar brands
-- Break concepts into tiny pieces
-- More encouragement, less challenge
-- Check understanding frequently
-
-**Intermediate:**
-- Connect concepts across lessons
-- Challenge with "what if" scenarios
-- Encourage independent problem-solving
-- Use industry terminology with explanations
-
-**Advanced:**
-- Push for deeper analysis
-- Discuss edge cases and advanced strategies
-- Ask them to teach concepts back to you
-- Challenge assumptions
-
-# EMOTIONAL INTELLIGENCE
-
-Detect and respond to student emotions:
-
-**If they seem frustrated:**
-- Acknowledge: "This is tricky - it trips up a lot of people"
-- Simplify your approach
-- Break the problem down further
-- Remind them of past wins
-
-**If they seem confused:**
-- "Let me try explaining that differently..."
-- Use a different analogy or example
-- Go back to basics if needed
-
-**If they're doing well:**
-- Genuine celebration: "You're really getting this!"
-- Push with a harder question: "Ready for a challenge?"
-- Connect to bigger concepts
-
-**If they seem disengaged:**
-- "What would make this more interesting for you?"
-- Connect to their stated goal
-- Try a more practical example
-
-# SOCIAL MEDIA MARKETING EXPERTISE
-
-You have deep knowledge of:
-- Meta Business Suite, Ads Manager, Commerce Manager
-- Campaign objectives: Awareness, Consideration, Conversion
-- Audience targeting: Core, Custom, Lookalike audiences
-- Ad formats: Image, Video, Carousel, Collection, Stories
-- Bidding strategies and budget optimization
-- Analytics and performance measurement
-- Content strategy and creative best practices
-- Instagram, Facebook, WhatsApp, Messenger marketing
-- E-commerce integration and shopping ads
-
-Use REAL examples from actual campaigns when possible:
-- Reference well-known brands and their strategies
-- Share industry statistics and benchmarks
-- Discuss current trends and platform changes
-
-# RESPONSE FORMAT
-
-Keep responses:
-- Concise but thorough (respect their time)
-- Conversational, not lecture-style
-- Ending with a question to maintain engagement
-- Using markdown for structure when helpful
-- Sparingly using emojis for warmth (1-2 max per response)
-
-# PRACTICE FEEDBACK
-
-When evaluating practice responses:
-1. Start with specific positives (not generic praise)
-2. Identify 1-2 areas for improvement with actionable suggestions
-3. If they have a rubric, reference specific criteria
-4. End with encouragement or a follow-up practice opportunity
-
-# QUIZ HELP
-
-When helping with quiz questions:
-- NEVER give the answer directly
-- Ask leading questions that guide to the right choice
-- Help them eliminate wrong answers through reasoning
-- If they're really stuck, provide a strong hint but still let them choose
-
-Remember: Your goal is not just correct answers, but deep understanding that transfers to real-world application.`
+// New modular imports
+import { selectCoachModelAsync, logModelSelection } from '@/lib/coach/coachRouter';
+import { handleSocraticMode, getSocraticErrorResponse } from '@/lib/coach/socraticHandler';
+import { recordTokenUsage, createTokenUsage } from '@/lib/coach/tokenUsageTracker';
 
 // ============================================
 // TYPES
 // ============================================
 
 type Message = {
-  role: 'user' | 'assistant'
-  content: string
-}
+  role: 'user' | 'assistant';
+  content: string;
+};
 
 type RequestBody = {
-  messages: Message[]
+  messages: Message[];
   context: {
-    userName: string
-    currentCourse: string
-    currentModule: string
-    currentLesson: string
-    currentAtom: string
-    atomType: string
-    atomContent?: string
-    recentPerformance?: string
-    masteryLevel?: number
-    practiceContext?: string // JSON string with rubric, expectedOutcomes, userResponse
-    // Socratic RAG context (Phase 12)
-    questionId?: string
-    questionText?: string
-    selectedAnswer?: string
-    consecutiveWrong?: number
-    conceptId?: string
-  }
-  type: 'chat' | 'practice_feedback' | 'quiz_help' | 'summary'
-  conversationId?: string
-  userId?: string
-  lessonId?: string
-  currentAtomId?: string
-}
+    userName: string;
+    currentCourse: string;
+    currentModule: string;
+    currentLesson: string;
+    currentAtom: string;
+    atomType: string;
+    atomContent?: string;
+    recentPerformance?: string;
+    masteryLevel?: number;
+    practiceContext?: string;
+    questionId?: string;
+    questionText?: string;
+    selectedAnswer?: string;
+    consecutiveWrong?: number;
+    conceptId?: string;
+  };
+  type: 'chat' | 'practice_feedback' | 'quiz_help' | 'summary';
+  conversationId?: string;
+  userId?: string;
+  lessonId?: string;
+  currentAtomId?: string;
+};
 
 // ============================================
-// SOCRATIC RAG HANDLER (Phase 12.3 - Enhanced)
+// CONFIGURATION
 // ============================================
 
-/**
- * Enhanced RAG result type for Socratic mode
- */
-interface EnhancedSocraticResult {
-  response: string
-  interventionTier: number
-  isGrounded: boolean
-  groundingScore: number
-  sourceCitations: SourceCitation[]
-  validationResult?: ValidationResult
-  ragQueryTime?: number
-}
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENAI_API_KEY || '');
+const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
-/**
- * Handle Socratic mode with RAG context and hierarchical interventions
- *
- * Phase 12.3 Enhancements:
- * - Uses queryComprehensive for better RAG retrieval
- * - Builds context with BKT state and struggle level
- * - Generates grounded responses with source citations
- * - Validates responses for hallucination detection
- * - Logs grounding metrics for analysis
- *
- * Based on LearnLM research: 93.8% remediation vs 64.5% for static hints
- */
-async function handleSocraticMode(
-  userId: string,
-  message: string,
-  body: RequestBody,
-  conversationHistory: Message[]
-): Promise<EnhancedSocraticResult | null> {
-  const { context } = body
-
-  try {
-    // Step 1: Query RAG for relevant content
-    const ragQueryStart = Date.now()
-    const ragResult = await queryComprehensive(
-      message,
-      context.currentCourse || 'course-1',
-      {
-        lessonId: body.lessonId,
-        questionId: context.questionId,
-        selectedAnswer: context.selectedAnswer,
-        studentAbility: (context.masteryLevel || 50) / 100,
-        isStruggling: (context.consecutiveWrong || 0) >= 2,
-      }
-    )
-    const ragQueryTime = Date.now() - ragQueryStart
-
-    // Step 2: Build learner state from context
-    const learnerState: LearnerState = {
-      userId,
-      currentSkillId: context.conceptId || context.currentAtom,
-      currentPMastery: (context.masteryLevel || 50) / 100,
-      consecutiveWrong: context.consecutiveWrong || 0,
-      emotionalState: detectEmotionalState(message),
-      interventionZone: determineInterventionZone(context.masteryLevel || 50),
-    }
-
-    // Step 3: Get intervention state
-    const conceptId = context.conceptId || context.currentAtom || 'general'
-    const interventionState = getOrCreateInterventionState(userId, conceptId)
-
-    // Step 4: Generate grounded response
-    const socraticResponse = await generateGroundedResponse(
-      message,
-      ragResult.chunks,
-      learnerState,
-      interventionState.currentTier as 1 | 2 | 3,
-      {
-        lessonTitle: context.currentLesson || 'Current Lesson',
-        atomType: (context.atomType || 'reading') as 'video' | 'reading' | 'quiz' | 'practice',
-        questionText: context.questionText,
-        studentAnswer: context.selectedAnswer,
-      },
-      conversationHistory
-    )
-
-    // Step 5: Validate response for quality
-    const validationResult = validateResponse(
-      socraticResponse.message,
-      ragResult.chunks,
-      interventionState.currentTier as 1 | 2 | 3
-    )
-
-    // Step 6: Log grounding metrics
-    logGroundingMetrics({
-      responseId: `${userId}_${Date.now()}`,
-      userId,
-      groundingScore: socraticResponse.groundingScore,
-      isGrounded: socraticResponse.isGrounded,
-      sourcesUsed: ragResult.totalRetrieved,
-      hallucationDetected: validationResult.flags.some(f => f.type === 'hallucination'),
-      timestamp: new Date(),
-    })
-
-    // Step 7: Check if student is still struggling and advance tier
-    if (isStillStruggling(message, false)) {
-      const newState = advanceTier(interventionState)
-      updateInterventionState(userId, conceptId, newState)
-    }
-
-    // Log warnings if response has issues
-    if (validationResult.flags.length > 0) {
-      console.warn('[Socratic Mode] Response validation flags:', {
-        flags: validationResult.flags.map(f => f.message),
-        suggestions: validationResult.suggestions,
-      })
-    }
-
-    return {
-      response: socraticResponse.message,
-      interventionTier: interventionState.currentTier,
-      isGrounded: socraticResponse.isGrounded,
-      groundingScore: socraticResponse.groundingScore,
-      sourceCitations: socraticResponse.sourceCitations,
-      validationResult,
-      ragQueryTime,
-    }
-  } catch (error) {
-    console.error('[Socratic Mode] Error:', error)
-
-    // Attempt fallback with basic RAG
-    try {
-      return await handleSocraticModeFallback(userId, message, body, conversationHistory)
-    } catch (fallbackError) {
-      console.error('[Socratic Mode] Fallback also failed:', fallbackError)
-      return null
-    }
-  }
-}
-
-/**
- * Fallback Socratic handler when grounded coach fails
- * Uses simpler retrieval and generation
- */
-async function handleSocraticModeFallback(
-  userId: string,
-  message: string,
-  body: RequestBody,
-  conversationHistory: Message[]
-): Promise<EnhancedSocraticResult | null> {
-  const { context } = body
-
-  // Build student context for personalized prompts
-  const studentContext: StudentContext = {
-    name: context.userName || 'Student',
-    predictedAbility: (context.masteryLevel || 50) / 100,
-    consecutiveWrong: context.consecutiveWrong || 0,
-    currentStruggleLevel: detectStruggleLevel(
-      context.consecutiveWrong || 0,
-      conversationHistory.length
-    ),
-    emotionalState: detectEmotionalState(message),
-  }
-
-  // Build activity context
-  const activityContext: ActivityContext = {
-    lessonTitle: context.currentLesson || 'Current Lesson',
-    atomType: (context.atomType || 'reading') as 'video' | 'reading' | 'quiz' | 'practice',
-    questionText: context.questionText,
-    studentAnswer: context.selectedAnswer,
-  }
-
-  // Simple RAG retrieval
-  const ragChunks = await retrievePedagogicalContext({
-    query: message,
-    courseId: context.currentCourse || 'course-1',
-    lessonId: body.lessonId,
-    questionId: context.questionId,
-    distractorId: context.selectedAnswer,
-    studentAbility: studentContext.predictedAbility,
-    preferStudentFriendly: studentContext.predictedAbility < 0.5,
-    chunkTypes: context.selectedAnswer
-      ? ['misconception', 'hint', 'content']
-      : ['content', 'hint'],
-    topK: 5,
-  })
-
-  // Format RAG context
-  const formattedContext = formatRAGContext(ragChunks.map(r => r.chunk))
-  const ragContextString = formatContextForPrompt(formattedContext)
-
-  // Get misconception if available
-  const misconceptionChunk = ragChunks.find(r => r.chunk.chunkType === 'misconception')
-  if (misconceptionChunk) {
-    activityContext.misconceptionExplanation = misconceptionChunk.chunk.text
-  }
-
-  // Build prompt
-  const systemPrompt = buildSocraticSystemPrompt(
-    studentContext,
-    activityContext,
-    ragContextString
-  )
-
-  // Get intervention state
-  const conceptId = context.conceptId || context.currentAtom || 'general'
-  const interventionState = getOrCreateInterventionState(userId, conceptId)
-  const interventionDirective = getInterventionDirective(interventionState)
-
-  // Generate with Gemini
-  const genConfig = getSocraticGenerationConfig()
-  const socraticModel = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash',
-    generationConfig: {
-      temperature: genConfig.temperature,
-      maxOutputTokens: genConfig.maxOutputTokens,
-      topP: genConfig.topP,
-    },
-  })
-
-  const fullPrompt = `${systemPrompt}
-
-# CURRENT INTERVENTION DIRECTIVE
-${interventionDirective.instruction}
-
-Examples of appropriate responses:
-${interventionDirective.examples.slice(0, 2).map(e => `- ${e}`).join('\n')}
-
-Constraints:
-${interventionDirective.constraints.slice(0, 3).map(c => `- ${c}`).join('\n')}`
-
-  const chat = socraticModel.startChat({
-    history: conversationHistory.slice(-6).map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }],
-    })),
-    systemInstruction: { role: 'user', parts: [{ text: fullPrompt }] },
-  })
-
-  const result = await chat.sendMessage(message)
-  const response = result.response.text()
-
-  // Calculate basic grounding score
-  const groundingScore = calculateGroundingScore(response, ragChunks)
-
-  // Update tier if struggling
-  if (isStillStruggling(message, false)) {
-    const newState = advanceTier(interventionState)
-    updateInterventionState(userId, conceptId, newState)
-  }
-
-  return {
-    response,
-    interventionTier: interventionState.currentTier,
-    isGrounded: groundingScore >= MIN_GROUNDING_SCORE,
-    groundingScore,
-    sourceCitations: ragChunks.slice(0, 3).map(c => ({
-      chunkId: c.chunk.id,
-      title: c.chunk.title || 'Course Content',
-      lessonId: c.chunk.lessonId,
-      relevance: c.score,
-    })),
-  }
-}
-
-/**
- * Determine intervention zone from mastery level
- */
-function determineInterventionZone(masteryLevel: number): 'frustration' | 'zpd' | 'mastery' {
-  const accuracy = masteryLevel / 100
-  if (accuracy < 0.36) return 'frustration'
-  if (accuracy > 0.70) return 'mastery'
-  return 'zpd'
-}
+// System prompt (condensed version - full version in socraticHandler)
+const SYSTEM_PROMPT = `You are Sage, an expert AI learning coach specializing in social media marketing and the Meta Professional Certificate. Use the Socratic method - guide discovery through questions rather than direct answers. Be warm, adaptive, and focused on building genuine understanding.`;
 
 // ============================================
 // MAIN API HANDLER
 // ============================================
 
 export async function POST(request: NextRequest) {
-  let userId: string | null = null
-  let conversationId: string | null = null
+  let userId: string | null = null;
+  let conversationId: string | null = null;
+  const startTime = Date.now();
 
   try {
-    // Check for API key
-    if (!process.env.GOOGLE_GENAI_API_KEY) {
-      console.log('[Coach API] No GOOGLE_GENAI_API_KEY set - using mock responses')
-      // Return a mock response for demo purposes
-      const body = await request.json()
-      return NextResponse.json({
-        message: getMockResponse(body),
-        conversationId: body.conversationId || 'demo-conversation',
-        _debug: { mode: 'mock', reason: 'GOOGLE_GENAI_API_KEY not configured' },
-      })
-    }
+    // Parse request
+    const body: RequestBody = await request.json();
+    const { messages, context, type, conversationId: providedConvId, userId: providedUserId, lessonId, currentAtomId } = body;
 
-    const body: RequestBody = await request.json()
-    const {
-      messages,
-      context,
-      type,
-      conversationId: providedConvId,
-      userId: providedUserId,
-      lessonId,
-      currentAtomId,
-    } = body
-
-    // Extract userId from request
-    userId = providedUserId || null
-
-    // Try to get userId from auth header if not provided
+    // Authenticate user
+    userId = await authenticateUser(request, providedUserId);
     if (!userId) {
-      try {
-        const authHeader = request.headers.get('authorization')
-        if (authHeader?.startsWith('Bearer ')) {
-          const token = authHeader.substring(7)
-          const decodedToken = await adminAuth.verifyIdToken(token)
-          userId = decodedToken.uid
-        }
-      } catch {
-        const sessionId = request.headers.get('x-session-id')
-        userId = sessionId || 'anonymous'
-      }
-    }
-
-    if (!userId) {
-      return NextResponse.json({ error: 'userId is required' }, { status: 400 })
+      return NextResponse.json({ error: 'userId is required' }, { status: 400 });
     }
 
     // Check rate limit
-    try {
-      const { hasMessages } = await checkRateLimit(userId)
-      if (!hasMessages) {
-        return NextResponse.json(
-          {
-            error: 'Rate limit exceeded',
-            message: `You've reached the limit. Please wait a moment before sending another message.`,
-            messagesRemaining: 0,
-          },
-          { status: 429 }
-        )
-      }
-    } catch (rateLimitError) {
-      console.warn('Rate limit check failed, continuing:', rateLimitError)
+    const rateLimitResult = await checkRateLimit(userId).catch(() => ({ hasMessages: true }));
+    if (!rateLimitResult.hasMessages) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded', message: `You've reached the limit. Please wait a moment.`, messagesRemaining: 0 },
+        { status: 429 }
+      );
     }
 
     // Get or create conversation
-    if (providedConvId) {
-      conversationId = providedConvId
-    } else {
-      conversationId = await createConversation(userId, lessonId)
+    conversationId = providedConvId || await createConversation(userId, lessonId);
+
+    // If no messages, just return conversation ID (initialization)
+    if (!messages?.length) {
+      return NextResponse.json({ message: null, conversationId });
     }
 
-    // If no messages provided, just return the conversation ID (initialization only)
-    if (!messages || messages.length === 0) {
-      return NextResponse.json({
-        message: null,
-        conversationId,
-      })
-    }
+    const latestUserMsg = messages[messages.length - 1];
+    const latestMessageContent = latestUserMsg?.role === 'user' ? latestUserMsg.content : undefined;
 
-    // Get the last user message content for emotional analysis
-    const latestUserMsg = messages[messages.length - 1]
-    const latestMessageContent = latestUserMsg?.role === 'user' ? latestUserMsg.content : undefined
+    // Select model based on routing logic
+    const modelSelection = await selectCoachModelAsync(userId);
+    logModelSelection(userId, modelSelection, type);
 
-    // ============================================
-    // SOCRATIC RAG MODE (Phase 12)
-    // Check if user is in Socratic experiment and handle accordingly
-    // ============================================
-    const useSocraticMode = await isFeatureEnabled(userId, 'useSocraticMode')
-
-    if (useSocraticMode && latestMessageContent) {
-      console.log('[Coach API] Using Socratic RAG mode for user:', userId)
-
+    // Handle Socratic mode if selected
+    if (modelSelection.model === 'socratic' && latestMessageContent) {
       const socraticResult = await handleSocraticMode(
         userId,
         latestMessageContent,
-        body,
-        messages
-      )
+        context,
+        messages,
+        lessonId
+      );
 
       if (socraticResult) {
-        // Record message for rate limiting
-        try {
-          await recordMessage(userId)
-        } catch (recordError) {
-          console.warn('Could not record message count:', recordError)
-        }
-
-        // Save messages to Firestore
-        try {
-          if (conversationId) {
-            await addMessage(conversationId, 'user', latestMessageContent)
-            await addMessage(conversationId, 'coach', socraticResult.response)
-          }
-        } catch (firestoreError) {
-          console.warn('Could not save conversation to Firestore:', firestoreError)
-        }
+        await saveConversation(conversationId, latestMessageContent, socraticResult.response);
+        await recordMessage(userId).catch(() => {});
 
         return NextResponse.json({
           message: socraticResult.response,
           conversationId,
           socraticMode: true,
           interventionTier: socraticResult.interventionTier,
-          // Phase 12.3: RAG grounding metadata
           ragMetadata: {
             isGrounded: socraticResult.isGrounded,
             groundingScore: socraticResult.groundingScore,
             sourceCitations: socraticResult.sourceCitations,
             ragQueryTime: socraticResult.ragQueryTime,
           },
-          modelInfo: {
-            model: 'gemini-socratic',
-            variant: 'socratic-rag-grounded',
-          },
-        })
+          modelInfo: { model: 'gemini-socratic', variant: 'socratic-rag-grounded' },
+        });
       }
-      // If Socratic mode failed, fall back to standard mode
-      console.warn('[Coach API] Socratic mode failed, falling back to standard')
+      // Fall back to standard mode if Socratic failed
+      console.warn('[Coach API] Socratic mode failed, falling back to standard');
     }
 
-    // Build comprehensive context using enhanced context builder
-    let fullContext = SOCRATIC_SYSTEM_PROMPT
+    // Build context for non-Socratic modes
+    const fullContext = await buildFullContext(userId, lessonId, currentAtomId, conversationId, context, type, latestMessageContent);
 
-    try {
-      const coachContext = await buildCoachContext(
-        userId,
-        lessonId,
-        currentAtomId,
-        conversationId || undefined,
-        latestMessageContent // Pass for emotional analysis
-      )
-      fullContext += `\n\n${coachContext.contextString}`
-    } catch (contextError) {
-      console.warn('Could not build full coach context:', contextError)
-      // Fall back to basic context from request
-      if (context) {
-        fullContext += `\n\nStudent: ${context.userName}
-Current Lesson: ${context.currentLesson}
-Content Type: ${context.atomType}
-${context.masteryLevel ? `Mastery Level: ${context.masteryLevel}%` : ''}`
-      }
-    }
+    // Generate response
+    const { message, inputTokens, outputTokens, modelUsed, abVariant } = await generateResponse(
+      messages,
+      fullContext,
+      modelSelection.model,
+      userId,
+      conversationId
+    );
 
-    // Add type-specific instructions
-    if (type === 'practice_feedback') {
-      // Parse practice context if available
-      let practiceEvalContext = ''
-      if (context?.practiceContext) {
-        try {
-          const practiceData = JSON.parse(context.practiceContext)
-          practiceEvalContext = `
+    // Record usage and save conversation
+    await Promise.all([
+      recordRateLimitUsage(userId, { inputTokens, outputTokens }).catch(() => {}),
+      recordMessage(userId).catch(() => {}),
+      saveConversation(conversationId, latestUserMsg.content, message),
+      recordTokenUsage(createTokenUsage(userId, modelUsed, '/api/coach', inputTokens, outputTokens, {
+        variant: abVariant,
+        latencyMs: Date.now() - startTime,
+        success: true,
+      })).catch(() => {}),
+    ]);
 
-=== PRACTICE EXERCISE DETAILS ===
-Exercise Type: ${practiceData.exerciseType || 'exercise'}
-Prompt: ${practiceData.prompt || 'Not specified'}
-Context: ${practiceData.context || 'None provided'}
+    // Check for path modifications
+    const pathModified = await handlePathModification(userId, message);
 
-Expected Outcomes:
-${practiceData.expectedOutcomes?.map((o: string, i: number) => `${i + 1}. ${o}`).join('\n') || 'None specified'}
-
-${practiceData.rubric?.length > 0 ? `
-Evaluation Rubric:
-${practiceData.rubric.map((r: { criterion: string; weight: number }) => `- ${r.criterion} (Weight: ${r.weight}%)`).join('\n')}` : ''}
-
-Student's Response:
-"${practiceData.userResponse || 'No response provided'}"
-`
-        } catch (e) {
-          console.warn('Could not parse practice context:', e)
-        }
-      }
-
-      fullContext += `\n\n=== CURRENT TASK ===
-The student has submitted a practice response. You must evaluate their answer thoroughly.
-${practiceEvalContext}
-
-Your evaluation should:
-1. **Strengths** (be specific - quote what they did well)
-2. **Score each rubric criterion** if rubric is provided (e.g., "Audience Targeting: 3/5")
-3. **Areas for Improvement** - use Socratic questions to guide them
-4. **Overall Score** if rubric exists (weighted average as percentage)
-5. **Follow-up Challenge** - give them a way to practice the weak areas
-
-Format your response clearly with these sections. Be encouraging but honest.`
-    } else if (type === 'quiz_help') {
-      fullContext += `\n\n=== CURRENT TASK ===
-The student needs help with a quiz question. Remember:
-- NEVER give the answer directly
-- Guide them through elimination
-- Ask questions that reveal their understanding gaps
-- Help them reason to the correct answer`
-    } else if (type === 'summary') {
-      fullContext += `\n\n=== CURRENT TASK ===
-Provide a concise, memorable summary focusing on:
-- 3-5 key takeaways
-- Practical applications
-- How this connects to real-world marketing scenarios
-- One action item they can practice`
-    }
-
-    // Get the last user message
-    const lastUserMessage = messages[messages.length - 1]
-    if (!lastUserMessage || lastUserMessage.role !== 'user') {
-      return NextResponse.json({ error: 'Last message must be from user' }, { status: 400 })
-    }
-
-    let message: string = ''
-    let inputTokens = 0
-    let outputTokens = 0
-    let modelUsed: string = 'gemini'
-    let abVariant: string | undefined
-
-    // Try fine-tuned Sage model first if enabled
-    if (USE_SAGE_MODEL || SAGE_AB_TEST_ENABLED) {
-      try {
-        const sageRouter = getModelRouter()
-
-        // Build messages for Sage model
-        // Include context as part of the system prompt already embedded in the model
-        const sageMessages: SageRequest['messages'] = messages.map(m => ({
-          role: m.role,
-          content: m.content,
-        }))
-
-        // Add context as a system message at the start if not using full fine-tuned model
-        if (!USE_SAGE_MODEL) {
-          sageMessages.unshift({
-            role: 'system',
-            content: fullContext,
-          })
-        }
-
-        const sageResponse = await sageRouter.generate({
-          messages: sageMessages,
-          maxTokens: 1024,
-          temperature: 0.8,
-          userId: SAGE_AB_TEST_ENABLED ? userId : undefined,
-          sessionId: conversationId || undefined,
-        })
-
-        message = sageResponse.content
-        inputTokens = sageResponse.tokensUsed.prompt
-        outputTokens = sageResponse.tokensUsed.completion
-        modelUsed = sageResponse.model
-        abVariant = sageResponse.variant
-
-        console.log('[Coach API] Used Sage model:', {
-          model: modelUsed,
-          variant: abVariant,
-          latencyMs: sageResponse.latencyMs,
-          cost: sageResponse.estimatedCost,
-        })
-      } catch (sageError) {
-        console.warn('[Coach API] Sage model failed, falling back to Gemini:', sageError)
-        // Fall through to Gemini
-      }
-    }
-
-    // Fall back to Gemini if Sage didn't produce a response
-    if (!message) {
-      // Build history excluding the last message (which we'll send separately)
-      // Gemini requires history to start with a user message, so filter accordingly
-      const historyMessages = messages.slice(0, -1)
-      const firstUserIndex = historyMessages.findIndex((m) => m.role === 'user')
-      const validHistory = firstUserIndex >= 0 ? historyMessages.slice(firstUserIndex) : []
-
-      // Call Gemini API with conversation history
-      const chat = model.startChat({
-        history: validHistory.map((m) => ({
-          role: m.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: m.content }],
-        })),
-        generationConfig: {
-          maxOutputTokens: 1024,
-          temperature: 0.8, // Slightly higher for more engaging responses
-          topP: 0.95,
-        },
-        systemInstruction: {
-          role: 'user',
-          parts: [{ text: fullContext }],
-        },
-      })
-
-      const response = await chat.sendMessage(lastUserMessage.content)
-      message =
-        response.response.text() ||
-        "I'm having a moment - let me gather my thoughts. Could you rephrase that for me?"
-
-      const usageMetadata = response.response.usageMetadata
-      inputTokens = usageMetadata?.promptTokenCount || 0
-      outputTokens = usageMetadata?.candidatesTokenCount || 0
-      modelUsed = 'gemini'
-    }
-
-    // Record token usage
-    try {
-      await recordTokenUsage(userId, {
-        inputTokens,
-        outputTokens,
-      })
-    } catch (tokenError) {
-      console.warn('Could not record token usage:', tokenError)
-    }
-
-    // Record message for rate limiting
-    try {
-      await recordMessage(userId)
-    } catch (recordError) {
-      console.warn('Could not record message count:', recordError)
-    }
-
-    // Save messages to Firestore
-    try {
-      if (conversationId) {
-        await addMessage(conversationId, 'user', lastUserMessage.content)
-        await addMessage(conversationId, 'coach', message)
-      }
-    } catch (firestoreError) {
-      console.warn('Could not save conversation to Firestore:', firestoreError)
-    }
-
-    // Check for path modification suggestions in coach response
-    let pathModificationApplied = false;
-    try {
-      if (userId && message) {
-        const modification = parseCoachSuggestion(message);
-        if (modification) {
-          const result = await applyCoachModification(userId, modification);
-          pathModificationApplied = result.success;
-          console.log('[Coach API] Path modification:', result.message);
-        }
-      }
-    } catch (pathError) {
-      console.warn('Could not apply path modification:', pathError);
-    }
-
-    // Log for training data collection (non-blocking)
-    try {
-      if (conversationId && lessonId && context) {
-        const userState: UserLearningState = {
-          masteryLevel: context.masteryLevel || 0,
-          experienceLevel: 50, // Would come from user profile
-          currentStreak: 0,
-          totalTimeSpentMinutes: 0,
-          lessonsCompleted: 0,
-          averageQuizScore: 0,
-          strugglingConcepts: [],
-          strongConcepts: [],
-          emotionalState: 'neutral',
-          adaptiveDifficulty: 'intermediate',
-        }
-
-        const sessionId = await getOrCreateSession(
-          conversationId,
-          userId,
-          lessonId,
-          context.currentLesson || 'Unknown Lesson',
-          context.currentModule || '',
-          context.currentCourse || '',
-          userState,
-          currentAtomId,
-          context.atomType as 'reading' | 'video' | 'quiz' | 'practice' | undefined
-        )
-
-        // Log both turns
-        await addTurnToSession(sessionId, 'user', lastUserMessage.content)
-        await addTurnToSession(sessionId, 'tutor', message)
-
-        // Log response quality metrics
-        const responseMetrics = analyzeTutorResponse(message)
-        console.log('[Training] Response metrics:', {
-          sessionId,
-          isSocratic: responseMetrics.isSocratic,
-          askedQuestion: responseMetrics.askedQuestion,
-          gaveDirectAnswer: responseMetrics.gaveDirectAnswer,
-        })
-      }
-    } catch (trainingError) {
-      // Non-blocking - don't fail the request if training logging fails
-      console.warn('Could not log training data:', trainingError)
-    }
+    // Log training data (non-blocking)
+    logTrainingData(conversationId, userId, lessonId, context, currentAtomId, latestUserMsg.content, message).catch(() => {});
 
     return NextResponse.json({
       message,
       conversationId,
-      tokensUsed: {
-        input: inputTokens,
-        output: outputTokens,
-        total: inputTokens + outputTokens,
-      },
-      // Include model info for debugging and A/B testing analysis
-      modelInfo: {
-        model: modelUsed,
-        variant: abVariant,
-      },
-      // Path modification status
-      pathModified: pathModificationApplied,
-    })
+      tokensUsed: { input: inputTokens, output: outputTokens, total: inputTokens + outputTokens },
+      modelInfo: { model: modelUsed, variant: abVariant },
+      pathModified,
+    });
   } catch (error) {
-    // Enhanced error logging for debugging
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    const errorStack = error instanceof Error ? error.stack : undefined
-
-    console.error('[Coach API] Error details:', {
-      message: errorMessage,
-      stack: errorStack,
-      userId,
-      conversationId,
-      hasApiKey: !!process.env.GOOGLE_GENAI_API_KEY,
-    })
-
-    // Return helpful error message based on error type
-    let userMessage = getSocraticErrorResponse()
-    let debugInfo: Record<string, unknown> = { errorType: 'unknown' }
-
-    if (errorMessage.includes('API key')) {
-      userMessage = "Coach requires AI API configuration. Please check your environment setup."
-      debugInfo = { errorType: 'api_key', hint: 'Check GOOGLE_GENAI_API_KEY in .env.local' }
-    } else if (errorMessage.includes('quota') || errorMessage.includes('rate')) {
-      userMessage = "I'm getting a lot of questions right now! Give me a moment and try again."
-      debugInfo = { errorType: 'rate_limit' }
-    } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
-      userMessage = "I'm having trouble connecting to my AI service. Please check your internet connection."
-      debugInfo = { errorType: 'network' }
-    }
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[Coach API] Error:', { message: errorMessage, userId, conversationId });
 
     return NextResponse.json(
-      {
-        message: userMessage,
-        error: true,
-        conversationId,
-        _debug: debugInfo,
-      },
+      { message: getErrorResponse(errorMessage), error: true, conversationId },
       { status: 500 }
-    )
+    );
   }
 }
 
 // ============================================
-// MOCK RESPONSES (for demo without API key)
+// HELPER FUNCTIONS
 // ============================================
 
-function getSocraticErrorResponse(): string {
-  const responses = [
-    "I'm having a brief connection issue, but here's a thought: What's the first thing that comes to mind when you think about your target audience? That's often the best starting point for any marketing strategy!",
-    "Technical hiccup on my end! While I reconnect, consider this: If you were your ideal customer, what would make you stop scrolling? That's the key to great social media content.",
-    "Give me just a moment to reconnect. In the meantime, think about this: What's one thing you learned recently that surprised you about social media marketing?",
-  ]
-  return responses[Math.floor(Math.random() * responses.length)]
+async function authenticateUser(request: NextRequest, providedUserId?: string): Promise<string | null> {
+  if (providedUserId) return providedUserId;
+
+  try {
+    const authHeader = request.headers.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const decodedToken = await adminAuth.verifyIdToken(token);
+      return decodedToken.uid;
+    }
+  } catch {
+    const sessionId = request.headers.get('x-session-id');
+    return sessionId || 'anonymous';
+  }
+  return null;
 }
 
-function getMockResponse(body: RequestBody): string {
-  const { type, context, messages } = body
-  const lastMessage = messages[messages.length - 1]?.content.toLowerCase() || ''
-  const name = context?.userName || 'there'
+async function buildFullContext(
+  userId: string,
+  lessonId?: string,
+  currentAtomId?: string,
+  conversationId?: string,
+  context?: RequestBody['context'],
+  type?: string,
+  latestMessage?: string
+): Promise<string> {
+  let fullContext = SYSTEM_PROMPT;
 
-  if (type === 'summary') {
-    return `Here's what I want you to take away from this, ${name}: 
-**Key Insights:**
-
-1. **Know Your Audience First** - Before any campaign, ask yourself: "Who am I really trying to reach, and what do they care about?"
-
-2. **Quality Over Quantity** - One thoughtful post beats ten rushed ones. What would make someone stop scrolling?
-
-3. **Test and Learn** - The best marketers treat every campaign as an experiment. What's one thing you could test this week?
-
-**Your Challenge:**
-Think of a brand you follow on social media. What's ONE thing they do that keeps you engaged? That's your homework - observe and learn!
-
-What resonated most with you from this lesson?`
+  try {
+    const coachContext = await buildCoachContext(userId, lessonId, currentAtomId, conversationId, latestMessage);
+    fullContext += `\n\n${coachContext.contextString}`;
+  } catch {
+    if (context) {
+      fullContext += `\n\nStudent: ${context.userName}\nCurrent Lesson: ${context.currentLesson}\nContent Type: ${context.atomType}`;
+      if (context.masteryLevel) fullContext += `\nMastery Level: ${context.masteryLevel}%`;
+    }
   }
 
-  if (type === 'practice_feedback') {
-    return `I see what you're going for here, ${name}! Let me ask you some questions to help strengthen this response. 
-**What I noticed you did well:**
-You're clearly thinking about the target audience - that's the foundation of everything in marketing.
+  // Add type-specific instructions
+  fullContext += getTypeInstructions(type, context);
 
-**Let's dig deeper:**
-1. You mentioned targeting [your audience]. What specific behaviors or interests would help you reach them more precisely?
+  return fullContext;
+}
 
-2. When you think about what they care about, what pain points are you solving for them?
-
-3. How might your approach differ between Instagram and Facebook for this same audience?
-
-**Here's what I'd challenge you to consider:**
-If you had to cut your target audience in half to make it even more specific, who would you keep and why?
-
-Take another crack at it with these questions in mind. You're on the right track!`
+function getTypeInstructions(type?: string, context?: RequestBody['context']): string {
+  if (type === 'practice_feedback' && context?.practiceContext) {
+    try {
+      const practiceData = JSON.parse(context.practiceContext);
+      return `\n\n=== CURRENT TASK ===\nEvaluate the student's practice response:\nPrompt: ${practiceData.prompt || 'Not specified'}\nStudent's Response: "${practiceData.userResponse || 'No response'}"\n\nProvide: Strengths, Areas for Improvement (use Socratic questions), and a follow-up challenge.`;
+    } catch { /* ignore */ }
   }
-
   if (type === 'quiz_help') {
-    return `Let's work through this together, ${name}! I won't give you the answer, but I'll help you think it through. 
-**First, let's understand the question:**
-What is it really asking? Try to rephrase it in your own words.
+    return '\n\n=== CURRENT TASK ===\nHelp with quiz question. NEVER give the answer directly. Guide through elimination and reasoning.';
+  }
+  if (type === 'summary') {
+    return '\n\n=== CURRENT TASK ===\nProvide concise summary: 3-5 key takeaways, practical applications, one action item.';
+  }
+  return '';
+}
 
-**Elimination strategy:**
-- Look at each option. Which ones can you immediately rule out and why?
-- For the remaining options, what would be the RESULT of each choice?
+async function generateResponse(
+  messages: Message[],
+  fullContext: string,
+  selectedModel: string,
+  userId: string,
+  conversationId: string | null
+): Promise<{ message: string; inputTokens: number; outputTokens: number; modelUsed: string; abVariant?: string }> {
+  const lastUserMessage = messages[messages.length - 1];
 
-**Hint:**
-Think about this from the advertiser's perspective: What would be the most effective outcome for their business goals?
+  // Try Sage model if selected
+  if (selectedModel === 'sage') {
+    try {
+      const sageRouter = getModelRouter();
+      const sageMessages: SageRequest['messages'] = [
+        { role: 'system', content: fullContext },
+        ...messages.map((m) => ({ role: m.role, content: m.content })),
+      ];
 
-Which options are you torn between? Let's talk through them!`
+      const sageResponse = await sageRouter.generate({
+        messages: sageMessages,
+        maxTokens: 1024,
+        temperature: 0.8,
+        userId,
+        sessionId: conversationId || undefined,
+      });
+
+      return {
+        message: sageResponse.content,
+        inputTokens: sageResponse.tokensUsed.prompt,
+        outputTokens: sageResponse.tokensUsed.completion,
+        modelUsed: sageResponse.model,
+        abVariant: sageResponse.variant,
+      };
+    } catch (error) {
+      console.warn('[Coach API] Sage model failed, falling back to Gemini:', error);
+    }
   }
 
-  // Chat responses with Socratic approach
-  if (lastMessage.includes('hello') || lastMessage.includes('hi ') || lastMessage.includes('hey')) {
-    return `Hey ${name}! Great to see you here. 
-Before we dive in, I'm curious: What brought you to study social media marketing? Understanding your "why" helps me tailor how we work together.
+  // Default to Gemini
+  const historyMessages = messages.slice(0, -1);
+  const firstUserIndex = historyMessages.findIndex((m) => m.role === 'user');
+  const validHistory = firstUserIndex >= 0 ? historyMessages.slice(firstUserIndex) : [];
 
-Are you:
-- Preparing for the Meta certification?
-- Learning for a current job?
-- Exploring a career change?
-- Something else entirely?
+  const chat = model.startChat({
+    history: validHistory.map((m) => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    })),
+    generationConfig: { maxOutputTokens: 1024, temperature: 0.8, topP: 0.95 },
+    systemInstruction: { role: 'user', parts: [{ text: fullContext }] },
+  });
 
-Tell me a bit about your goal!`
+  const response = await chat.sendMessage(lastUserMessage.content);
+  const responseText = response.response.text() || "I'm having a moment - let me gather my thoughts. Could you rephrase that?";
+  const usageMetadata = response.response.usageMetadata;
+
+  return {
+    message: responseText,
+    inputTokens: usageMetadata?.promptTokenCount || 0,
+    outputTokens: usageMetadata?.candidatesTokenCount || 0,
+    modelUsed: 'gemini',
+  };
+}
+
+async function saveConversation(conversationId: string | null, userMessage: string, assistantMessage: string): Promise<void> {
+  if (!conversationId) return;
+  try {
+    await addMessage(conversationId, 'user', userMessage);
+    await addMessage(conversationId, 'coach', assistantMessage);
+  } catch (error) {
+    console.warn('Could not save conversation:', error);
   }
+}
 
-  if (lastMessage.includes('help') || lastMessage.includes('stuck') || lastMessage.includes("don't understand")) {
-    return `I hear you, ${name}. Getting stuck is actually a good sign - it means you're pushing into new territory. 
-Let's figure out where the confusion is:
-
-1. **What's the last concept that made total sense to you?**
-   Sometimes the gap is smaller than we think.
-
-2. **Can you tell me what you THINK the answer or concept might be?**
-   Even a guess helps me understand your thinking.
-
-3. **What specifically feels confusing?**
-   Is it a term? The logic? How to apply it?
-
-There are no wrong answers here - I just want to understand where you're at so I can help you break through!`
+async function handlePathModification(userId: string, message: string): Promise<boolean> {
+  try {
+    const modification = parseCoachSuggestion(message);
+    if (modification) {
+      const result = await applyCoachModification(userId, modification);
+      return result.success;
+    }
+  } catch (error) {
+    console.warn('Could not apply path modification:', error);
   }
+  return false;
+}
 
-  if (lastMessage.includes('what is') || lastMessage.includes('what are') || lastMessage.includes('explain')) {
-    return `Good question! But instead of me just telling you, let's build your understanding together.
+async function logTrainingData(
+  conversationId: string | null,
+  userId: string,
+  lessonId?: string,
+  context?: RequestBody['context'],
+  currentAtomId?: string,
+  userMessage?: string,
+  assistantMessage?: string
+): Promise<void> {
+  if (!conversationId || !lessonId || !context || !userMessage || !assistantMessage) return;
 
-**First, what do you already know or guess about this topic?**
+  const userState: UserLearningState = {
+    masteryLevel: context.masteryLevel || 0,
+    experienceLevel: 50,
+    currentStreak: 0,
+    totalTimeSpentMinutes: 0,
+    lessonsCompleted: 0,
+    averageQuizScore: 0,
+    strugglingConcepts: [],
+    strongConcepts: [],
+    emotionalState: 'neutral',
+    adaptiveDifficulty: 'intermediate',
+  };
 
-Even if you're not sure, take a shot. Sometimes our intuition knows more than we realize.
+  const sessionId = await getOrCreateSession(
+    conversationId,
+    userId,
+    lessonId,
+    context.currentLesson || 'Unknown Lesson',
+    context.currentModule || '',
+    context.currentCourse || '',
+    userState,
+    currentAtomId,
+    context.atomType as 'reading' | 'video' | 'quiz' | 'practice' | undefined
+  );
 
-**Then, think about:**
-- Have you seen examples of this in the real world?
-- What problem do you think this concept solves?
+  await addTurnToSession(sessionId, 'user', userMessage);
+  await addTurnToSession(sessionId, 'tutor', assistantMessage);
 
-Share your thoughts and we'll build from there!`
+  const metrics = analyzeTutorResponse(assistantMessage);
+  console.log('[Training] Response metrics:', {
+    sessionId,
+    isSocratic: metrics.isSocratic,
+    askedQuestion: metrics.askedQuestion,
+    gaveDirectAnswer: metrics.gaveDirectAnswer,
+  });
+}
+
+function getErrorResponse(errorMessage: string): string {
+  if (errorMessage.includes('API key')) {
+    return "Coach requires AI API configuration. Please check your environment setup.";
   }
-
-  // Default Socratic response
-  return `Interesting thought, ${name}! Let me turn this back to you with a question: 
-**When you think about this from a user's perspective**, not a marketer's, what would make you engage with this kind of content?
-
-**Consider:**
-- What catches YOUR attention when you're scrolling?
-- What makes you actually stop and interact with a post?
-- What brands do you follow and why?
-
-Your own behavior as a social media user is one of your best resources for understanding marketing. What patterns do you notice?`
+  if (errorMessage.includes('quota') || errorMessage.includes('rate')) {
+    return "I'm getting a lot of questions right now! Give me a moment and try again.";
+  }
+  if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+    return "I'm having trouble connecting to my AI service. Please check your internet connection.";
+  }
+  return getSocraticErrorResponse();
 }

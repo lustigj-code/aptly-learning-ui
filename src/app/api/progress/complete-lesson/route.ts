@@ -1,3 +1,7 @@
+/**
+ * @deprecated Uses legacy `userProgress` collection.
+ * Main learning flow uses `/api/progress/sync` instead.
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { z } from 'zod';

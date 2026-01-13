@@ -1,3 +1,7 @@
+/**
+ * @deprecated Uses legacy `userProgress` collection.
+ * Progress data should be read from `users.progress` instead.
+ */
 import { NextRequest, NextResponse } from 'next/server'
 import { adminDb } from '@/lib/firebase/admin'
 import type { Course, Module, Lesson } from '@/types'

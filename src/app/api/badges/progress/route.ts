@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { z } from 'zod';
 import { calculateBadgeProgress } from '@/lib/utils/badgeEvaluator';
+import { getUserProgress } from '@/lib/data/userProgressLayer';
 import type { Badge } from '@/types';
 
 const progressSchema = z.object({
@@ -30,6 +31,8 @@ type BadgeProgressResponse = {
  *
  * Query params: userId (required), badgeId (optional)
  * Response: { success: boolean; badges: BadgeProgressResponse[] }
+ *
+ * Phase 5 Optimization: Uses unified user progress layer with caching
  */
 export async function GET(request: NextRequest) {
   try {
@@ -46,20 +49,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch user progress
-    const userProgressSnap = await adminDb
-      .collection('userProgress')
-      .doc(userId!)
-      .get();
+    // Fetch user progress using unified layer (with caching and fallback)
+    const userData = await getUserProgress(userId!);
 
-    if (!userProgressSnap.exists) {
-      return NextResponse.json(
-        { error: 'User progress not found' },
-        { status: 404 }
-      );
-    }
-
-    const userProgress = userProgressSnap.data() as any;
+    // Convert to format expected by badge evaluator
+    const userProgress = {
+      atomsCompleted: userData.progress.atomsCompleted,
+      lessonsCompleted: userData.progress.lessonsCompleted,
+      modulesCompleted: userData.progress.modulesCompleted ?? [],
+      coursesCompleted: userData.progress.coursesCompleted ?? [],
+      totalXP: userData.progress.totalXP,
+      currentLevel: userData.progress.currentLevel,
+      overallPercentage: userData.progress.overallPercentage,
+      currentStreak: userData.streak.currentStreak,
+      longestStreak: userData.streak.longestStreak,
+    };
 
     // Fetch badges from Firestore
     let badgesQuery = adminDb.collection('badges');

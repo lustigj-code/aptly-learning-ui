@@ -1,3 +1,7 @@
+/**
+ * @deprecated Uses legacy `userProgress` collection.
+ * Should be migrated to use `users` collection.
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';

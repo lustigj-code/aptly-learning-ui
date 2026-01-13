@@ -1,3 +1,7 @@
+/**
+ * @deprecated Uses legacy `userProgress` collection.
+ * Streak updates in main flow are handled by `/api/progress/sync`.
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { z } from 'zod';

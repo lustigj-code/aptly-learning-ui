@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminAuth } from '@/lib/firebase/admin';
 import type { SkillState } from '@/lib/mastery/bkt';
+import { CONTENT, MASTERY } from '@/config/constants';
 
 /**
  * AI Insights Response Type
@@ -308,7 +309,7 @@ function calculateSkillInsights(skillStates: Record<string, SkillState>): {
     sortedByMastery
       .filter((s) => s.attempts > 0)
       .reverse()
-      .find((s) => s.pMastery < 0.7) || sortedByMastery[sortedByMastery.length - 1];
+      .find((s) => s.pMastery < MASTERY.THRESHOLD_PROFICIENT) || sortedByMastery[sortedByMastery.length - 1];
 
   // Generate skill names from IDs (simplified - in production, fetch from skill map)
   const formatSkillName = (skillId: string): string => {
@@ -347,7 +348,7 @@ function generateStrongestReason(skill: SkillState): string {
   if (skill.pMastery >= 0.9 && accuracy >= 85) {
     return `You answered ${accuracy}% of questions correctly with ${skill.attempts} attempts. Excellent retention.`;
   }
-  if (skill.pMastery >= 0.7) {
+  if (skill.pMastery >= MASTERY.THRESHOLD_PROFICIENT) {
     return `Strong performance with ${skill.correctCount} correct answers from ${skill.attempts} attempts.`;
   }
   return `You've practiced this ${skill.attempts} times with improving results.`;
@@ -363,7 +364,7 @@ function generateFocusReason(skill: SkillState): string {
   if (skill.pMastery < 0.5) {
     return 'Below target mastery. Additional practice will help reinforce understanding.';
   }
-  if (skill.pMastery < 0.7) {
+  if (skill.pMastery < MASTERY.THRESHOLD_PROFICIENT) {
     return 'Getting close to mastery. A few more successful reviews will solidify this knowledge.';
   }
   return 'Review this periodically to maintain high mastery.';
@@ -384,12 +385,10 @@ function calculateCompletion(
   // Get progress data
   const progress = userData?.progress || {};
   const lessonsCompleted = progress.lessonsCompleted?.length || 0;
-  const totalLessons = 47; // AI at Work course total
 
   // Calculate remaining work
-  const remainingLessons = totalLessons - lessonsCompleted;
-  const atomsPerLesson = 8; // Average atoms per lesson
-  const remainingAtoms = remainingLessons * atomsPerLesson;
+  const remainingLessons = CONTENT.TOTAL_LESSONS - lessonsCompleted;
+  const remainingAtoms = remainingLessons * CONTENT.ATOMS_PER_LESSON;
 
   // Calculate days remaining
   let daysRemaining: number;

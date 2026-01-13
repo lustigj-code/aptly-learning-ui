@@ -9,6 +9,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminAuth } from '@/lib/firebase/admin';
 import type { ProgressReportData } from '@/components/progress/ExportProgressReport';
+import { COURSES } from '@/data/mockData';
+
+// Calculate total lessons from actual course data
+function getTotalLessons(): number {
+  let total = 0;
+  for (const course of COURSES) {
+    for (const mod of course.modules) {
+      total += mod.lessons.length;
+    }
+  }
+  // If modules not fully populated in COURSES, use estimate based on course structure
+  return total > 0 ? total : 47;
+}
 
 export async function GET(request: NextRequest) {
   // Verify authentication
@@ -60,9 +73,22 @@ export async function GET(request: NextRequest) {
     const userProgress = userData.progress || {};
     const userStreak = userData.streak || {};
 
-    // Fetch skill states
-    const skillStatesRef = adminDb.collection('skillStates').doc(userId).collection('skills');
-    const skillStatesSnap = await skillStatesRef.get();
+    // Social Media Marketing skill definitions
+    const SMM_SKILLS: Record<string, string> = {
+      'smm-fundamentals': 'Social Media Fundamentals',
+      'platform-overview': 'Platform Overview',
+      'campaign-objectives': 'Campaign Objectives',
+      'campaign-structure': 'Campaign Structure',
+      'social-strategy': 'Social Strategy',
+      'content-creation': 'Content Creation',
+      'meta-ads': 'Meta Advertising',
+      'analytics': 'Analytics & Reporting',
+      'audience-targeting': 'Audience Targeting',
+    };
+
+    // Fetch skill mastery from reviewQueue (where complete-atom writes data)
+    const reviewQueueRef = adminDb.collection('reviewQueue').doc(userId).collection('items');
+    const reviewQueueSnap = await reviewQueueRef.get();
 
     const skillStates: Record<string, {
       skillId: string;
@@ -71,13 +97,16 @@ export async function GET(request: NextRequest) {
       lastAttempt?: Date;
     }> = {};
 
-    skillStatesSnap.forEach(doc => {
+    reviewQueueSnap.forEach(doc => {
       const data = doc.data();
-      skillStates[doc.id] = {
-        skillId: doc.id,
-        skillName: data.skillName || doc.id,
-        pMastery: data.pMastery ?? 0,
-        lastAttempt: data.lastAttempt?.toDate(),
+      const conceptId = doc.id;
+      // Convert masteryLevel (0-100) to pMastery (0-1)
+      const masteryLevel = data.masteryLevel ?? 0;
+      skillStates[conceptId] = {
+        skillId: conceptId,
+        skillName: SMM_SKILLS[conceptId] || conceptId,
+        pMastery: masteryLevel / 100,
+        lastAttempt: data.lastReviewedAt?.toDate(),
       };
     });
 
@@ -86,10 +115,8 @@ export async function GET(request: NextRequest) {
     const masteredSkills = skills.filter(s => s.pMastery >= 0.95);
     const inProgressSkills = skills.filter(s => s.pMastery > 0 && s.pMastery < 0.95);
 
-    // Fetch all available skills from skill map to find not started
-    const skillMapDoc = await adminDb.collection('skillMaps').doc('ai-at-work').get();
-    const skillMapData = skillMapDoc.exists ? skillMapDoc.data() : {};
-    const allSkillIds = Object.keys(skillMapData?.skills || {});
+    // Find not started skills from our defined skill map
+    const allSkillIds = Object.keys(SMM_SKILLS);
     const notStartedSkillIds = allSkillIds.filter(id => !skillStates[id] || skillStates[id].pMastery === 0);
 
     // Fetch interaction logs for prediction accuracy
@@ -115,28 +142,32 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Fetch recent activity
-    const activityRef = adminDb
-      .collection('activityLogs')
-      .where('userId', '==', userId)
-      .orderBy('timestamp', 'desc')
-      .limit(10);
-    const activitySnap = await activityRef.get();
-
+    // Fetch recent activity (wrapped in try-catch - index may not exist)
     const recentActivity: Array<{
       date: string;
       description: string;
       xpEarned: number;
     }> = [];
 
-    activitySnap.forEach(doc => {
-      const data = doc.data();
-      recentActivity.push({
-        date: data.timestamp?.toDate()?.toISOString() || new Date().toISOString(),
-        description: data.description || 'Activity logged',
-        xpEarned: data.xpEarned || 0,
+    try {
+      const activityRef = adminDb
+        .collection('activityLogs')
+        .where('userId', '==', userId)
+        .orderBy('timestamp', 'desc')
+        .limit(10);
+      const activitySnap = await activityRef.get();
+
+      activitySnap.forEach(doc => {
+        const data = doc.data();
+        recentActivity.push({
+          date: data.timestamp?.toDate()?.toISOString() || new Date().toISOString(),
+          description: data.description || 'Activity logged',
+          xpEarned: data.xpEarned || 0,
+        });
       });
-    });
+    } catch {
+      // Index may not exist - continue with fallback
+    }
 
     // If no activity logs, use completed lessons as fallback
     if (recentActivity.length === 0 && userProgress.lessonsCompleted?.length) {
@@ -182,7 +213,7 @@ export async function GET(request: NextRequest) {
         overallProgress: userProgress.overallPercentage || 0,
         totalTimeSpent: userProgress.totalTimeSpentMinutes || 0,
         lessonsCompleted: userProgress.lessonsCompleted?.length || 0,
-        totalLessons: 47, // Demo value
+        totalLessons: getTotalLessons(),
         averageMastery: avgMastery,
         currentStreak: userStreak.currentStreak || 0,
         longestStreak: userStreak.longestStreak || 0,
@@ -199,7 +230,7 @@ export async function GET(request: NextRequest) {
           estimatedDays: Math.ceil((0.95 - s.pMastery) / learningVelocity),
         })),
         notStarted: notStartedSkillIds.map(id => ({
-          name: skillMapData?.skills?.[id]?.name || id,
+          name: SMM_SKILLS[id] || id,
         })),
       },
       predictions: {
@@ -210,70 +241,38 @@ export async function GET(request: NextRequest) {
       recentActivity,
     };
 
-    // Also return mastery trajectory data
+    // Build mastery history from actual interaction data (only real data)
     const masteryHistory: Array<{ date: string; pMastery: number }> = [];
 
-    // Try to get mastery history from skill state histories
-    for (const skill of Object.values(skillStates)) {
-      // This would ideally come from skill history, but for now we'll generate sample data
-    }
-
-    // Generate sample trajectory if no history
-    if (masteryHistory.length === 0) {
-      const startDate = new Date(userData.createdAt?.toDate?.() || Date.now() - 30 * 24 * 60 * 60 * 1000);
-      const daysSinceStart = Math.min(30, Math.floor((Date.now() - startDate.getTime()) / (24 * 60 * 60 * 1000)));
-
-      for (let i = 0; i <= daysSinceStart; i++) {
-        const date = new Date(startDate);
-        date.setDate(date.getDate() + i);
-        // Simulate gradual mastery increase
-        const progress = Math.min(avgMastery, (i / daysSinceStart) * avgMastery);
-        masteryHistory.push({
-          date: date.toISOString(),
-          pMastery: progress,
-        });
+    // Get interactions grouped by date to show real progress over time
+    const interactionsByDate = new Map<string, number[]>();
+    interactionsSnap.forEach(doc => {
+      const data = doc.data();
+      if (data.timestamp && data.pMasteryAfter !== undefined) {
+        const dateKey = data.timestamp.toDate().toISOString().split('T')[0];
+        if (!interactionsByDate.has(dateKey)) {
+          interactionsByDate.set(dateKey, []);
+        }
+        interactionsByDate.get(dateKey)!.push(data.pMasteryAfter);
       }
+    });
+
+    // Convert to sorted array of daily averages
+    const sortedDates = Array.from(interactionsByDate.keys()).sort();
+    for (const dateKey of sortedDates) {
+      const masteryValues = interactionsByDate.get(dateKey)!;
+      const avgDailyMastery = masteryValues.reduce((a, b) => a + b, 0) / masteryValues.length;
+      masteryHistory.push({
+        date: dateKey,
+        pMastery: avgDailyMastery,
+      });
     }
-
-    // Calculate skill gaps
-    const skillGaps = inProgressSkills
-      .map(s => ({
-        skillId: s.skillId,
-        skillName: s.skillName,
-        currentMastery: s.pMastery,
-        targetMastery: 0.95,
-        gap: 0.95 - s.pMastery,
-        reason: s.pMastery < 0.3 ? 'Needs foundational practice' :
-                s.pMastery < 0.6 ? 'More practice recommended' :
-                'Almost mastered',
-      }))
-      .sort((a, b) => b.gap - a.gap);
-
-    // Calculate time to mastery predictions
-    const masteryPredictions = inProgressSkills.map(s => ({
-      skillId: s.skillId,
-      skillName: s.skillName,
-      currentMastery: s.pMastery,
-      targetMastery: 0.95,
-      estimatedDays: Math.ceil((0.95 - s.pMastery) / learningVelocity),
-      learningVelocity: learningVelocity,
-      confidence: 0.7 + (s.pMastery * 0.2), // Higher confidence for skills with more data
-    }));
 
     return NextResponse.json({
       success: true,
       report: reportData,
       visualization: {
-        masteryHistory,
-        skillGaps,
-        masteryPredictions,
-        predictionStats: {
-          totalPredictions,
-          correctPredictions,
-          modelType: 'Hybrid' as const,
-          lastUpdated: new Date().toISOString(),
-          confidenceScore: totalPredictions > 0 ? correctPredictions / totalPredictions : 0,
-        },
+        masteryHistory, // Only real data, no fake generated data
       },
     });
   } catch (error) {
