@@ -7,6 +7,7 @@
 
 import { adminDb } from '@/lib/firebase/admin';
 import type { Course, Module, Lesson, Atom } from '@/lib/auth/schemas';
+import { withErrorHandling, validateString, validateRequired } from '@/lib/errors/handlers';
 
 /**
  * Get all published courses with basic info
@@ -14,7 +15,7 @@ import type { Course, Module, Lesson, Atom } from '@/lib/auth/schemas';
  * @throws Error if database operation fails
  */
 export async function getCourses(): Promise<Course[]> {
-  try {
+  return withErrorHandling('fetch courses', async () => {
     const snapshot = await adminDb
       .collection('courses')
       .orderBy('number', 'asc')
@@ -31,12 +32,7 @@ export async function getCourses(): Promise<Course[]> {
     });
 
     return courses;
-  } catch (error) {
-    console.error('Error fetching courses:', error);
-    throw new Error(
-      `Failed to fetch courses: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -46,10 +42,8 @@ export async function getCourses(): Promise<Course[]> {
  * @throws Error if database operation fails
  */
 export async function getCourse(courseId: string): Promise<Course | null> {
-  try {
-    if (!courseId || typeof courseId !== 'string') {
-      throw new Error('Invalid courseId provided');
-    }
+  return withErrorHandling(`fetch course ${courseId}`, async () => {
+    validateString('courseId', courseId);
 
     const courseDoc = await adminDb.collection('courses').doc(courseId).get();
 
@@ -125,12 +119,7 @@ export async function getCourse(courseId: string): Promise<Course | null> {
       ...courseData,
       modules,
     } as Course;
-  } catch (error) {
-    console.error(`Error fetching course ${courseId}:`, error);
-    throw new Error(
-      `Failed to fetch course: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -141,10 +130,8 @@ export async function getCourse(courseId: string): Promise<Course | null> {
  * @throws Error if database operation fails
  */
 export async function getModule(courseId: string, moduleId: string): Promise<Module | null> {
-  try {
-    if (!courseId || !moduleId) {
-      throw new Error('courseId and moduleId are required');
-    }
+  return withErrorHandling(`fetch module ${moduleId}`, async () => {
+    validateRequired({ courseId, moduleId });
 
     const moduleDoc = await adminDb
       .collection('courses')
@@ -205,12 +192,7 @@ export async function getModule(courseId: string, moduleId: string): Promise<Mod
       ...moduleData,
       lessons,
     } as Module;
-  } catch (error) {
-    console.error(`Error fetching module ${moduleId}:`, error);
-    throw new Error(
-      `Failed to fetch module: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -226,10 +208,8 @@ export async function getLesson(
   moduleId: string,
   lessonId: string
 ): Promise<Lesson | null> {
-  try {
-    if (!courseId || !moduleId || !lessonId) {
-      throw new Error('courseId, moduleId, and lessonId are required');
-    }
+  return withErrorHandling(`fetch lesson ${lessonId}`, async () => {
+    validateRequired({ courseId, moduleId, lessonId });
 
     const lessonDoc = await adminDb
       .collection('courses')
@@ -270,12 +250,7 @@ export async function getLesson(
       ...lessonData,
       atoms,
     } as Lesson;
-  } catch (error) {
-    console.error(`Error fetching lesson ${lessonId}:`, error);
-    throw new Error(
-      `Failed to fetch lesson: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -293,10 +268,8 @@ export async function getAtom(
   lessonId: string,
   atomId: string
 ): Promise<Atom | null> {
-  try {
-    if (!courseId || !moduleId || !lessonId || !atomId) {
-      throw new Error('All IDs (courseId, moduleId, lessonId, atomId) are required');
-    }
+  return withErrorHandling(`fetch atom ${atomId}`, async () => {
+    validateRequired({ courseId, moduleId, lessonId, atomId });
 
     const atomDoc = await adminDb
       .collection('courses')
@@ -322,12 +295,7 @@ export async function getAtom(
       id: atomDoc.id,
       ...atomData,
     } as Atom;
-  } catch (error) {
-    console.error(`Error fetching atom ${atomId}:`, error);
-    throw new Error(
-      `Failed to fetch atom: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -347,11 +315,9 @@ export async function getCourseWithProgress(
   completedAtoms: string[],
   completedLessons: string[],
   completedModules: string[]
-): Promise<(Course & { userProgress: any }) | null> {
-  try {
-    if (!courseId || !uid) {
-      throw new Error('courseId and uid are required');
-    }
+): Promise<(Course & { userProgress: { completedAtoms: string[]; completedLessons: string[]; completedModules: string[]; atomsCompletedCount: number; lessonsCompletedCount: number; modulesCompletedCount: number } }) | null> {
+  return withErrorHandling(`fetch course with progress ${courseId}`, async () => {
+    validateRequired({ courseId, uid });
 
     const course = await getCourse(courseId);
 
@@ -372,13 +338,8 @@ export async function getCourseWithProgress(
       },
     };
 
-    return enrichedCourse as Course & { userProgress: any };
-  } catch (error) {
-    console.error(`Error fetching course with progress ${courseId}:`, error);
-    throw new Error(
-      `Failed to fetch course with progress: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+    return enrichedCourse;
+  });
 }
 
 /**
@@ -388,19 +349,12 @@ export async function getCourseWithProgress(
  * @throws Error if database operation fails
  */
 export async function courseExists(courseId: string): Promise<boolean> {
-  try {
-    if (!courseId || typeof courseId !== 'string') {
-      throw new Error('Invalid courseId provided');
-    }
+  return withErrorHandling(`check course existence for ${courseId}`, async () => {
+    validateString('courseId', courseId);
 
     const doc = await adminDb.collection('courses').doc(courseId).get();
     return doc.exists;
-  } catch (error) {
-    console.error(`Error checking course existence for ${courseId}:`, error);
-    throw new Error(
-      `Failed to check course existence: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -411,10 +365,8 @@ export async function courseExists(courseId: string): Promise<boolean> {
  * @throws Error if database operation fails
  */
 export async function getModuleLessons(courseId: string, moduleId: string): Promise<Lesson[]> {
-  try {
-    if (!courseId || !moduleId) {
-      throw new Error('courseId and moduleId are required');
-    }
+  return withErrorHandling(`fetch lessons for module ${moduleId}`, async () => {
+    validateRequired({ courseId, moduleId });
 
     const lessonsSnapshot = await adminDb
       .collection('courses')
@@ -440,15 +392,7 @@ export async function getModuleLessons(courseId: string, moduleId: string): Prom
     });
 
     return lessons;
-  } catch (error) {
-    console.error(
-      `Error fetching lessons for module ${moduleId}:`,
-      error
-    );
-    throw new Error(
-      `Failed to fetch lessons: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -464,10 +408,8 @@ export async function getLessonAtoms(
   moduleId: string,
   lessonId: string
 ): Promise<Atom[]> {
-  try {
-    if (!courseId || !moduleId || !lessonId) {
-      throw new Error('courseId, moduleId, and lessonId are required');
-    }
+  return withErrorHandling(`fetch atoms for lesson ${lessonId}`, async () => {
+    validateRequired({ courseId, moduleId, lessonId });
 
     const atomsSnapshot = await adminDb
       .collection('courses')
@@ -485,10 +427,5 @@ export async function getLessonAtoms(
     })) as Atom[];
 
     return atoms;
-  } catch (error) {
-    console.error(`Error fetching atoms for lesson ${lessonId}:`, error);
-    throw new Error(
-      `Failed to fetch atoms: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }

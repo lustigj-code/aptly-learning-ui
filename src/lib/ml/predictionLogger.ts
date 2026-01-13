@@ -13,6 +13,7 @@
 import { adminDb } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import type { HybridPrediction } from './hybridModelTypes';
+import { INTERACTION } from '@/config/constants';
 
 // ============================================================================
 // TYPES
@@ -83,8 +84,8 @@ export const DEFAULT_LOGGER_CONFIG: LoggerConfig = {
   collection: 'mlPredictionLogs',
   sampleRate: 1.0, // Log all predictions by default
   batchMode: false,
-  batchSize: 50,
-  flushIntervalMs: 10000,
+  batchSize: INTERACTION.BATCH_SIZE,
+  flushIntervalMs: INTERACTION.FLUSH_INTERVAL_MS,
 };
 
 // ============================================================================

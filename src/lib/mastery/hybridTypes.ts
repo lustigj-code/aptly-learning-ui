@@ -37,8 +37,11 @@ export interface HybridPrediction {
   };
 }
 
-// Configuration for hybrid model
-export interface HybridModelConfig {
+/**
+ * Runtime configuration for hybrid prediction routing
+ * Note: For ML model training config, use HybridModelConfig from '@/lib/ml/hybridModelTypes'
+ */
+export interface RuntimeHybridConfig {
   // Cold-start threshold
   minInteractionsForHybrid: number; // Default: 20
   // Rasch parameters
@@ -52,6 +55,11 @@ export interface HybridModelConfig {
   // A/B testing
   shadowMode: boolean; // Run hybrid alongside BKT for comparison
 }
+
+/**
+ * @deprecated Use RuntimeHybridConfig instead
+ */
+export type HybridModelConfig = RuntimeHybridConfig;
 
 // Training data format for future ML integration
 export interface TrainingSequence {
@@ -70,7 +78,7 @@ export interface ModelMetrics {
 }
 
 // Default configuration
-export const DEFAULT_HYBRID_CONFIG: HybridModelConfig = {
+export const DEFAULT_HYBRID_CONFIG: RuntimeHybridConfig = {
   minInteractionsForHybrid: 20,
   useRaschAdjustment: true,
   difficultyWeight: 0.3,

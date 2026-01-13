@@ -2,6 +2,9 @@
  * Progress Service
  * Handles all Firestore operations for user progress tracking
  * Server-side only - uses firebase-admin SDK
+ *
+ * IMPORTANT: All progress data is stored in the `users` collection
+ * under the `progress` field (e.g., `users/{uid}.progress.lessonsCompleted`)
  */
 
 import { adminDb } from '@/lib/firebase/admin';
@@ -12,58 +15,66 @@ import type {
   AssessmentScore,
   MasteryLevel,
 } from '@/lib/auth/schemas';
+import { withErrorHandling, validateString, validateRequired, validateNumber } from '@/lib/errors/handlers';
 
 /**
- * Get a user's complete progress document
+ * Get a user's complete progress data from the users collection
  * @param uid - User's Firebase UID
- * @returns UserProgress document or null if not found
+ * @returns UserProgress object or null if not found
  * @throws Error if database operation fails
  */
 export async function getUserProgress(uid: string): Promise<UserProgress | null> {
-  try {
-    if (!uid || typeof uid !== 'string') {
-      throw new Error('Invalid UID provided');
-    }
+  return withErrorHandling(`fetch progress for user ${uid}`, async () => {
+    validateString('uid', uid);
 
-    const doc = await adminDb.collection('userProgress').doc(uid).get();
+    const doc = await adminDb.collection('users').doc(uid).get();
 
     if (!doc.exists) {
       return null;
     }
 
     const data = doc.data();
-    if (!data) {
+    if (!data || !data.progress) {
       return null;
     }
 
+    const progress = data.progress;
     return {
       userId: uid,
-      ...data,
+      currentCourseId: progress.currentCourseId || null,
+      currentModuleId: progress.currentModuleId || null,
+      currentLessonId: progress.currentLessonId || null,
+      currentAtomId: progress.currentAtomId || null,
+      overallPercentage: progress.overallPercentage || 0,
+      coursesCompleted: progress.coursesCompleted || [],
+      modulesCompleted: progress.modulesCompleted || [],
+      lessonsCompleted: progress.lessonsCompleted || [],
+      atomsCompleted: progress.atomsCompleted || [],
+      assessmentScores: progress.assessmentScores || [],
+      masteryLevels: progress.masteryLevels || [],
+      totalTimeSpentMinutes: progress.totalTimeSpentMinutes || 0,
       lastActiveAt: data.lastActiveAt?.toDate?.() || new Date(),
+      xp: progress.xp || 0,
+      streak: data.streak,
     } as UserProgress;
-  } catch (error) {
-    console.error(`Error fetching progress for user ${uid}:`, error);
-    throw new Error(
-      `Failed to fetch progress: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
- * Initialize progress document for a new user
+ * Initialize progress fields for a new user
  * Called after user profile creation during signup
  * @param uid - User's Firebase UID
  * @returns Void on success
  * @throws Error if document creation fails
  */
 export async function initializeProgress(uid: string): Promise<void> {
-  try {
-    if (!uid || typeof uid !== 'string') {
-      throw new Error('Invalid UID provided');
-    }
+  return withErrorHandling(`initialize progress for user ${uid}`, async () => {
+    validateString('uid', uid);
 
-    const initialProgress: UserProgress = {
-      userId: uid,
+    const userRef = adminDb.collection('users').doc(uid);
+    const userDoc = await userRef.get();
+
+    const initialProgress = {
       currentCourseId: null,
       currentModuleId: null,
       currentLessonId: null,
@@ -76,25 +87,37 @@ export async function initializeProgress(uid: string): Promise<void> {
       assessmentScores: [],
       masteryLevels: [],
       totalTimeSpentMinutes: 0,
-      lastActiveAt: new Date(),
       xp: 0,
+      totalXP: 0,
+      currentLevel: 1,
     };
 
-    await adminDb.collection('userProgress').doc(uid).set({
-      ...initialProgress,
-      lastActiveAt: FieldValue.serverTimestamp(),
-    });
-  } catch (error) {
-    console.error(`Error initializing progress for user ${uid}:`, error);
-    throw new Error(
-      `Failed to initialize progress: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+    if (userDoc.exists) {
+      // Update existing user document
+      await userRef.update({
+        progress: initialProgress,
+        lastActiveAt: FieldValue.serverTimestamp(),
+      });
+    } else {
+      // Create new user document with progress
+      await userRef.set({
+        createdAt: FieldValue.serverTimestamp(),
+        progress: initialProgress,
+        streak: {
+          currentStreak: 0,
+          longestStreak: 0,
+          freezesAvailable: 2,
+          streakHistory: [],
+        },
+        lastActiveAt: FieldValue.serverTimestamp(),
+      });
+    }
+  });
 }
 
 /**
  * Update any progress fields
- * Flexible update allowing partial updates of progress document
+ * Flexible update allowing partial updates of progress
  * @param uid - User's Firebase UID
  * @param data - Partial UserProgress object to merge
  * @returns Void on success
@@ -104,43 +127,26 @@ export async function updateProgress(
   uid: string,
   data: Partial<Omit<UserProgress, 'userId'>>
 ): Promise<void> {
-  try {
-    if (!uid || typeof uid !== 'string') {
-      throw new Error('Invalid UID provided');
-    }
+  return withErrorHandling(`update progress for user ${uid}`, async () => {
+    validateString('uid', uid);
 
     if (!data || Object.keys(data).length === 0) {
       throw new Error('At least one field is required for update');
     }
 
-    const updateData: Record<string, any> = {};
+    const updateData: Record<string, unknown> = {};
 
+    // Prefix all fields with 'progress.' to nest them correctly
     Object.entries(data).forEach(([key, value]) => {
-      if (
-        key === 'coursesCompleted' ||
-        key === 'modulesCompleted' ||
-        key === 'lessonsCompleted' ||
-        key === 'atomsCompleted' ||
-        key === 'assessmentScores' ||
-        key === 'masteryLevels'
-      ) {
-        // Array fields
-        updateData[key] = value;
-      } else {
-        // Scalar fields
-        updateData[key] = value;
+      if (key !== 'lastActiveAt' && key !== 'streak') {
+        updateData[`progress.${key}`] = value;
       }
     });
 
     updateData.lastActiveAt = FieldValue.serverTimestamp();
 
-    await adminDb.collection('userProgress').doc(uid).update(updateData);
-  } catch (error) {
-    console.error(`Error updating progress for user ${uid}:`, error);
-    throw new Error(
-      `Failed to update progress: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+    await adminDb.collection('users').doc(uid).update(updateData);
+  });
 }
 
 /**
@@ -159,61 +165,42 @@ export async function completeAtom(
   xpEarned: number,
   timeSpent: number
 ): Promise<void> {
-  try {
-    if (!uid || !atomId) {
-      throw new Error('UID and atomId are required');
-    }
+  return withErrorHandling(`complete atom for user ${uid}`, async () => {
+    validateRequired({ uid, atomId });
+    validateNumber('xpEarned', xpEarned, 0);
+    validateNumber('timeSpent', timeSpent, 0);
 
-    if (typeof xpEarned !== 'number' || xpEarned < 0) {
-      throw new Error('xpEarned must be a non-negative number');
-    }
+    const userRef = adminDb.collection('users').doc(uid);
 
-    if (typeof timeSpent !== 'number' || timeSpent < 0) {
-      throw new Error('timeSpent must be a non-negative number');
-    }
-
-    const progressRef = adminDb.collection('userProgress').doc(uid);
-
-    await progressRef.update({
-      atomsCompleted: FieldValue.arrayUnion([atomId]),
-      xp: FieldValue.increment(xpEarned),
-      totalTimeSpentMinutes: FieldValue.increment(timeSpent),
+    await userRef.update({
+      'progress.atomsCompleted': FieldValue.arrayUnion(atomId),
+      'progress.xp': FieldValue.increment(xpEarned),
+      'progress.totalXP': FieldValue.increment(xpEarned),
+      'progress.totalTimeSpentMinutes': FieldValue.increment(timeSpent),
       lastActiveAt: FieldValue.serverTimestamp(),
     });
-  } catch (error) {
-    console.error(`Error completing atom for user ${uid}:`, error);
-    throw new Error(
-      `Failed to complete atom: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
  * Mark a lesson as complete
- * Adds to lessonsCompleted array and updates overallPercentage
+ * Adds to lessonsCompleted array
  * @param uid - User's Firebase UID
  * @param lessonId - The lesson's ID
  * @returns Void on success
  * @throws Error if update fails
  */
 export async function completeLesson(uid: string, lessonId: string): Promise<void> {
-  try {
-    if (!uid || !lessonId) {
-      throw new Error('UID and lessonId are required');
-    }
+  return withErrorHandling(`complete lesson for user ${uid}`, async () => {
+    validateRequired({ uid, lessonId });
 
-    const progressRef = adminDb.collection('userProgress').doc(uid);
+    const userRef = adminDb.collection('users').doc(uid);
 
-    await progressRef.update({
-      lessonsCompleted: FieldValue.arrayUnion([lessonId]),
+    await userRef.update({
+      'progress.lessonsCompleted': FieldValue.arrayUnion(lessonId),
       lastActiveAt: FieldValue.serverTimestamp(),
     });
-  } catch (error) {
-    console.error(`Error completing lesson for user ${uid}:`, error);
-    throw new Error(
-      `Failed to complete lesson: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -225,23 +212,16 @@ export async function completeLesson(uid: string, lessonId: string): Promise<voi
  * @throws Error if update fails
  */
 export async function completeModule(uid: string, moduleId: string): Promise<void> {
-  try {
-    if (!uid || !moduleId) {
-      throw new Error('UID and moduleId are required');
-    }
+  return withErrorHandling(`complete module for user ${uid}`, async () => {
+    validateRequired({ uid, moduleId });
 
-    const progressRef = adminDb.collection('userProgress').doc(uid);
+    const userRef = adminDb.collection('users').doc(uid);
 
-    await progressRef.update({
-      modulesCompleted: FieldValue.arrayUnion([moduleId]),
+    await userRef.update({
+      'progress.modulesCompleted': FieldValue.arrayUnion(moduleId),
       lastActiveAt: FieldValue.serverTimestamp(),
     });
-  } catch (error) {
-    console.error(`Error completing module for user ${uid}:`, error);
-    throw new Error(
-      `Failed to complete module: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -253,23 +233,16 @@ export async function completeModule(uid: string, moduleId: string): Promise<voi
  * @throws Error if update fails
  */
 export async function completeCourse(uid: string, courseId: string): Promise<void> {
-  try {
-    if (!uid || !courseId) {
-      throw new Error('UID and courseId are required');
-    }
+  return withErrorHandling(`complete course for user ${uid}`, async () => {
+    validateRequired({ uid, courseId });
 
-    const progressRef = adminDb.collection('userProgress').doc(uid);
+    const userRef = adminDb.collection('users').doc(uid);
 
-    await progressRef.update({
-      coursesCompleted: FieldValue.arrayUnion([courseId]),
+    await userRef.update({
+      'progress.coursesCompleted': FieldValue.arrayUnion(courseId),
       lastActiveAt: FieldValue.serverTimestamp(),
     });
-  } catch (error) {
-    console.error(`Error completing course for user ${uid}:`, error);
-    throw new Error(
-      `Failed to complete course: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -281,10 +254,8 @@ export async function completeCourse(uid: string, courseId: string): Promise<voi
  * @throws Error if update fails
  */
 export async function updateStreak(uid: string, completedToday: boolean): Promise<number> {
-  try {
-    if (!uid || typeof uid !== 'string') {
-      throw new Error('Invalid UID provided');
-    }
+  return withErrorHandling(`update streak for user ${uid}`, async () => {
+    validateString('uid', uid);
 
     const progress = await getUserProgress(uid);
     if (!progress) {
@@ -316,30 +287,25 @@ export async function updateStreak(uid: string, completedToday: boolean): Promis
         const streakDay: StreakDay = {
           date: today,
           completed: true,
-          minutesStudied: 0, // Can be updated separately
+          minutesStudied: 0,
           lessonsCompleted: 1,
         };
 
-        await adminDb.collection('userProgress').doc(uid).update({
+        await adminDb.collection('users').doc(uid).update({
           'streak.currentStreak': newStreak,
           'streak.lastCompletedDate': today,
           'streak.longestStreak': Math.max(
             newStreak,
             progress.streak?.longestStreak || 0
           ),
-          'streak.streakHistory': FieldValue.arrayUnion([streakDay]),
+          'streak.streakHistory': FieldValue.arrayUnion(streakDay),
           lastActiveAt: FieldValue.serverTimestamp(),
         });
       }
     }
 
     return newStreak;
-  } catch (error) {
-    console.error(`Error updating streak for user ${uid}:`, error);
-    throw new Error(
-      `Failed to update streak: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -350,10 +316,8 @@ export async function updateStreak(uid: string, completedToday: boolean): Promis
  * @throws Error if update fails or no freezes available
  */
 export async function useStreakFreeze(uid: string): Promise<number> {
-  try {
-    if (!uid || typeof uid !== 'string') {
-      throw new Error('Invalid UID provided');
-    }
+  return withErrorHandling(`use streak freeze for user ${uid}`, async () => {
+    validateString('uid', uid);
 
     const progress = await getUserProgress(uid);
     if (!progress) {
@@ -368,19 +332,14 @@ export async function useStreakFreeze(uid: string): Promise<number> {
 
     const today = new Date().toISOString().split('T')[0];
 
-    await adminDb.collection('userProgress').doc(uid).update({
+    await adminDb.collection('users').doc(uid).update({
       'streak.freezesAvailable': freezesAvailable - 1,
-      'streak.freezesUsed': FieldValue.arrayUnion([today]),
+      'streak.freezesUsed': FieldValue.arrayUnion(today),
       lastActiveAt: FieldValue.serverTimestamp(),
     });
 
     return freezesAvailable - 1;
-  } catch (error) {
-    console.error(`Error using streak freeze for user ${uid}:`, error);
-    throw new Error(
-      `Failed to use streak freeze: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -400,24 +359,17 @@ export async function setCurrentLocation(
   lessonId: string,
   atomId: string
 ): Promise<void> {
-  try {
-    if (!uid || !courseId || !moduleId || !lessonId || !atomId) {
-      throw new Error('All location IDs are required');
-    }
+  return withErrorHandling(`set current location for user ${uid}`, async () => {
+    validateRequired({ uid, courseId, moduleId, lessonId, atomId });
 
-    await adminDb.collection('userProgress').doc(uid).update({
-      currentCourseId: courseId,
-      currentModuleId: moduleId,
-      currentLessonId: lessonId,
-      currentAtomId: atomId,
+    await adminDb.collection('users').doc(uid).update({
+      'progress.currentCourseId': courseId,
+      'progress.currentModuleId': moduleId,
+      'progress.currentLessonId': lessonId,
+      'progress.currentAtomId': atomId,
       lastActiveAt: FieldValue.serverTimestamp(),
     });
-  } catch (error) {
-    console.error(`Error setting current location for user ${uid}:`, error);
-    throw new Error(
-      `Failed to set current location: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -433,14 +385,9 @@ export async function recordAssessmentScore(
   assessmentId: string,
   score: number
 ): Promise<void> {
-  try {
-    if (!uid || !assessmentId) {
-      throw new Error('UID and assessmentId are required');
-    }
-
-    if (typeof score !== 'number' || score < 0 || score > 100) {
-      throw new Error('Score must be a number between 0 and 100');
-    }
+  return withErrorHandling(`record assessment score for user ${uid}`, async () => {
+    validateRequired({ uid, assessmentId });
+    validateNumber('score', score, 0, 100);
 
     const assessmentScore: AssessmentScore = {
       assessmentId,
@@ -448,16 +395,11 @@ export async function recordAssessmentScore(
       completedAt: new Date(),
     };
 
-    await adminDb.collection('userProgress').doc(uid).update({
-      assessmentScores: FieldValue.arrayUnion([assessmentScore]),
+    await adminDb.collection('users').doc(uid).update({
+      'progress.assessmentScores': FieldValue.arrayUnion(assessmentScore),
       lastActiveAt: FieldValue.serverTimestamp(),
     });
-  } catch (error) {
-    console.error(`Error recording assessment score for user ${uid}:`, error);
-    throw new Error(
-      `Failed to record assessment score: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -473,14 +415,9 @@ export async function updateMasteryLevel(
   skillId: string,
   level: number
 ): Promise<void> {
-  try {
-    if (!uid || !skillId) {
-      throw new Error('UID and skillId are required');
-    }
-
-    if (typeof level !== 'number' || level < 1 || level > 5) {
-      throw new Error('Mastery level must be between 1 and 5');
-    }
+  return withErrorHandling(`update mastery level for user ${uid}`, async () => {
+    validateRequired({ uid, skillId });
+    validateNumber('level', level, 1, 5);
 
     const masteryLevel: MasteryLevel = {
       skillId,
@@ -495,44 +432,28 @@ export async function updateMasteryLevel(
 
     const filteredMastery = progress.masteryLevels.filter(m => m.skillId !== skillId);
 
-    await adminDb.collection('userProgress').doc(uid).update({
-      masteryLevels: [...filteredMastery, masteryLevel],
+    await adminDb.collection('users').doc(uid).update({
+      'progress.masteryLevels': [...filteredMastery, masteryLevel],
       lastActiveAt: FieldValue.serverTimestamp(),
     });
-  } catch (error) {
-    console.error(`Error updating mastery level for user ${uid}:`, error);
-    throw new Error(
-      `Failed to update mastery level: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
  * Update overall completion percentage
- * Should be calculated based on completed atoms/lessons/modules
  * @param uid - User's Firebase UID
  * @param percentage - Completion percentage (0-100)
  * @returns Void on success
  * @throws Error if update fails
  */
 export async function updateOverallPercentage(uid: string, percentage: number): Promise<void> {
-  try {
-    if (!uid || typeof uid !== 'string') {
-      throw new Error('Invalid UID provided');
-    }
+  return withErrorHandling(`update overall percentage for user ${uid}`, async () => {
+    validateString('uid', uid);
+    validateNumber('percentage', percentage, 0, 100);
 
-    if (typeof percentage !== 'number' || percentage < 0 || percentage > 100) {
-      throw new Error('Percentage must be between 0 and 100');
-    }
-
-    await adminDb.collection('userProgress').doc(uid).update({
-      overallPercentage: percentage,
+    await adminDb.collection('users').doc(uid).update({
+      'progress.overallPercentage': percentage,
       lastActiveAt: FieldValue.serverTimestamp(),
     });
-  } catch (error) {
-    console.error(`Error updating overall percentage for user ${uid}:`, error);
-    throw new Error(
-      `Failed to update overall percentage: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }

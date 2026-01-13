@@ -7,6 +7,7 @@
 import { adminDb } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import type { Badge, BadgeProgress } from '@/lib/auth/schemas';
+import { withErrorHandling, validateString, validateRequired } from '@/lib/errors/handlers';
 
 /**
  * Get all badge definitions
@@ -14,7 +15,7 @@ import type { Badge, BadgeProgress } from '@/lib/auth/schemas';
  * @throws Error if database operation fails
  */
 export async function getBadges(): Promise<Badge[]> {
-  try {
+  return withErrorHandling('fetch badges', async () => {
     const snapshot = await adminDb
       .collection('badges')
       .get();
@@ -31,12 +32,7 @@ export async function getBadges(): Promise<Badge[]> {
     });
 
     return badges;
-  } catch (error) {
-    console.error('Error fetching badges:', error);
-    throw new Error(
-      `Failed to fetch badges: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -46,10 +42,8 @@ export async function getBadges(): Promise<Badge[]> {
  * @throws Error if database operation fails
  */
 export async function getBadge(badgeId: string): Promise<Badge | null> {
-  try {
-    if (!badgeId || typeof badgeId !== 'string') {
-      throw new Error('Invalid badgeId provided');
-    }
+  return withErrorHandling(`fetch badge ${badgeId}`, async () => {
+    validateString('badgeId', badgeId);
 
     const doc = await adminDb.collection('badges').doc(badgeId).get();
 
@@ -67,12 +61,7 @@ export async function getBadge(badgeId: string): Promise<Badge | null> {
       ...data,
       earnedAt: data.earnedAt?.toDate?.(),
     } as Badge;
-  } catch (error) {
-    console.error(`Error fetching badge ${badgeId}:`, error);
-    throw new Error(
-      `Failed to fetch badge: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -82,10 +71,8 @@ export async function getBadge(badgeId: string): Promise<Badge | null> {
  * @throws Error if database operation fails
  */
 export async function getUserBadges(uid: string): Promise<Badge[]> {
-  try {
-    if (!uid || typeof uid !== 'string') {
-      throw new Error('Invalid UID provided');
-    }
+  return withErrorHandling(`fetch badges for user ${uid}`, async () => {
+    validateString('uid', uid);
 
     const userDoc = await adminDb.collection('users').doc(uid).get();
 
@@ -96,16 +83,11 @@ export async function getUserBadges(uid: string): Promise<Badge[]> {
     const data = userDoc.data();
     const badges = data?.badges || [];
 
-    return badges.map((badge: any) => ({
+    return badges.map((badge: Badge) => ({
       ...badge,
-      earnedAt: badge.earnedAt?.toDate?.(),
+      earnedAt: badge.earnedAt instanceof Date ? badge.earnedAt : undefined,
     })) as Badge[];
-  } catch (error) {
-    console.error(`Error fetching badges for user ${uid}:`, error);
-    throw new Error(
-      `Failed to fetch user badges: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -117,10 +99,8 @@ export async function getUserBadges(uid: string): Promise<Badge[]> {
  * @throws Error if badge not found or award fails
  */
 export async function awardBadge(uid: string, badgeId: string): Promise<void> {
-  try {
-    if (!uid || !badgeId) {
-      throw new Error('UID and badgeId are required');
-    }
+  return withErrorHandling(`award badge ${badgeId} to user ${uid}`, async () => {
+    validateRequired({ uid, badgeId });
 
     // Verify badge exists
     const badgeDoc = await adminDb.collection('badges').doc(badgeId).get();
@@ -149,12 +129,7 @@ export async function awardBadge(uid: string, badgeId: string): Promise<void> {
     await adminDb.collection('users').doc(uid).update({
       badges: FieldValue.arrayUnion([earnedBadge]),
     });
-  } catch (error) {
-    console.error(`Error awarding badge ${badgeId} to user ${uid}:`, error);
-    throw new Error(
-      `Failed to award badge: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -165,19 +140,12 @@ export async function awardBadge(uid: string, badgeId: string): Promise<void> {
  * @throws Error if database operation fails
  */
 export async function userHasBadge(uid: string, badgeId: string): Promise<boolean> {
-  try {
-    if (!uid || !badgeId) {
-      throw new Error('UID and badgeId are required');
-    }
+  return withErrorHandling(`check badge for user ${uid}`, async () => {
+    validateRequired({ uid, badgeId });
 
     const badges = await getUserBadges(uid);
     return badges.some(badge => badge.id === badgeId);
-  } catch (error) {
-    console.error(`Error checking badge for user ${uid}:`, error);
-    throw new Error(
-      `Failed to check badge: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -188,10 +156,8 @@ export async function userHasBadge(uid: string, badgeId: string): Promise<boolea
  * @throws Error if evaluation fails
  */
 export async function checkBadgeCriteria(uid: string): Promise<string[]> {
-  try {
-    if (!uid || typeof uid !== 'string') {
-      throw new Error('Invalid UID provided');
-    }
+  return withErrorHandling(`check badge criteria for user ${uid}`, async () => {
+    validateString('uid', uid);
 
     // Get user progress
     const userDoc = await adminDb.collection('users').doc(uid).get();
@@ -214,7 +180,7 @@ export async function checkBadgeCriteria(uid: string): Promise<string[]> {
       const badgeId = badgeDoc.id;
 
       // Skip if user already has this badge
-      if (userBadges.some((b: any) => b.id === badgeId)) {
+      if (userBadges.some((b: Badge) => b.id === badgeId)) {
         continue;
       }
 
@@ -251,7 +217,7 @@ export async function checkBadgeCriteria(uid: string): Promise<string[]> {
         case 'score': {
           // Check if assessment score meets threshold
           const { assessmentScores = [] } = userData.progress || {};
-          const highestScore = assessmentScores.reduce((max: number, score: any) => {
+          const highestScore = assessmentScores.reduce((max: number, score: { score?: number }) => {
             return Math.max(max, score.score || 0);
           }, 0);
 
@@ -290,12 +256,7 @@ export async function checkBadgeCriteria(uid: string): Promise<string[]> {
     }
 
     return awardedBadges;
-  } catch (error) {
-    console.error(`Error checking badge criteria for user ${uid}:`, error);
-    throw new Error(
-      `Failed to check badge criteria: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -307,10 +268,8 @@ export async function checkBadgeCriteria(uid: string): Promise<string[]> {
  * @throws Error if badge not found or check fails
  */
 export async function getBadgeProgress(uid: string, badgeId: string): Promise<BadgeProgress> {
-  try {
-    if (!uid || !badgeId) {
-      throw new Error('UID and badgeId are required');
-    }
+  return withErrorHandling(`get badge progress for badge ${badgeId}`, async () => {
+    validateRequired({ uid, badgeId });
 
     // Get badge definition
     const badgeDoc = await adminDb.collection('badges').doc(badgeId).get();
@@ -371,7 +330,7 @@ export async function getBadgeProgress(uid: string, badgeId: string): Promise<Ba
 
       case 'score': {
         const { assessmentScores = [] } = userData.progress || {};
-        currentProgress = assessmentScores.reduce((max: number, score: any) => {
+        currentProgress = assessmentScores.reduce((max: number, score: { score?: number }) => {
           return Math.max(max, score.score || 0);
         }, 0);
         break;
@@ -395,12 +354,7 @@ export async function getBadgeProgress(uid: string, badgeId: string): Promise<Ba
       completed: currentProgress >= target,
       percentComplete: Math.min(100, Math.round((currentProgress / target) * 100)),
     };
-  } catch (error) {
-    console.error(`Error getting badge progress for badge ${badgeId}:`, error);
-    throw new Error(
-      `Failed to get badge progress: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -411,10 +365,8 @@ export async function getBadgeProgress(uid: string, badgeId: string): Promise<Ba
  * @throws Error if removal fails
  */
 export async function removeBadge(uid: string, badgeId: string): Promise<void> {
-  try {
-    if (!uid || !badgeId) {
-      throw new Error('UID and badgeId are required');
-    }
+  return withErrorHandling(`remove badge ${badgeId} from user ${uid}`, async () => {
+    validateRequired({ uid, badgeId });
 
     const userDoc = await adminDb.collection('users').doc(uid).get();
     if (!userDoc.exists) {
@@ -425,17 +377,12 @@ export async function removeBadge(uid: string, badgeId: string): Promise<void> {
     const badges = userData?.badges || [];
 
     // Filter out the badge
-    const filteredBadges = badges.filter((b: any) => b.id !== badgeId);
+    const filteredBadges = badges.filter((b: Badge) => b.id !== badgeId);
 
     await adminDb.collection('users').doc(uid).update({
       badges: filteredBadges,
     });
-  } catch (error) {
-    console.error(`Error removing badge ${badgeId} from user ${uid}:`, error);
-    throw new Error(
-      `Failed to remove badge: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -445,17 +392,10 @@ export async function removeBadge(uid: string, badgeId: string): Promise<void> {
  * @throws Error if database operation fails
  */
 export async function getUserBadgeCount(uid: string): Promise<number> {
-  try {
-    if (!uid || typeof uid !== 'string') {
-      throw new Error('Invalid UID provided');
-    }
+  return withErrorHandling(`get badge count for user ${uid}`, async () => {
+    validateString('uid', uid);
 
     const badges = await getUserBadges(uid);
     return badges.length;
-  } catch (error) {
-    console.error(`Error getting badge count for user ${uid}:`, error);
-    throw new Error(
-      `Failed to get badge count: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }

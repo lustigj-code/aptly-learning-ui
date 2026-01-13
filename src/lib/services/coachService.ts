@@ -8,6 +8,7 @@
 import { adminDb } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import type { Conversation, CoachMessage, MessageContext, CoachFeedback } from '@/lib/auth/schemas';
+import { withErrorHandling, validateString, validateRequired, validateNumber } from '@/lib/errors/handlers';
 
 // ============================================
 // EXPLANATION TRACKING TYPES
@@ -60,10 +61,8 @@ export type ComprehensionState = {
  * @throws Error if database operation fails
  */
 export async function getConversation(conversationId: string): Promise<Conversation | null> {
-  try {
-    if (!conversationId || typeof conversationId !== 'string') {
-      throw new Error('Invalid conversationId provided');
-    }
+  return withErrorHandling(`fetch conversation ${conversationId}`, async () => {
+    validateString('conversationId', conversationId);
 
     const doc = await adminDb.collection('conversations').doc(conversationId).get();
 
@@ -81,17 +80,12 @@ export async function getConversation(conversationId: string): Promise<Conversat
       ...data,
       createdAt: data.createdAt?.toDate?.() || new Date(),
       updatedAt: data.updatedAt?.toDate?.() || new Date(),
-      messages: (data.messages || []).map((msg: any) => ({
+      messages: (data.messages || []).map((msg: CoachMessage) => ({
         ...msg,
-        timestamp: msg.timestamp?.toDate?.() || new Date(),
+        timestamp: msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp as unknown as string),
       })),
     } as Conversation;
-  } catch (error) {
-    console.error(`Error fetching conversation ${conversationId}:`, error);
-    throw new Error(
-      `Failed to fetch conversation: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -108,10 +102,8 @@ export async function createConversation(
   lessonId?: string,
   sessionGoal?: string
 ): Promise<string> {
-  try {
-    if (!uid || typeof uid !== 'string') {
-      throw new Error('Invalid UID provided');
-    }
+  return withErrorHandling(`create conversation for user ${uid}`, async () => {
+    validateString('uid', uid);
 
     const newConversation: Record<string, unknown> = {
       userId: uid,
@@ -140,12 +132,7 @@ export async function createConversation(
     });
 
     return docRef.id;
-  } catch (error) {
-    console.error(`Error creating conversation for user ${uid}:`, error);
-    throw new Error(
-      `Failed to create conversation: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -166,10 +153,8 @@ export async function addMessage(
   context?: MessageContext,
   feedback?: CoachFeedback
 ): Promise<string> {
-  try {
-    if (!conversationId || !role || !content) {
-      throw new Error('conversationId, role, and content are required');
-    }
+  return withErrorHandling(`add message to conversation ${conversationId}`, async () => {
+    validateRequired({ conversationId, role, content });
 
     if (role !== 'user' && role !== 'coach') {
       throw new Error('role must be either "user" or "coach"');
@@ -198,12 +183,7 @@ export async function addMessage(
     });
 
     return messageId;
-  } catch (error) {
-    console.error(`Error adding message to conversation ${conversationId}:`, error);
-    throw new Error(
-      `Failed to add message: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -215,14 +195,9 @@ export async function addMessage(
  * @throws Error if database operation fails
  */
 export async function getConversationsByUser(uid: string, limit: number = 50): Promise<Conversation[]> {
-  try {
-    if (!uid || typeof uid !== 'string') {
-      throw new Error('Invalid UID provided');
-    }
-
-    if (typeof limit !== 'number' || limit < 1) {
-      throw new Error('limit must be a positive number');
-    }
+  return withErrorHandling(`fetch conversations for user ${uid}`, async () => {
+    validateString('uid', uid);
+    validateNumber('limit', limit, 1);
 
     const snapshot = await adminDb
       .collection('conversations')
@@ -240,20 +215,15 @@ export async function getConversationsByUser(uid: string, limit: number = 50): P
         ...data,
         createdAt: data.createdAt?.toDate?.() || new Date(),
         updatedAt: data.updatedAt?.toDate?.() || new Date(),
-        messages: (data.messages || []).map((msg: any) => ({
+        messages: (data.messages || []).map((msg: CoachMessage) => ({
           ...msg,
-          timestamp: msg.timestamp?.toDate?.() || new Date(),
+          timestamp: msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp as unknown as string),
         })),
       } as Conversation);
     });
 
     return conversations;
-  } catch (error) {
-    console.error(`Error fetching conversations for user ${uid}:`, error);
-    throw new Error(
-      `Failed to fetch conversations: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -267,10 +237,8 @@ export async function getConversationsByLesson(
   uid: string,
   lessonId: string
 ): Promise<Conversation[]> {
-  try {
-    if (!uid || !lessonId) {
-      throw new Error('UID and lessonId are required');
-    }
+  return withErrorHandling(`fetch conversations for user ${uid} and lesson ${lessonId}`, async () => {
+    validateRequired({ uid, lessonId });
 
     const snapshot = await adminDb
       .collection('conversations')
@@ -288,23 +256,15 @@ export async function getConversationsByLesson(
         ...data,
         createdAt: data.createdAt?.toDate?.() || new Date(),
         updatedAt: data.updatedAt?.toDate?.() || new Date(),
-        messages: (data.messages || []).map((msg: any) => ({
+        messages: (data.messages || []).map((msg: CoachMessage) => ({
           ...msg,
-          timestamp: msg.timestamp?.toDate?.() || new Date(),
+          timestamp: msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp as unknown as string),
         })),
       } as Conversation);
     });
 
     return conversations;
-  } catch (error) {
-    console.error(
-      `Error fetching conversations for user ${uid} and lesson ${lessonId}:`,
-      error
-    );
-    throw new Error(
-      `Failed to fetch conversations: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -314,10 +274,8 @@ export async function getConversationsByLesson(
  * @throws Error if database operation fails
  */
 export async function getConversationMessageCount(conversationId: string): Promise<number> {
-  try {
-    if (!conversationId || typeof conversationId !== 'string') {
-      throw new Error('Invalid conversationId provided');
-    }
+  return withErrorHandling(`get message count for conversation ${conversationId}`, async () => {
+    validateString('conversationId', conversationId);
 
     const doc = await adminDb.collection('conversations').doc(conversationId).get();
 
@@ -327,12 +285,7 @@ export async function getConversationMessageCount(conversationId: string): Promi
 
     const data = doc.data();
     return (data?.messages || []).length;
-  } catch (error) {
-    console.error(`Error getting message count for conversation ${conversationId}:`, error);
-    throw new Error(
-      `Failed to get message count: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -343,20 +296,13 @@ export async function getConversationMessageCount(conversationId: string): Promi
  * @throws Error if deletion fails
  */
 export async function deleteConversation(conversationId: string): Promise<void> {
-  try {
-    if (!conversationId || typeof conversationId !== 'string') {
-      throw new Error('Invalid conversationId provided');
-    }
+  return withErrorHandling(`delete conversation ${conversationId}`, async () => {
+    validateString('conversationId', conversationId);
 
     await adminDb.collection('conversations').doc(conversationId).update({
       deletedAt: FieldValue.serverTimestamp(),
     });
-  } catch (error) {
-    console.error(`Error deleting conversation ${conversationId}:`, error);
-    throw new Error(
-      `Failed to delete conversation: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -372,10 +318,8 @@ export async function getConversationStats(conversationId: string): Promise<{
   coachMessages: number;
   duration: number;
 }> {
-  try {
-    if (!conversationId || typeof conversationId !== 'string') {
-      throw new Error('Invalid conversationId provided');
-    }
+  return withErrorHandling(`get statistics for conversation ${conversationId}`, async () => {
+    validateString('conversationId', conversationId);
 
     const conversation = await getConversation(conversationId);
 
@@ -397,12 +341,7 @@ export async function getConversationStats(conversationId: string): Promise<{
       coachMessages,
       duration,
     };
-  } catch (error) {
-    console.error(`Error getting statistics for conversation ${conversationId}:`, error);
-    throw new Error(
-      `Failed to get conversation stats: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -416,14 +355,9 @@ export async function getRecentMessages(
   conversationId: string,
   count: number = 10
 ): Promise<CoachMessage[]> {
-  try {
-    if (!conversationId || typeof conversationId !== 'string') {
-      throw new Error('Invalid conversationId provided');
-    }
-
-    if (typeof count !== 'number' || count < 1) {
-      throw new Error('count must be a positive number');
-    }
+  return withErrorHandling(`get recent messages for conversation ${conversationId}`, async () => {
+    validateString('conversationId', conversationId);
+    validateNumber('count', count, 1);
 
     const conversation = await getConversation(conversationId);
 
@@ -436,14 +370,9 @@ export async function getRecentMessages(
 
     return recentMessages.map(msg => ({
       ...msg,
-      timestamp: msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp),
+      timestamp: msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp as unknown as string),
     }));
-  } catch (error) {
-    console.error(`Error getting recent messages for conversation ${conversationId}:`, error);
-    throw new Error(
-      `Failed to get recent messages: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -457,21 +386,14 @@ export async function updateSessionGoal(
   conversationId: string,
   sessionGoal: string
 ): Promise<void> {
-  try {
-    if (!conversationId || !sessionGoal) {
-      throw new Error('conversationId and sessionGoal are required');
-    }
+  return withErrorHandling(`update session goal for conversation ${conversationId}`, async () => {
+    validateRequired({ conversationId, sessionGoal });
 
     await adminDb.collection('conversations').doc(conversationId).update({
       sessionGoal,
       updatedAt: FieldValue.serverTimestamp(),
     });
-  } catch (error) {
-    console.error(`Error updating session goal for conversation ${conversationId}:`, error);
-    throw new Error(
-      `Failed to update session goal: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -481,24 +403,22 @@ export async function updateSessionGoal(
  * @throws Error if database operation fails
  */
 export async function conversationExists(conversationId: string): Promise<boolean> {
-  try {
-    if (!conversationId || typeof conversationId !== 'string') {
-      throw new Error('Invalid conversationId provided');
-    }
+  return withErrorHandling(`check conversation existence for ${conversationId}`, async () => {
+    validateString('conversationId', conversationId);
 
     const doc = await adminDb.collection('conversations').doc(conversationId).get();
     return doc.exists;
-  } catch (error) {
-    console.error(`Error checking conversation existence for ${conversationId}:`, error);
-    throw new Error(
-      `Failed to check conversation existence: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 // ============================================
 // COMPREHENSION TRACKING FUNCTIONS
 // ============================================
+
+const MAX_EXPLANATION_HISTORY = 20; // Limit storage per conversation
+const ALL_STRATEGIES: ExplanationAttempt['strategy'][] = [
+  'direct', 'analogy', 'example', 'breakdown', 'visual', 'socratic'
+];
 
 /**
  * Mark a concept as introduced in the conversation
@@ -512,10 +432,8 @@ export async function markConceptIntroduced(
   conceptId: string,
   conceptName: string
 ): Promise<void> {
-  try {
-    if (!conversationId || !conceptId || !conceptName) {
-      throw new Error('conversationId, conceptId, and conceptName are required');
-    }
+  return withErrorHandling(`mark concept introduced for conversation ${conversationId}`, async () => {
+    validateRequired({ conversationId, conceptId, conceptName });
 
     const conversationRef = adminDb.collection('conversations').doc(conversationId);
     const doc = await conversationRef.get();
@@ -556,12 +474,7 @@ export async function markConceptIntroduced(
       comprehensionState,
       updatedAt: FieldValue.serverTimestamp(),
     });
-  } catch (error) {
-    console.error(`Error marking concept introduced for conversation ${conversationId}:`, error);
-    throw new Error(
-      `Failed to mark concept introduced: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -578,10 +491,8 @@ export async function markConceptVerified(
   level: ComprehensionLevel,
   explanation?: string
 ): Promise<void> {
-  try {
-    if (!conversationId || !conceptId || !level) {
-      throw new Error('conversationId, conceptId, and level are required');
-    }
+  return withErrorHandling(`mark concept verified for conversation ${conversationId}`, async () => {
+    validateRequired({ conversationId, conceptId, level });
 
     const conversationRef = adminDb.collection('conversations').doc(conversationId);
     const doc = await conversationRef.get();
@@ -629,12 +540,7 @@ export async function markConceptVerified(
       comprehensionState,
       updatedAt: FieldValue.serverTimestamp(),
     });
-  } catch (error) {
-    console.error(`Error marking concept verified for conversation ${conversationId}:`, error);
-    throw new Error(
-      `Failed to mark concept verified: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -646,10 +552,8 @@ export async function markConceptVerified(
 export async function getUnverifiedConcepts(
   conversationId: string
 ): Promise<ConceptComprehension[]> {
-  try {
-    if (!conversationId || typeof conversationId !== 'string') {
-      throw new Error('Invalid conversationId provided');
-    }
+  return withErrorHandling(`get unverified concepts for conversation ${conversationId}`, async () => {
+    validateString('conversationId', conversationId);
 
     const doc = await adminDb.collection('conversations').doc(conversationId).get();
 
@@ -669,12 +573,7 @@ export async function getUnverifiedConcepts(
     return comprehensionState.conceptsIntroduced.filter((concept) =>
       comprehensionState.pendingVerification.includes(concept.conceptId)
     );
-  } catch (error) {
-    console.error(`Error getting unverified concepts for conversation ${conversationId}:`, error);
-    throw new Error(
-      `Failed to get unverified concepts: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -685,10 +584,8 @@ export async function getUnverifiedConcepts(
 export async function getComprehensionState(
   conversationId: string
 ): Promise<ComprehensionState | null> {
-  try {
-    if (!conversationId || typeof conversationId !== 'string') {
-      throw new Error('Invalid conversationId provided');
-    }
+  return withErrorHandling(`get comprehension state for conversation ${conversationId}`, async () => {
+    validateString('conversationId', conversationId);
 
     const doc = await adminDb.collection('conversations').doc(conversationId).get();
 
@@ -698,22 +595,12 @@ export async function getComprehensionState(
 
     const data = doc.data();
     return data?.comprehensionState || null;
-  } catch (error) {
-    console.error(`Error getting comprehension state for conversation ${conversationId}:`, error);
-    throw new Error(
-      `Failed to get comprehension state: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 // ============================================
 // EXPLANATION TRACKING FUNCTIONS
 // ============================================
-
-const MAX_EXPLANATION_HISTORY = 20; // Limit storage per conversation
-const ALL_STRATEGIES: ExplanationAttempt['strategy'][] = [
-  'direct', 'analogy', 'example', 'breakdown', 'visual', 'socratic'
-];
 
 /**
  * Record an explanation attempt for a concept
@@ -724,10 +611,8 @@ export async function recordExplanation(
   conversationId: string,
   attempt: ExplanationAttempt
 ): Promise<void> {
-  try {
-    if (!conversationId || typeof conversationId !== 'string') {
-      throw new Error('Invalid conversationId provided');
-    }
+  return withErrorHandling(`record explanation for conversation ${conversationId}`, async () => {
+    validateString('conversationId', conversationId);
 
     const conversationRef = adminDb.collection('conversations').doc(conversationId);
     const doc = await conversationRef.get();
@@ -754,12 +639,7 @@ export async function recordExplanation(
       explanationHistory,
       updatedAt: FieldValue.serverTimestamp(),
     });
-  } catch (error) {
-    console.error(`Error recording explanation for conversation ${conversationId}:`, error);
-    throw new Error(
-      `Failed to record explanation: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -772,10 +652,8 @@ export async function getExplanationHistory(
   conversationId: string,
   conceptId: string
 ): Promise<ExplanationAttempt[]> {
-  try {
-    if (!conversationId || typeof conversationId !== 'string') {
-      throw new Error('Invalid conversationId provided');
-    }
+  return withErrorHandling(`get explanation history for conversation ${conversationId}`, async () => {
+    validateString('conversationId', conversationId);
 
     const doc = await adminDb.collection('conversations').doc(conversationId).get();
 
@@ -795,12 +673,7 @@ export async function getExplanationHistory(
           ? attempt.timestamp
           : new Date(attempt.timestamp as unknown as string),
       }));
-  } catch (error) {
-    console.error(`Error getting explanation history for conversation ${conversationId}:`, error);
-    throw new Error(
-      `Failed to get explanation history: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**

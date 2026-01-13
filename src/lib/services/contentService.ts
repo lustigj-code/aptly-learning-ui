@@ -8,6 +8,7 @@
 
 import { adminDb } from '@/lib/firebase/admin'
 import { COURSES, COURSE_3_MODULE_1 } from '@/data/mockData'
+import { FSM_COURSE, FSM_MODULE_1 } from '@/data/fsmCourse'
 import type { Course, Module, Lesson, Atom } from '@/types'
 
 // ============================================
@@ -366,38 +367,80 @@ export async function getAtomsByLesson(
 
 export async function seedCoursesToFirestore(): Promise<{ success: boolean; message: string }> {
   try {
-    const batch = adminDb.batch()
+    // Seed FSM course as the primary course
+    const courseRef = adminDb.collection('courses').doc(FSM_COURSE.id)
 
-    for (const course of COURSES) {
-      const courseRef = adminDb.collection('courses').doc(course.id)
-      batch.set(courseRef, {
-        ...course,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      })
-    }
-
-    // Seed module for course-3
-    const moduleRef = adminDb
-      .collection('courses')
-      .doc('course-3')
-      .collection('modules')
-      .doc(COURSE_3_MODULE_1.id)
-
-    batch.set(moduleRef, {
-      ...COURSE_3_MODULE_1,
+    // Create course document (without nested modules)
+    const courseData = {
+      id: FSM_COURSE.id,
+      number: FSM_COURSE.number,
+      title: FSM_COURSE.title,
+      description: FSM_COURSE.description,
+      objectives: FSM_COURSE.objectives,
+      estimatedHours: FSM_COURSE.estimatedHours,
+      isLocked: FSM_COURSE.isLocked,
+      prerequisites: FSM_COURSE.prerequisites,
+      domain: FSM_COURSE.domain,
       createdAt: new Date(),
       updatedAt: new Date(),
-    })
+    }
+    await courseRef.set(courseData)
 
-    await batch.commit()
+    // Seed module
+    const moduleRef = courseRef.collection('modules').doc(FSM_MODULE_1.id)
+    const moduleData = {
+      id: FSM_MODULE_1.id,
+      courseId: FSM_MODULE_1.courseId,
+      number: FSM_MODULE_1.number,
+      title: FSM_MODULE_1.title,
+      objectives: FSM_MODULE_1.objectives || [],
+      estimatedMinutes: FSM_MODULE_1.estimatedMinutes,
+      isLocked: FSM_MODULE_1.isLocked,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+    await moduleRef.set(moduleData)
 
-    // Trigger indexing for all seeded courses (fire and forget)
-    for (const course of COURSES) {
-      triggerCourseIndexing(course.id)
+    // Seed each lesson with its atoms
+    let lessonCount = 0
+    let atomCount = 0
+
+    for (const lesson of FSM_MODULE_1.lessons || []) {
+      const lessonRef = moduleRef.collection('lessons').doc(lesson.id)
+      const lessonData = {
+        id: lesson.id,
+        moduleId: lesson.moduleId,
+        number: lesson.number,
+        title: lesson.title,
+        objectives: lesson.objectives || [],
+        estimatedMinutes: lesson.estimatedMinutes,
+        isLocked: lesson.isLocked,
+        // Store atoms inline in the lesson document
+        atoms: (lesson.atoms || []).map(atom => ({
+          id: atom.id,
+          lessonId: atom.lessonId,
+          type: atom.type,
+          title: atom.title,
+          content: atom.content,
+          estimatedMinutes: atom.estimatedMinutes,
+          isRequired: atom.isRequired,
+          masteryThreshold: atom.masteryThreshold,
+        })),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+      await lessonRef.set(lessonData)
+      lessonCount++
+      atomCount += lesson.atoms?.length || 0
     }
 
-    return { success: true, message: `Seeded ${COURSES.length} courses and 1 module` }
+    // Trigger indexing for FSM course
+    triggerCourseIndexing(FSM_COURSE.id)
+
+    return {
+      success: true,
+      message: `Seeded FSM course with 1 module, ${lessonCount} lessons, and ${atomCount} atoms`
+    }
   } catch (error) {
     console.error('Error seeding content:', error)
     return {

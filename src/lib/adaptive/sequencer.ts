@@ -14,12 +14,25 @@ import { type ConceptMastery } from '@/lib/mastery/knowledgeGraph';
 import { AI_AT_WORK_SKILL_MAP, getSkillName, getSkillModule } from '@/data/skillMap';
 import { adminDb } from '@/lib/firebase/admin';
 import { getSkillMap } from '@/lib/skillmap/skillMapStorage';
+import { LRUCache } from '@/lib/cache/LRUCache';
 
 // ============================================
-// SKILL MAP CACHE
+// SKILL MAP CACHE (LRU with TTL)
 // ============================================
 
-const skillMapCache = new Map<string, SkillMap>();
+/**
+ * Skill map cache with bounded size and TTL
+ *
+ * Phase 5 Optimization: Replaced unbounded Map with LRU cache
+ * - Max 100 courses cached
+ * - 15 minute TTL (skill maps rarely change)
+ * - Automatic cleanup every 5 minutes
+ */
+const skillMapCache = new LRUCache<string, SkillMap>({
+  maxSize: 100,
+  ttlMs: 15 * 60 * 1000, // 15 minutes
+  cleanupIntervalMs: 5 * 60 * 1000, // Cleanup every 5 minutes
+});
 
 /**
  * Get skill map for course (with caching)
@@ -27,8 +40,9 @@ const skillMapCache = new Map<string, SkillMap>();
  */
 async function getSkillMapForCourse(courseId: string): Promise<SkillMap> {
   // Check cache first
-  if (skillMapCache.has(courseId)) {
-    return skillMapCache.get(courseId)!;
+  const cached = skillMapCache.get(courseId);
+  if (cached) {
+    return cached;
   }
 
   // Try Firestore for dynamic skill map
@@ -65,6 +79,13 @@ export function clearSkillMapCache(courseId?: string): void {
     skillMapCache.clear();
   }
   console.log(`[Sequencer] Cache cleared${courseId ? ` for ${courseId}` : ''}`);
+}
+
+/**
+ * Get skill map cache statistics for monitoring
+ */
+function getSkillMapCacheStats(): { size: number; maxSize: number; ttlMs: number } {
+  return skillMapCache.getStats();
 }
 
 /**
@@ -555,4 +576,5 @@ export {
   getContentForSkill,
   estimateLessonMinutes,
   calculatePredictedRetention,
+  getSkillMapCacheStats,
 };

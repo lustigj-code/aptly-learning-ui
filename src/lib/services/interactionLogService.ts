@@ -7,6 +7,7 @@
 import { adminDb } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import type { InteractionLog, InteractionLogInput } from '@/types';
+import { withErrorHandling, validateString, validateRequired, validateNumber } from '@/lib/errors/handlers';
 
 const COLLECTION = 'interactionLogs';
 const BATCH_SIZE = 500; // Firestore batch limit
@@ -17,7 +18,7 @@ const BATCH_SIZE = 500; // Firestore batch limit
  * @returns The generated document ID
  */
 export async function logInteraction(input: InteractionLogInput): Promise<string> {
-  try {
+  return withErrorHandling('log interaction', async () => {
     const docRef = adminDb.collection(COLLECTION).doc();
 
     const log: InteractionLog = {
@@ -33,12 +34,7 @@ export async function logInteraction(input: InteractionLogInput): Promise<string
     });
 
     return docRef.id;
-  } catch (error) {
-    console.error('Error logging interaction:', error);
-    throw new Error(
-      `Failed to log interaction: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -49,7 +45,7 @@ export async function logInteraction(input: InteractionLogInput): Promise<string
 export async function batchLogInteractions(inputs: InteractionLogInput[]): Promise<void> {
   if (inputs.length === 0) return;
 
-  try {
+  return withErrorHandling('batch log interactions', async () => {
     // Split into batches of 500 (Firestore limit)
     for (let i = 0; i < inputs.length; i += BATCH_SIZE) {
       const batch = adminDb.batch();
@@ -72,12 +68,7 @@ export async function batchLogInteractions(inputs: InteractionLogInput[]): Promi
 
       await batch.commit();
     }
-  } catch (error) {
-    console.error('Error batch logging interactions:', error);
-    throw new Error(
-      `Failed to batch log interactions: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -90,7 +81,10 @@ export async function getInteractionsByUser(
   userId: string,
   limit: number = 100
 ): Promise<InteractionLog[]> {
-  try {
+  return withErrorHandling(`fetch interactions for user ${userId}`, async () => {
+    validateString('userId', userId);
+    validateNumber('limit', limit, 1);
+
     const snapshot = await adminDb
       .collection(COLLECTION)
       .where('userId', '==', userId)
@@ -106,12 +100,7 @@ export async function getInteractionsByUser(
         timestamp: data.timestamp?.toDate?.() || new Date(),
       } as InteractionLog;
     });
-  } catch (error) {
-    console.error(`Error fetching interactions for user ${userId}:`, error);
-    throw new Error(
-      `Failed to fetch user interactions: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -124,7 +113,10 @@ export async function getInteractionsBySkill(
   skillId: string,
   limit: number = 1000
 ): Promise<InteractionLog[]> {
-  try {
+  return withErrorHandling(`fetch interactions for skill ${skillId}`, async () => {
+    validateString('skillId', skillId);
+    validateNumber('limit', limit, 1);
+
     const snapshot = await adminDb
       .collection(COLLECTION)
       .where('skillId', '==', skillId)
@@ -140,12 +132,7 @@ export async function getInteractionsBySkill(
         timestamp: data.timestamp?.toDate?.() || new Date(),
       } as InteractionLog;
     });
-  } catch (error) {
-    console.error(`Error fetching interactions for skill ${skillId}:`, error);
-    throw new Error(
-      `Failed to fetch skill interactions: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -160,7 +147,10 @@ export async function getUserSkillInteractions(
   skillId: string,
   limit: number = 50
 ): Promise<InteractionLog[]> {
-  try {
+  return withErrorHandling(`fetch interactions for user ${userId} skill ${skillId}`, async () => {
+    validateRequired({ userId, skillId });
+    validateNumber('limit', limit, 1);
+
     const snapshot = await adminDb
       .collection(COLLECTION)
       .where('userId', '==', userId)
@@ -177,12 +167,7 @@ export async function getUserSkillInteractions(
         timestamp: data.timestamp?.toDate?.() || new Date(),
       } as InteractionLog;
     });
-  } catch (error) {
-    console.error(`Error fetching interactions for user ${userId} skill ${skillId}:`, error);
-    throw new Error(
-      `Failed to fetch user skill interactions: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -190,15 +175,10 @@ export async function getUserSkillInteractions(
  * @returns Total count of logged interactions
  */
 export async function getInteractionCount(): Promise<number> {
-  try {
+  return withErrorHandling('get interaction count', async () => {
     const snapshot = await adminDb.collection(COLLECTION).count().get();
     return snapshot.data().count;
-  } catch (error) {
-    console.error('Error getting interaction count:', error);
-    throw new Error(
-      `Failed to get interaction count: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -211,7 +191,9 @@ export async function getSessionInteractions(
   userId: string,
   sessionId: string
 ): Promise<InteractionLog[]> {
-  try {
+  return withErrorHandling(`fetch session interactions for user ${userId}`, async () => {
+    validateRequired({ userId, sessionId });
+
     const snapshot = await adminDb
       .collection(COLLECTION)
       .where('userId', '==', userId)
@@ -227,12 +209,7 @@ export async function getSessionInteractions(
         timestamp: data.timestamp?.toDate?.() || new Date(),
       } as InteractionLog;
     });
-  } catch (error) {
-    console.error(`Error fetching session interactions:`, error);
-    throw new Error(
-      `Failed to fetch session interactions: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
 
 /**
@@ -245,7 +222,7 @@ export async function getInteractionStats(): Promise<{
   uniqueSkills: number;
   correctRate: number;
 }> {
-  try {
+  return withErrorHandling('get interaction stats', async () => {
     // Get total count
     const countSnapshot = await adminDb.collection(COLLECTION).count().get();
     const totalCount = countSnapshot.data().count;
@@ -258,10 +235,5 @@ export async function getInteractionStats(): Promise<{
       uniqueSkills: -1, // Requires aggregation
       correctRate: -1, // Requires aggregation
     };
-  } catch (error) {
-    console.error('Error getting interaction stats:', error);
-    throw new Error(
-      `Failed to get interaction stats: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  });
 }
