@@ -1,117 +1,166 @@
 /**
- * @deprecated This store is deprecated. Use unifiedStore instead.
- * All auth functionality has been consolidated into src/store/unifiedStore.ts
- * This file is kept for reference only and will be removed in a future version.
+ * Authentication state management
+ * Handles Firebase auth, user session, and auth errors
+ *
+ * This is a focused store - split from the monolithic unifiedStore
+ * for better separation of concerns and maintainability.
  */
+import { create } from 'zustand';
+import { subscribeWithSelector } from 'zustand/middleware';
+import {
+  User as FirebaseUser,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+} from 'firebase/auth';
+import { auth } from '@/lib/firebase/config';
 
-import { create } from 'zustand'
-import { useEffect } from 'react'
-import { User as FirebaseUser, signOut as firebaseSignOut } from 'firebase/auth'
-import { auth } from '@/lib/firebase'
-import { onAuthStateChanged } from 'firebase/auth'
+// ============================================
+// TYPES
+// ============================================
 
 export type AuthUser = {
-  uid: string
-  email: string | null
-  displayName: string | null
-  photoURL: string | null
-  emailVerified: boolean
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+  emailVerified: boolean;
+};
+
+export interface AuthState {
+  // State
+  firebaseUser: FirebaseUser | null;
+  authUser: AuthUser | null;
+  isAuthenticated: boolean;
+  isAuthLoading: boolean;
+  authError: string | null;
+
+  // Actions
+  initializeAuth: () => () => void;
+  setFirebaseUser: (user: FirebaseUser | null) => void;
+  setAuthLoading: (loading: boolean) => void;
+  setAuthError: (error: string | null) => void;
+  signOut: () => Promise<void>;
+  clearAuthError: () => void;
 }
 
-type AuthStore = {
-  firebaseUser: FirebaseUser | null
-  authUser: AuthUser | null
-  isAuthenticated: boolean
-  isLoading: boolean
-  error: string | null
+// ============================================
+// STORE
+// ============================================
 
-  // Auth methods
-  initializeAuth: () => (() => void)
-  signOut: () => Promise<void>
-  clearError: () => void
-  setLoading: (loading: boolean) => void
-}
+export const useAuthStore = create<AuthState>()(
+  subscribeWithSelector((set, get) => ({
+    // Initial state
+    firebaseUser: null,
+    authUser: null,
+    isAuthenticated: false,
+    isAuthLoading: true,
+    authError: null,
 
-export const useAuthStore = create<AuthStore>((set) => ({
-  firebaseUser: null,
-  authUser: null,
-  isAuthenticated: false,
-  isLoading: true,
-  error: null,
+    // Actions
+    initializeAuth: () => {
+      if (!auth) {
+        set({ isAuthLoading: false });
+        return () => {};
+      }
 
-  initializeAuth: () => {
-    // Set up real-time listener for auth state
-    if (!auth) {
-      return () => {} // Return empty cleanup function if auth not initialized
-    }
+      const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+        if (firebaseUser) {
+          const authUser: AuthUser = {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName,
+            photoURL: firebaseUser.photoURL,
+            emailVerified: firebaseUser.emailVerified,
+          };
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        const authUser: AuthUser = {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-          emailVerified: user.emailVerified,
+          set({
+            firebaseUser,
+            authUser,
+            isAuthenticated: true,
+            isAuthLoading: false,
+            authError: null,
+          });
+        } else {
+          set({
+            firebaseUser: null,
+            authUser: null,
+            isAuthenticated: false,
+            isAuthLoading: false,
+            authError: null,
+          });
+        }
+      });
+
+      return unsubscribe;
+    },
+
+    setFirebaseUser: (user) =>
+      set({
+        firebaseUser: user,
+        authUser: user
+          ? {
+              uid: user.uid,
+              email: user.email,
+              displayName: user.displayName,
+              photoURL: user.photoURL,
+              emailVerified: user.emailVerified,
+            }
+          : null,
+        isAuthenticated: !!user,
+        isAuthLoading: false,
+      }),
+
+    setAuthLoading: (loading) => set({ isAuthLoading: loading }),
+
+    setAuthError: (error) => set({ authError: error }),
+
+    signOut: async () => {
+      try {
+        if (auth) {
+          await firebaseSignOut(auth);
         }
 
-        set({
-          firebaseUser: user,
-          authUser,
-          isAuthenticated: true,
-          isLoading: false,
-          error: null,
-        })
-      } else {
         set({
           firebaseUser: null,
           authUser: null,
           isAuthenticated: false,
-          isLoading: false,
-          error: null,
-        })
+          isAuthLoading: false,
+          authError: null,
+        });
+      } catch (error) {
+        console.error('Sign out error:', error);
+        set({
+          authError: error instanceof Error ? error.message : 'Sign out failed',
+        });
       }
-    })
+    },
 
-    // Return cleanup function
-    return unsubscribe
-  },
+    clearAuthError: () => set({ authError: null }),
+  }))
+);
 
-  signOut: async () => {
-    try {
-      if (auth) {
-        await firebaseSignOut(auth)
-      }
-      set({
-        firebaseUser: null,
-        authUser: null,
-        isAuthenticated: false,
-        isLoading: false,
-        error: null,
-      })
-    } catch (error) {
-      console.error('Sign out error:', error)
-      set({ error: error instanceof Error ? error.message : 'Sign out failed' })
-    }
-  },
-
-  clearError: () => set({ error: null }),
-
-  setLoading: (loading) => set({ isLoading: loading }),
-}))
+// ============================================
+// SELECTOR HOOKS (for optimized re-renders)
+// ============================================
 
 /**
- * Hook to initialize auth on app load
- * Call once in root layout or _app
+ * Hook to get basic auth state
+ * Use this in most components that just need auth status
  */
-export function useAuthInitialize() {
-  const { initializeAuth, isLoading } = useAuthStore()
+export function useAuth() {
+  const authUser = useAuthStore((state) => state.authUser);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isLoading = useAuthStore((state) => state.isAuthLoading);
+  const error = useAuthStore((state) => state.authError);
+  const signOut = useAuthStore((state) => state.signOut);
+  const clearError = useAuthStore((state) => state.clearAuthError);
 
-  // Initialize auth on mount
-  useEffect(() => {
-    const unsubscribe = initializeAuth()
-    return () => unsubscribe?.()
-  }, [initializeAuth])
-
-  return isLoading
+  return {
+    authUser,
+    isAuthenticated,
+    isLoading,
+    error,
+    signOut,
+    clearError,
+  };
 }
