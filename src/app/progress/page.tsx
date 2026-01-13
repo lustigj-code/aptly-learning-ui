@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Target,
@@ -14,16 +15,44 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { ProgressBar, CircularProgress } from '@/components/ui/ProgressBar';
 import { InlineBadge } from '@/components/ui/Badge';
 import { SkeletonProgressPage } from '@/components/ui/Skeleton';
-import { StreakCalendar } from '@/components/progress/StreakCounter';
+import {
+  StreakCalendar,
+  MasteryTrajectoryChart,
+  PredictionAccuracyWidget,
+  SkillGapAnalysis,
+  TimeToMasteryWidget,
+  ExportProgressReport,
+} from '@/components/progress';
 import { Section } from '@/components/layout/AppLayout';
 import { SkillMap } from '@/components/mastery/SkillMap';
-import { useUser, useSyncStatus } from '@/store/unifiedStore';
+import { useUser } from '@/store/unifiedStore';
+import { useProgressReport, generateMockProgressData } from '@/hooks/useProgressReport';
 import { COURSES } from '@/data/mockData';
 import { cn, formatDuration } from '@/lib/utils';
 
 export default function ProgressPage() {
   const { user, isLoading } = useUser();
-  const { syncStatus } = useSyncStatus();
+
+  // Fetch progress report data
+  const {
+    report,
+    visualization,
+    isLoading: isReportLoading,
+    refresh: refreshReport,
+  } = useProgressReport(user?.id ?? null);
+
+  // Use mock data for demo if no real data available
+  const mockData = generateMockProgressData();
+  const displayVisualization = visualization || mockData.visualization;
+  const displayReport = report || mockData.report;
+
+  // Handler for export
+  const handleExport = useCallback(async () => {
+    if (report) return report;
+    // Generate fresh report data
+    await refreshReport();
+    return report || mockData.report;
+  }, [report, refreshReport, mockData.report]);
 
   if (isLoading || !user) {
     return <SkeletonProgressPage />;
@@ -40,18 +69,25 @@ export default function ProgressPage() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
+      {/* Header with Export Button */}
       <Section delay={0}>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="h2 text-navy">Your Progress</h1>
             <p className="text-rich-black/60 mt-1">
               Meta Social Media Marketing Professional Certificate
             </p>
           </div>
-          <div className="flex items-center gap-2 text-sm text-rich-black/60">
-            <Calendar size={16} />
-            <span>Started {new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-sm text-rich-black/60">
+              <Calendar size={16} />
+              <span>Started {new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+            </div>
+            <ExportProgressReport
+              data={displayReport}
+              isLoading={isReportLoading}
+              onExport={handleExport}
+            />
           </div>
         </div>
       </Section>
@@ -101,8 +137,42 @@ export default function ProgressPage() {
         </Card>
       </Section>
 
-      {/* Course Progress */}
+      {/* ML-Powered Visualizations Grid */}
+      <Section delay={0.15}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Mastery Over Time */}
+          <MasteryTrajectoryChart
+            data={displayVisualization.masteryHistory}
+            title="Mastery Trajectory"
+            description="Your learning progress over time"
+          />
+
+          {/* AI Prediction Accuracy */}
+          <PredictionAccuracyWidget
+            stats={displayVisualization.predictionStats}
+          />
+        </div>
+      </Section>
+
+      {/* Skill Analysis Grid */}
       <Section delay={0.2}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Skill Gap Analysis - Analytics view (no action buttons) */}
+          <SkillGapAnalysis
+            gaps={displayVisualization.skillGaps}
+            maxItems={5}
+          />
+
+          {/* Time to Mastery */}
+          <TimeToMasteryWidget
+            predictions={displayVisualization.masteryPredictions}
+            maxItems={5}
+          />
+        </div>
+      </Section>
+
+      {/* Course Progress */}
+      <Section delay={0.25}>
         <Card variant="elevated" padding="lg">
           <CardHeader>
             <CardTitle>Course Progress</CardTitle>
@@ -155,7 +225,7 @@ export default function ProgressPage() {
           <Card variant="elevated" padding="lg">
             <CardHeader className="flex flex-row items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-yellow/20 flex items-center justify-center">
-                <Flame size={20} className="text-yellow" />
+                <Flame size={20} className="text-yellow-dark" />
               </div>
               <div>
                 <CardTitle>Learning Streak</CardTitle>
@@ -178,7 +248,7 @@ export default function ProgressPage() {
                 className="mb-4"
               />
 
-              <div className="flex items-center justify-between pt-4 border-t border-light-grey">
+              <div className="flex items-center justify-between pt-4">
                 <div className="text-center">
                   <p className="text-xl font-bold text-navy">{streak.longestStreak}</p>
                   <p className="text-xs text-rich-black/60">Longest Streak</p>
@@ -235,12 +305,12 @@ export default function ProgressPage() {
       </Section>
 
       {/* Skills Mastery Map - BKT Visualization */}
-      <Section delay={0.4}>
+      <Section delay={0.35}>
         <SkillMap showModuleFilter={true} />
       </Section>
 
       {/* Exam Readiness */}
-      <Section delay={0.5}>
+      <Section delay={0.4}>
         <Card variant="outlined" padding="lg" className="bg-light-teal/30 border-teal/20">
           <div className="flex items-center gap-6">
             <div className="w-20 h-20 rounded-2xl bg-teal/20 flex items-center justify-center">
@@ -318,7 +388,7 @@ function CourseProgressRow({
   return (
     <div className={cn(
       'flex items-center gap-4 p-4 rounded-xl transition-all',
-      isCurrent && 'bg-light-teal/30 border border-teal/20',
+      isCurrent && 'bg-light-teal/30',
       isLocked && 'opacity-50'
     )}>
       <div

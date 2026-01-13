@@ -106,9 +106,16 @@ function VideoRenderer({
   const [isPlaying, setIsPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
   const [hasCompleted, setHasCompleted] = useState(false)
+  const [videoLoading, setVideoLoading] = useState(true)
+  const [videoError, setVideoError] = useState(false)
+
+  // Log video URL for debugging
+  if (typeof window !== 'undefined') {
+    console.log('[Video] Attempting to load:', content.videoUrl)
+  }
 
   const togglePlay = () => {
-    if (videoRef.current) {
+    if (videoRef.current && !videoError) {
       if (isPlaying) {
         videoRef.current.pause()
       } else {
@@ -133,6 +140,49 @@ function VideoRenderer({
     onContinue?.()
   }
 
+  const handleVideoError = () => {
+    console.error('[Video] Failed to load:', content.videoUrl)
+    setVideoError(true)
+    setVideoLoading(false)
+  }
+
+  const handleVideoLoaded = () => {
+    console.log('[Video] Successfully loaded:', content.videoUrl)
+    setVideoLoading(false)
+  }
+
+  // Check if videoUrl exists
+  if (!content.videoUrl) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="h-full flex flex-col"
+      >
+        <div className="flex-1 flex flex-col items-center justify-center bg-light-grey/30 rounded-lg">
+          <XCircle className="w-16 h-16 text-grey/50 mb-4" />
+          <p className="text-navy font-medium">No video URL provided</p>
+          <p className="text-grey text-sm mt-1">This content is missing a video source.</p>
+        </div>
+        <div className="flex items-center justify-between pt-4 flex-shrink-0">
+          <div>
+            <h2 className="font-medium text-navy">{atom.title}</h2>
+            <span className="text-sm text-grey">{Math.ceil(content.duration / 60)} min</span>
+          </div>
+          {isActive && (
+            <button
+              onClick={handleContinue}
+              className="px-6 py-3 bg-teal text-white font-medium rounded-lg hover:bg-teal-dark transition-colors flex items-center gap-2"
+            >
+              Skip
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+      </motion.div>
+    )
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -142,19 +192,46 @@ function VideoRenderer({
       {/* Video - Takes most of the space */}
       <div className="flex-1 flex flex-col min-h-0">
         <div className="relative rounded-lg overflow-hidden bg-black flex-1">
+          {/* Loading spinner */}
+          {videoLoading && !videoError && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black z-10">
+              <div className="flex flex-col items-center">
+                <RefreshCw className="w-10 h-10 text-white/70 animate-spin" />
+                <p className="text-white/70 text-sm mt-3">Loading video...</p>
+              </div>
+            </div>
+          )}
+
+          {/* Error state */}
+          {videoError && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-light-grey/10 z-10">
+              <XCircle className="w-16 h-16 text-red-400/70 mb-4" />
+              <p className="text-navy font-medium">Video could not be loaded</p>
+              <p className="text-grey text-sm mt-1 text-center px-4">
+                The video file may be missing or unavailable.
+              </p>
+              <p className="text-grey/60 text-xs mt-2 font-mono">
+                {content.videoUrl}
+              </p>
+            </div>
+          )}
+
           <video
             ref={videoRef}
             src={content.videoUrl}
-            className="w-full h-full object-contain"
+            className={`w-full h-full object-contain ${videoError ? 'hidden' : ''}`}
             onTimeUpdate={handleTimeUpdate}
             onPlay={() => setIsPlaying(true)}
             onPause={() => setIsPlaying(false)}
             onEnded={() => setIsPlaying(false)}
+            onError={handleVideoError}
+            onLoadedData={handleVideoLoaded}
+            onCanPlay={handleVideoLoaded}
             controls
           />
 
           {/* Play overlay */}
-          {!isPlaying && progress === 0 && (
+          {!isPlaying && progress === 0 && !videoLoading && !videoError && (
             <button
               onClick={togglePlay}
               className="absolute inset-0 flex items-center justify-center bg-black/30 hover:bg-black/40 transition-colors"
@@ -178,7 +255,7 @@ function VideoRenderer({
             onClick={handleContinue}
             className="px-6 py-3 bg-teal text-white font-medium rounded-lg hover:bg-teal-dark transition-colors flex items-center gap-2"
           >
-            Continue
+            {videoError ? 'Skip' : 'Continue'}
             <ChevronRight className="w-5 h-5" />
           </button>
         )}
@@ -221,7 +298,7 @@ function ReadingRenderer({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="h-full flex flex-col"
+      className="h-full flex flex-col relative"
     >
       {/* Scrollable Content Area */}
       <div className="flex-1 overflow-y-auto min-h-0">
@@ -276,9 +353,9 @@ function ReadingRenderer({
         <div className="h-24" />
       </div>
 
-      {/* Continue button - Fixed at bottom */}
+      {/* Continue button - Sticky at bottom */}
       {isActive && (
-        <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent">
+        <div className="sticky bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent flex-shrink-0">
           <button
             onClick={handleContinue}
             className="w-full max-w-3xl mx-auto py-3 bg-teal text-white font-medium rounded-lg hover:bg-teal-dark transition-colors flex items-center justify-center gap-2 shadow-lg"

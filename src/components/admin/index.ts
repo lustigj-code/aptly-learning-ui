@@ -8,3 +8,4 @@ export { StatisticalSignificance } from './StatisticalSignificance';
 export { CreateExperimentForm } from './CreateExperimentForm';
 export { HybridModelStatus } from './HybridModelStatus';
 export { ModelPerformanceWidget } from './ModelPerformanceWidget';
+export { IndexingStatus } from './IndexingStatus';

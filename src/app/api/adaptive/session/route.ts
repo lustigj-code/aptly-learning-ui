@@ -61,7 +61,29 @@ interface SessionRequest {
     preferredFormat: 'video' | 'reading' | 'mixed';
     includeWarmup?: boolean;
     includeCooldown?: boolean;
+    // Interleaving preferences (Phase 13)
+    interleavingEnabled?: boolean;
+    interleavingIntensity?: 'light' | 'moderate' | 'heavy';
   };
+}
+
+// ============================================
+// INTERLEAVING HELPERS
+// ============================================
+
+/**
+ * Convert interleaving intensity to ratio
+ * light = 20%, moderate = 30%, heavy = 50%
+ */
+function getInterleavingRatioFromIntensity(
+  intensity: 'light' | 'moderate' | 'heavy' = 'moderate'
+): number {
+  const ratioMap = {
+    light: 0.2,      // 20% reviews
+    moderate: 0.3,   // 30% reviews
+    heavy: 0.5,      // 50% reviews
+  };
+  return ratioMap[intensity];
 }
 
 // ============================================
@@ -202,7 +224,11 @@ async function buildSessionServer(
   }
 
   // Interleave reviews into main content using FSRS-based algorithm (Phase 13)
-  const interleavedItems = await interleaveItemsWithFSRS(items, userId, courseId);
+  // Pass user's interleaving preferences
+  const interleavedItems = await interleaveItemsWithFSRS(items, userId, courseId, {
+    interleavingEnabled: preferences.interleavingEnabled,
+    interleavingIntensity: preferences.interleavingIntensity,
+  });
 
   // Build session summary
   const skillsFocused = [...new Set(interleavedItems.map(i => i.skillId))];
@@ -285,17 +311,28 @@ function interleaveItemsSimple(items: SessionItem[]): SessionItem[] {
  *
  * Injects review items when Retrievability < 90%
  * Uses semantic similarity to select relevant reviews
+ * Respects user's interleaving preferences (enabled/intensity)
  */
 async function interleaveItemsWithFSRS(
   items: SessionItem[],
   userId: string,
-  courseId: string
+  courseId: string,
+  interleavingPrefs?: {
+    interleavingEnabled?: boolean;
+    interleavingIntensity?: 'light' | 'moderate' | 'heavy';
+  }
 ): Promise<SessionItem[]> {
   try {
+    // Check if interleaving is disabled by user preference (default: enabled)
+    const interleavingEnabled = interleavingPrefs?.interleavingEnabled ?? true;
+    if (!interleavingEnabled) {
+      return interleaveItemsSimple(items);
+    }
+
     // Get user's mastery data
     const learnerState = await fetchLearnerState(userId);
 
-    // Check if interleaving should be applied
+    // Check if interleaving should be applied based on FSRS state
     if (!shouldApplyInterleaving(learnerState.fsrsStates, DEFAULT_INTERLEAVING_CONFIG)) {
       return interleaveItemsSimple(items);
     }
@@ -309,12 +346,28 @@ async function interleaveItemsWithFSRS(
     // Find current skill being learned
     const currentSkillId = items.find(i => i.type === 'learn')?.skillId || '';
 
+    // Calculate max review items based on intensity
+    // light = 3 max, moderate = 5 max, heavy = 7 max
+    const maxReviewItemsMap = {
+      light: 3,
+      moderate: 5,
+      heavy: 7,
+    };
+    const maxReviewItems = maxReviewItemsMap[interleavingPrefs?.interleavingIntensity ?? 'moderate'];
+
+    const customConfig: typeof DEFAULT_INTERLEAVING_CONFIG = {
+      ...DEFAULT_INTERLEAVING_CONFIG,
+      maxReviewItems,
+      // Adjust min ratio based on intensity
+      minNewToReviewRatio: interleavingPrefs?.interleavingIntensity === 'heavy' ? 1 : 2,
+    };
+
     // Get FSRS-based review items
     const reviewItems = getReviewItemsForInterleaving(
       learnerState.fsrsStates,
       currentSkillId,
       { skills: skillMap.skills },
-      DEFAULT_INTERLEAVING_CONFIG
+      customConfig
     );
 
     if (reviewItems.length === 0) {
@@ -331,8 +384,8 @@ async function interleaveItemsWithFSRS(
       isReviewChallenge: false,
     }));
 
-    // Use FSRS interleaving algorithm
-    const interleaved = fsrsInterleaveItems(newItems, reviewItems, DEFAULT_INTERLEAVING_CONFIG);
+    // Use FSRS interleaving algorithm with custom config
+    const interleaved = fsrsInterleaveItems(newItems, reviewItems, customConfig);
 
     // Convert back to SessionItem format
     return interleaved.map((item, index) => {

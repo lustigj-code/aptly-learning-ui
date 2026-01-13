@@ -211,7 +211,7 @@ export function ReviewQueue({
               <p className="text-xs text-rich-black/60">Accuracy</p>
             </div>
             <div className="text-center">
-              <p className="text-3xl font-bold text-yellow">{sessionStats.streak}</p>
+              <p className="text-3xl font-bold text-yellow-dark">{sessionStats.streak}</p>
               <p className="text-xs text-rich-black/60">Best Streak</p>
             </div>
           </div>
@@ -221,7 +221,7 @@ export function ReviewQueue({
               Excellent retention! Your memory is getting stronger.
             </p>
           ) : accuracy >= 60 ? (
-            <p className="text-sm text-yellow bg-yellow-light/20 p-3 rounded-lg">
+            <p className="text-sm text-yellow-dark bg-yellow-light p-3 rounded-lg">
               Good progress! Keep reviewing to strengthen these concepts.
             </p>
           ) : (
@@ -259,7 +259,7 @@ export function ReviewQueue({
               {currentIndex + 1} of {queue.length}
             </span>
             {sessionStats.streak >= 3 && (
-              <div className="flex items-center gap-1 text-yellow">
+              <div className="flex items-center gap-1 text-yellow-dark">
                 <Flame size={16} />
                 <span>{sessionStats.streak} streak</span>
               </div>

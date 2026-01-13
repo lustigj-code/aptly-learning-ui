@@ -36,6 +36,7 @@ export {
   checkStorageQuota,
   requestPersistentStorage,
   type QueuedProgress,
+  type ProgressData,
 } from './offline';
 
 // Install Prompt

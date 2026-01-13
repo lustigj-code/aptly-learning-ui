@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@/store/unifiedStore';
 import { useRouter } from 'next/navigation';
 import { OverviewPanel } from '@/components/admin/OverviewPanel';
@@ -29,10 +29,10 @@ export default function AnalyticsDashboard() {
   const { user, isLoading } = useUser();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabId>('overview');
-  const [dateRange, setDateRange] = useState<{ start: Date; end: Date }>({
+  const [dateRange, setDateRange] = useState<{ start: Date; end: Date }>(() => ({
     start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
     end: new Date(),
-  });
+  }));
 
   // Check if user is admin
   useEffect(() => {

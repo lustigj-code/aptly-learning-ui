@@ -6,14 +6,17 @@
  * - Include main learning block (new content)
  * - Interleave FSRS-based reviews throughout (Phase 13.1)
  * - End with review of what was just learned
+ * - Use domain-specific learning parameters (Phase 1-6)
  *
  * Note: Full sequencing requires server-side access. On client, uses API endpoint.
  */
 
 import { getSkillName } from '@/data/skillMap';
+import { getDomainFromCourse, type DomainConfig } from '@/lib/content/domainConfig';
 import type { ConceptMastery } from '../mastery/knowledgeGraph';
 import type { ContentRepresentation } from './semanticSimilarity';
 import type { InterleavingConfig, InterleavingResult } from './interleavingAlgorithm';
+import { selectItemsByDifficulty, getOptimalDifficulty, type ItemDifficulty } from './difficulty';
 
 // Dynamic import for server-only sequencer
 // This prevents the adminDb import from breaking client-side builds
@@ -57,10 +60,14 @@ export interface SessionItem {
   reason: string;
   order: number;
   isReviewChallenge?: boolean; // Badge indicator for FSRS-injected reviews
+  /** Normalized difficulty level (0-1) for adaptive content selection */
+  difficulty?: number;
   metadata?: {
     retrievability?: number;
     similarity?: number;
     urgency?: number;
+    /** Optimal difficulty calculated for this item */
+    optimalDifficulty?: number;
   };
 }
 
@@ -104,6 +111,77 @@ export const DEFAULT_SESSION_CONFIG: SessionConfig = {
   },
   sessionGoal: 'mixed',
 };
+
+/**
+ * Get session config based on domain-specific learning parameters
+ */
+export function getSessionConfigForDomain(
+  courseId: string,
+  userPreferences?: Partial<SessionConfig['preferences']>
+): SessionConfig {
+  const domain = getDomainFromCourse(courseId);
+
+  if (!domain) {
+    return {
+      ...DEFAULT_SESSION_CONFIG,
+      preferences: {
+        ...DEFAULT_SESSION_CONFIG.preferences,
+        ...userPreferences,
+      },
+    };
+  }
+
+  // Map domain learning pace to session builder pace
+  const paceMap: Record<string, 'light' | 'moderate' | 'intensive'> = {
+    beginner: 'light',
+    intermediate: 'moderate',
+    advanced: 'intensive',
+    expert: 'intensive',
+  };
+
+  return {
+    availableMinutes: domain.learningParams.defaultSessionMinutes,
+    preferences: {
+      learningPace: paceMap[domain.learningParams.difficultyScale] || 'moderate',
+      preferredFormat: userPreferences?.preferredFormat || 'mixed',
+      includeWarmup: true,
+      includeCooldown: true,
+      ...userPreferences,
+    },
+    sessionGoal: 'mixed',
+  };
+}
+
+/**
+ * Get domain config for a course (convenience wrapper)
+ */
+export function getDomainConfigForCourse(courseId: string): DomainConfig | undefined {
+  return getDomainFromCourse(courseId);
+}
+
+/**
+ * Get mastery parameters from domain config
+ */
+export function getDomainMasteryParams(courseId: string): {
+  initialMastery: number;
+  transitionRate: number;
+  targetRetention: number;
+  masteryThreshold: number;
+} {
+  const domain = getDomainFromCourse(courseId);
+
+  if (!domain) {
+    // Default BKT parameters
+    return {
+      initialMastery: 0.2,
+      transitionRate: 0.4,
+      targetRetention: 0.9,
+      masteryThreshold: 0.8,
+    };
+  }
+
+  return domain.masteryParams;
+}
 
 // ============================================
 // MAIN SESSION BUILDER
@@ -701,7 +779,138 @@ export function getInterleavingStats(session: LearningSession): {
 }
 
 // ============================================
+// DIFFICULTY SELECTION INTEGRATION
+// ============================================
+
+/**
+ * Enrich session items with adaptive difficulty levels
+ *
+ * This function calculates optimal difficulty for each skill in the session
+ * and attaches the difficulty to each item. Use this when displaying
+ * session items with DifficultyIndicator components.
+ *
+ * @param userId - User identifier
+ * @param session - Learning session to enrich
+ * @returns Session with difficulty values on each item
+ */
+export async function enrichSessionWithDifficulty(
+  userId: string,
+  session: LearningSession
+): Promise<LearningSession> {
+  // Cache optimal difficulty per skill to avoid redundant calculations
+  const difficultyCache = new Map<string, number>();
+
+  const enrichedItems = await Promise.all(
+    session.items.map(async (item) => {
+      // Check cache first
+      let optimalDifficulty = difficultyCache.get(item.skillId);
+
+      if (optimalDifficulty === undefined) {
+        try {
+          optimalDifficulty = await getOptimalDifficulty(userId, item.skillId);
+          difficultyCache.set(item.skillId, optimalDifficulty);
+        } catch (error) {
+          console.error(`[SessionBuilder] Error getting difficulty for ${item.skillId}:`, error);
+          optimalDifficulty = 0.5; // Default to moderate
+          difficultyCache.set(item.skillId, optimalDifficulty);
+        }
+      }
+
+      return {
+        ...item,
+        difficulty: optimalDifficulty,
+        metadata: {
+          ...item.metadata,
+          optimalDifficulty,
+        },
+      };
+    })
+  );
+
+  return {
+    ...session,
+    items: enrichedItems,
+  };
+}
+
+/**
+ * Select quiz items from a pool based on difficulty matching
+ *
+ * Use this when building quiz or practice sections and you have
+ * a pool of questions with varying difficulties to choose from.
+ *
+ * @param userId - User identifier
+ * @param skillId - Skill to select items for
+ * @param availableItems - Pool of items with difficulty metadata
+ * @param count - Number of items to select
+ * @returns Selected items with difficulty information
+ */
+export async function selectQuizItemsByDifficulty(
+  userId: string,
+  skillId: string,
+  availableItems: Array<{
+    itemId: string;
+    difficulty: number;
+    estimatedMinutes?: number;
+  }>,
+  count: number
+): Promise<ItemDifficulty[]> {
+  // Convert to ItemDifficulty format
+  const itemPool: ItemDifficulty[] = availableItems.map((item) => ({
+    itemId: item.itemId,
+    difficulty: item.difficulty,
+    skillId,
+    estimatedMinutes: item.estimatedMinutes,
+  }));
+
+  // Use difficulty selector to pick optimal items
+  const selection = await selectItemsByDifficulty(
+    userId,
+    skillId,
+    itemPool,
+    count
+  );
+
+  console.log(`[SessionBuilder] ${selection.reasoning}`);
+
+  return selection.selectedItems;
+}
+
+/**
+ * Build a session item with adaptive difficulty
+ *
+ * Helper to create a SessionItem with difficulty calculated
+ * for the user's current mastery level.
+ *
+ * @param userId - User identifier
+ * @param itemData - Base item data
+ * @returns SessionItem with difficulty attached
+ */
+export async function buildSessionItemWithDifficulty(
+  userId: string,
+  itemData: Omit<SessionItem, 'difficulty' | 'order'>
+): Promise<Omit<SessionItem, 'order'>> {
+  try {
+    const difficulty = await getOptimalDifficulty(userId, itemData.skillId);
+    return {
+      ...itemData,
+      difficulty,
+      metadata: {
+        ...itemData.metadata,
+        optimalDifficulty: difficulty,
+      },
+    };
+  } catch (error) {
+    console.error('[SessionBuilder] Error getting difficulty:', error);
+    return {
+      ...itemData,
+      difficulty: 0.5,
+    };
+  }
+}
+
+// ============================================
 // EXPORTS
 // ============================================
 
-export type { NextItemRecommendation };
+export type { NextItemRecommendation, ItemDifficulty };

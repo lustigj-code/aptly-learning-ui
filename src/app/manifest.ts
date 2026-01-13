@@ -75,7 +75,7 @@ export default function manifest(): MetadataRoute.Manifest {
         name: 'AI Coach',
         short_name: 'Coach',
         description: 'Chat with your AI coach',
-        url: '/coach',
+        url: '/learn',
         icons: [{ src: '/icon-192.png', sizes: '192x192' }],
       },
     ],

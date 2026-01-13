@@ -3,6 +3,7 @@
  *
  * Single source of truth for all course data in Aptly Learning.
  * Consolidates AI at Work and Social Media Marketing courses.
+ * Now includes domain configuration for content-agnostic architecture.
  */
 
 import type { Course, Module, Lesson, Atom } from '@/types';
@@ -15,6 +16,11 @@ import {
   AI_AT_WORK_MODULES,
 } from './aiAtWorkCourse';
 import { COURSES as SOCIAL_MEDIA_COURSES, COURSE_1_MODULE_1 } from './mockData';
+import {
+  getDomainConfig,
+  getDomainFromCourse,
+  type DomainConfig,
+} from '@/lib/content/domainConfig';
 
 // ============================================
 // COURSE REGISTRY
@@ -22,15 +28,20 @@ import { COURSES as SOCIAL_MEDIA_COURSES, COURSE_1_MODULE_1 } from './mockData';
 
 /**
  * All available courses in the platform
+ * Each course is tagged with its domain for content-agnostic filtering
  */
 export const ALL_COURSES: Course[] = [
   // Primary course: AI at Work
   {
     ...AI_AT_WORK_COURSE,
     modules: AI_AT_WORK_MODULES,
+    domain: 'ai-at-work',
   },
   // Social Media Marketing courses (for future use)
-  ...SOCIAL_MEDIA_COURSES,
+  ...SOCIAL_MEDIA_COURSES.map(course => ({
+    ...course,
+    domain: 'social-media-marketing',
+  })),
 ];
 
 /**
@@ -361,3 +372,62 @@ export {
 
 // Re-export Social Media modules for direct access
 export { COURSE_1_MODULE_1 } from './mockData';
+
+// ============================================
+// DOMAIN-RELATED FUNCTIONS
+// ============================================
+
+/**
+ * Get all courses for a specific domain
+ */
+export function getCoursesByDomain(domainId: string): Course[] {
+  return ALL_COURSES.filter(course => course.domain === domainId);
+}
+
+/**
+ * Get a course with its domain configuration
+ */
+export function getCourseWithDomainConfig(courseId: string): {
+  course: Course;
+  domain: DomainConfig;
+} | undefined {
+  const course = getCourse(courseId);
+  if (!course) return undefined;
+
+  // Get domain config - prefer explicit domain field, fall back to inference
+  const domainId = course.domain || getDomainFromCourse(courseId)?.id;
+  const domain = domainId ? getDomainConfig(domainId) : undefined;
+
+  if (!domain) return undefined;
+
+  return { course, domain };
+}
+
+/**
+ * Get the primary/first course for a domain
+ */
+export function getPrimaryCourseForDomain(domainId: string): Course | undefined {
+  const courses = getCoursesByDomain(domainId);
+  return courses.length > 0 ? courses[0] : undefined;
+}
+
+/**
+ * Get course domain ID (explicit or inferred)
+ */
+export function getCourseDomainId(courseId: string): string | undefined {
+  const course = getCourse(courseId);
+  if (course?.domain) return course.domain;
+  return getDomainFromCourse(courseId)?.id;
+}
+
+/**
+ * Check if a course belongs to a specific domain
+ */
+export function courseInDomain(courseId: string, domainId: string): boolean {
+  const courseDomainId = getCourseDomainId(courseId);
+  return courseDomainId === domainId;
+}
+
+// Re-export domain functions for convenience
+export { getDomainConfig, getDomainFromCourse } from '@/lib/content/domainConfig';
+export type { DomainConfig } from '@/lib/content/domainConfig';

@@ -61,7 +61,9 @@ export type EventType =
   | 'retention_test_scheduled'
   | 'retention_test_available'
   | 'retention_test_started'
-  | 'retention_test_completed';
+  | 'retention_test_completed'
+  // Interleaving Events (Phase 13)
+  | 'interleaved_session_complete';
 
 /**
  * Base analytics event structure
@@ -215,6 +217,33 @@ export interface RetentionTestProperties {
   originalMastery?: Record<string, number>;
   currentScores?: Record<string, number>;
   overallRetention?: number;
+  [key: string]: unknown;
+}
+
+/**
+ * Properties for interleaved session completion (Phase 13)
+ */
+export interface InterleavedSessionCompleteProperties {
+  /** Total items in session */
+  totalItems: number;
+  /** Number of review items (interleaved) */
+  reviewItems: number;
+  /** Number of new learning items */
+  newItems: number;
+  /** Actual interleaving ratio achieved */
+  interleavingRatio: number;
+  /** User's configured intensity setting */
+  intensitySetting: 'light' | 'moderate' | 'heavy';
+  /** Accuracy on review items (0-1) */
+  reviewAccuracy: number;
+  /** Accuracy on new items (0-1) */
+  newItemAccuracy: number;
+  /** Review items completed */
+  reviewItemsCompleted: number;
+  /** Session duration in minutes */
+  durationMinutes: number;
+  /** Whether interleaving was enabled */
+  interleavingEnabled: boolean;
   [key: string]: unknown;
 }
 
@@ -561,6 +590,23 @@ export async function trackRetentionTest(
   experimentId?: string
 ): Promise<string> {
   return trackEvent(eventType, userId, sessionId, properties, experimentId);
+}
+
+/**
+ * Track interleaved session completion (Phase 13)
+ *
+ * Logs effectiveness metrics for interleaving:
+ * - How many review items were included
+ * - Accuracy on review vs new items
+ * - User's intensity setting
+ */
+export async function trackInterleavedSessionComplete(
+  userId: string,
+  sessionId: string,
+  properties: InterleavedSessionCompleteProperties,
+  experimentId?: string
+): Promise<string> {
+  return trackEvent('interleaved_session_complete', userId, sessionId, properties, experimentId);
 }
 
 // ============================================

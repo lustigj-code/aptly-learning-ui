@@ -49,9 +49,9 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
-  // If has session and trying to access login/signup, redirect to coach (coach-first architecture)
+  // If has session and trying to access login/signup, redirect to dashboard (dashboard-first architecture)
   if (sessionCookie && (pathname === '/login' || pathname === '/signup')) {
-    const response = NextResponse.redirect(new URL('/coach', request.url))
+    const response = NextResponse.redirect(new URL('/dashboard', request.url))
     applySecurityHeaders(response)
     return response
   }

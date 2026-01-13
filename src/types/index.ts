@@ -6,6 +6,8 @@ export type LearningPace = 'relaxed' | 'moderate' | 'intensive';
 export type LearningTime = 'morning' | 'afternoon' | 'evening';
 export type Performance = 'struggling' | 'progressing' | 'excelling';
 
+export type InterleavingIntensity = 'light' | 'moderate' | 'heavy';
+
 export type UserPreferences = {
   learningPace: LearningPace;
   dailyGoalMinutes: number;
@@ -19,6 +21,13 @@ export type UserPreferences = {
   certificationExamDate?: Date;
   targetRetention?: number; // Default 0.95 (95%)
   examModeEnabled?: boolean;
+  // Review Interleaving (Phase 13)
+  interleavingEnabled?: boolean; // Default true
+  interleavingIntensity?: InterleavingIntensity; // Default 'moderate' (30%)
+  // Coach timing preferences (Phase 3-2)
+  showMilestones?: boolean;
+  showTransitions?: boolean;
+  showDifficultyPrep?: boolean;
 };
 
 export type StreakDay = {
@@ -198,6 +207,8 @@ export type Course = {
   modules: Module[];
   isLocked: boolean;
   prerequisites: string[];
+  /** Domain ID linking to DomainConfig (e.g., 'ai-at-work', 'social-media-marketing') */
+  domain?: string;
 };
 
 export type Exam = {
@@ -312,6 +323,7 @@ export type Character = {
 export type OnboardingStep =
   | 'welcome'
   | 'name'
+  | 'domain'
   | 'goal'
   | 'experience'
   | 'time'

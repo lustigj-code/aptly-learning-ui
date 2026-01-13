@@ -219,7 +219,7 @@ export const COURSE_3_MODULE_1: Module = {
           type: 'video',
           title: 'Tour of Meta Ads Manager',
           content: {
-            videoUrl: '/mock/videos/ads-manager-tour.mp4',
+            videoUrl: '/videos/fsm/campaign-budget.mp4',
             transcript: 'Welcome to Meta Ads Manager, the powerful tool that will help you create and manage your advertising campaigns...',
             duration: 312,
             chapters: [
@@ -325,7 +325,7 @@ This is the creative—the actual content people see:
           type: 'video',
           title: 'Choosing the Right Objective',
           content: {
-            videoUrl: '/mock/videos/campaign-objectives.mp4',
+            videoUrl: '/videos/fsm/campaign-objectives.mp4',
             transcript: 'Your campaign objective is the most important decision you make when setting up ads...',
             duration: 420,
             chapters: [
@@ -437,7 +437,7 @@ export const COURSE_1_MODULE_1: Module = {
           type: 'video',
           title: 'Why Social Media Marketing Matters',
           content: {
-            videoUrl: '/mock/videos/intro-smm.mp4',
+            videoUrl: '/videos/fsm/history-of-facebook.mp4',
             transcript: 'Welcome to your journey into social media marketing! In this course, you will learn how to harness the power of social platforms to grow brands and connect with audiences...',
             duration: 240,
             chapters: [
@@ -552,7 +552,7 @@ Let's get started!`,
           type: 'video',
           title: 'Platform Overview',
           content: {
-            videoUrl: '/mock/videos/platforms-overview.mp4',
+            videoUrl: '/videos/fsm/channel-selection.mp4',
             transcript: 'Each social platform has its own unique audience and culture. Understanding these differences is key to your success...',
             duration: 360,
             chapters: [

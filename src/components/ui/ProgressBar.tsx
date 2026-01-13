@@ -4,7 +4,6 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import {
   PROGRESS_COLORS,
-  SHADOWS_RAW,
   SPRING,
   COLORS_RAW,
 } from '@/lib/design-tokens';

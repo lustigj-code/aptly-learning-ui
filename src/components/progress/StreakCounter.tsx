@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { Flame, Snowflake } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { SPRING, SHADOWS_RAW } from '@/lib/design-tokens';
+import { SPRING } from '@/lib/design-tokens';
 
 type StreakCounterSize = 'sm' | 'md' | 'lg' | 'xl';
 
@@ -189,7 +189,7 @@ export function StreakCalendar({ streakHistory, className }: StreakCalendarProps
 
   return (
     <div className={cn('flex gap-1.5', className)}>
-      {last7Days.map((date, i) => {
+      {last7Days.map((date) => {
         const dayOfWeek = new Date(date).getDay();
         const isCompleted = streakHistory.some(
           (d) => d.date === date && d.completed

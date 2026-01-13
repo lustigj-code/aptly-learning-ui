@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Send,
@@ -11,10 +11,13 @@ import {
   MessageCircle,
   ArrowLeft,
   Brain,
+  WifiOff,
+  RefreshCw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useCoach } from '@/hooks/useCoach'
 import { useReviewQueue } from '@/hooks/useReviewQueue'
+import { useOfflineSync } from '@/hooks/useOfflineSync'
 import { useUser } from '@/store/unifiedStore'
 import { cn } from '@/lib/utils'
 import { getCourse, getDefaultCourse, DEFAULT_COURSE_ID } from '@/data/courseRegistry'
@@ -23,6 +26,38 @@ import type { Atom, Lesson, Module } from '@/types'
 // Import content renderers
 import { ContentRenderer } from './ContentRenderer'
 import { SwipeableAtomView } from './SwipeableAtomView'
+
+// Import intelligence components (Phase 3-2)
+import { WhyThisContent } from './WhyThisContent'
+import { RealTimeMasteryBar, MasteryIndicator } from './RealTimeMasteryBar'
+import { ContentSkipOption, SkipOptionBadge } from './ContentSkipOption'
+import { PacingIndicator, calculateAverageResponseTime } from './PacingIndicator'
+
+// Import struggle detection
+import {
+  initStruggleTracking,
+  recordAnswer,
+  recordContentView,
+  recordMasteryChange,
+  clearStruggleTracking,
+  type StruggleState,
+  type InterventionType as StruggleInterventionType,
+} from '@/lib/coach/struggleDetector'
+import { StrugglePrompt } from '@/components/coach/ProactivePrompt'
+
+// Import timing system for proactive coach
+import { TimingPrompt } from '@/components/coach/TimingPrompt'
+import {
+  type TimingTrigger,
+  type SessionPhase,
+  type TimingPreferences,
+  checkMasteryMilestone,
+  checkDifficultContentPrep,
+  checkSessionTransition,
+  filterByPreferences,
+  DEFAULT_TIMING_PREFERENCES,
+} from '@/lib/coach/optimalTiming'
+
 // TODO: Re-enable when API is stable
 // import { useMasteryLevels } from '@/hooks/useMasteryLevels'
 // import { areLessonPrerequisitesMet, getMissingPrerequisites } from '@/data/courseToConceptMap'
@@ -80,6 +115,11 @@ type LearningInsights = {
   consecutiveCorrectAnswers: number // Current streak within session
   longestCorrectStreak: number      // Best streak ever
   preferredLearningTime?: string    // Morning/Afternoon/Evening/Night
+
+  // Intelligence Features (Phase 3-2)
+  responseTimes: number[]           // Track response times for pacing
+  skillMastery: Record<string, number> // Skill ID -> mastery percentage
+  previousSkillMastery: Record<string, number> // Previous mastery for delta display
 }
 
 type CoachLearningViewProps = {
@@ -213,6 +253,24 @@ function getPersonalizedCoachMessage(
   return getCoachTip(atomType)
 }
 
+// Generate reasoning for why this content was selected (Phase 3-2)
+function generateContentReason(lesson: Lesson, insights: LearningInsights): string {
+  // If reviewing after failure
+  if (insights.struggleAreas.includes(lesson.title)) {
+    return `Reviewing ${lesson.title} to strengthen your understanding before moving forward.`
+  }
+  // If building on strong foundation
+  if (insights.strongAreas.length > 0) {
+    return `Building on your strong foundation to expand your expertise.`
+  }
+  // If this is sequential learning
+  if (insights.lessonsCompletedToday > 0) {
+    return `This lesson builds on concepts you just learned. Perfect timing!`
+  }
+  // Default reasoning
+  return `This content is part of your personalized learning path.`
+}
+
 // ============================================
 // PROGRESS SIDEBAR
 // ============================================
@@ -327,19 +385,25 @@ function ChatOverlay({
   onClose,
   lessonContext,
   insights,
+  struggleContext,
 }: {
   isOpen: boolean
   onClose: () => void
   lessonContext: { lessonId: string; atomType?: string; lessonTitle: string }
   insights: LearningInsights
+  struggleContext?: string | null
 }) {
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'coach'; content: string }>>([])
   const { sendMessage, isLoading } = useCoach()
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Generate a personalized greeting based on insights
+  // Generate a personalized greeting based on insights and struggle context
   const getGreeting = () => {
+    // If there's active struggle context, use that for a more targeted greeting
+    if (struggleContext) {
+      return "I noticed you might be having a tough time with this topic. That's completely normal - some concepts take a bit more time to click. Let me help you work through this. What specific part is giving you trouble?"
+    }
     if (insights.struggleAreas.length > 0) {
       const areas = insights.struggleAreas.slice(0, 2).join(' and ')
       return `Hi! I noticed you're working through some challenging content. I'm here to help you master ${areas}. What would you like to know?`
@@ -374,8 +438,12 @@ function ChatOverlay({
       if (response) {
         setMessages(prev => [...prev, { role: 'coach', content: response.content }])
       }
-    } catch {
-      setMessages(prev => [...prev, { role: 'coach', content: "I'm here to help! Could you rephrase your question?" }])
+    } catch (err) {
+      console.error('[ChatOverlay] Coach request failed:', err)
+      setMessages(prev => [...prev, {
+        role: 'coach',
+        content: "I'm having a moment - let me try again. Could you rephrase that for me?"
+      }])
     }
   }
 
@@ -463,6 +531,13 @@ export function CoachLearningView({
 }: CoachLearningViewProps) {
   const { user } = useUser()
   const { dueCount } = useReviewQueue(user?.id || null)
+  const {
+    isOnline,
+    pendingCount,
+    isSyncing,
+    withOfflineSupport,
+    syncPendingProgress,
+  } = useOfflineSync()
   // Get courseId from props, user progress, or default
   const effectiveCourseId = courseId || user?.progress?.currentCourseId || DEFAULT_COURSE_ID
   const effectiveModuleId = user?.progress?.currentModuleId
@@ -509,7 +584,40 @@ export function CoachLearningView({
     coachQuestionsAsked: 0,
     consecutiveCorrectAnswers: 0,
     longestCorrectStreak: 0,
+    // Intelligence features (Phase 3-2)
+    responseTimes: [],
+    skillMastery: {},
+    previousSkillMastery: {},
   })
+
+  // Intelligence feature state (Phase 3-2)
+  const [showPacingIndicator, setShowPacingIndicator] = useState(false)
+  const [lastResponseTimeMs, setLastResponseTimeMs] = useState(0)
+  const [contentReason, setContentReason] = useState<string>('')
+
+  // Struggle detection state
+  const [struggleState, setStruggleState] = useState<StruggleState | null>(null)
+  const [struggleContext, setStruggleContext] = useState<string | null>(null)
+  const answerStartTimeRef = useRef<number>(0)
+
+  // Timing trigger state for proactive coach
+  const [timingTrigger, setTimingTrigger] = useState<TimingTrigger | null>(null)
+  const [timingPreferences] = useState<TimingPreferences>(DEFAULT_TIMING_PREFERENCES)
+  const [previousMastery, setPreviousMastery] = useState<Record<string, number>>({})
+  const [currentSessionPhase, setCurrentSessionPhase] = useState<SessionPhase>('warmup')
+
+  // Generate a unique session ID for struggle tracking
+  const sessionId = useMemo(() => {
+    return `session_${user?.id || 'anon'}_${Date.now()}`
+  }, [user?.id])
+
+  // Initialize struggle tracking on mount
+  useEffect(() => {
+    initStruggleTracking(sessionId)
+    return () => {
+      clearStruggleTracking(sessionId)
+    }
+  }, [sessionId])
 
   // Current lesson and atom
   const currentLesson = module.lessons[sessionState.currentLessonIndex]
@@ -532,8 +640,73 @@ export function CoachLearningView({
     if (currentAtom && currentLesson) {
       setCoachTip(getPersonalizedCoachMessage(currentAtom.type, currentLesson.title, learningInsights))
       setContentComplete(false)
+      // Reset pacing indicator when moving to new content
+      setShowPacingIndicator(false)
     }
   }, [currentAtom])
+
+  // Generate content reasoning when lesson changes (Phase 3-2)
+  useEffect(() => {
+    if (currentLesson) {
+      const reason = generateContentReason(currentLesson, learningInsights)
+      setContentReason(reason)
+    }
+  }, [currentLesson?.id])
+
+  // Record content view when atom changes (for re-reading detection)
+  useEffect(() => {
+    if (currentAtom) {
+      const newStruggleState = recordContentView(sessionId, currentAtom.id)
+      setStruggleState(newStruggleState)
+      // Reset answer start time for this content
+      answerStartTimeRef.current = Date.now()
+    }
+  }, [currentAtom?.id, sessionId])
+
+  // Determine session phase based on progress
+  useEffect(() => {
+    const phase: SessionPhase = (() => {
+      if (progressPercent >= 100) return 'complete'
+      if (progressPercent >= 80) return 'cooldown'
+      if (progressPercent >= 20) return 'main'
+      return 'warmup'
+    })()
+
+    // Check for phase transition
+    if (phase !== currentSessionPhase) {
+      const trigger = checkSessionTransition(
+        { itemsCompleted: completedAtoms, totalItems: totalAtoms },
+        currentSessionPhase,
+        phase
+      )
+      if (trigger) {
+        const filteredTrigger = filterByPreferences(trigger, timingPreferences)
+        if (filteredTrigger) {
+          setTimingTrigger(filteredTrigger)
+        }
+      }
+      setCurrentSessionPhase(phase)
+    }
+  }, [progressPercent, currentSessionPhase, completedAtoms, totalAtoms, timingPreferences])
+
+  // Handle timing trigger dismissal
+  const handleTimingDismiss = useCallback(() => {
+    setTimingTrigger(null)
+  }, [])
+
+  // Handle timing trigger action
+  const handleTimingAction = useCallback((action: string | undefined) => {
+    // Handle different actions
+    if (action === 'review_prerequisites') {
+      // Could navigate to prerequisite review in the future
+      console.log('Review prerequisites action')
+    } else if (action === 'start_review') {
+      // Could navigate to spaced review
+      console.log('Start review action')
+    }
+    // Close the trigger after action
+    setTimingTrigger(null)
+  }, [])
 
   // Handle content completion
   const handleContentComplete = useCallback((atomId: string, score?: number) => {
@@ -543,6 +716,59 @@ export function CoachLearningView({
         ...prev,
         completedAtomIds: [...prev.completedAtomIds, atomId],
       }))
+    }
+
+    // Queue progress update with offline support
+    const progressType = currentAtom?.type === 'quiz' ? 'quiz_result' : 'atom_complete'
+    withOfflineSupport(
+      // API call to sync progress
+      async () => {
+        const response = await fetch('/api/progress/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: progressType,
+            atomId,
+            lessonId: currentLesson?.id,
+            courseId: effectiveCourseId,
+            quizScore: score,
+            timestamp: Date.now(),
+          }),
+        })
+        return response.ok
+      },
+      // Offline data to queue
+      {
+        type: progressType,
+        atomId,
+        lessonId: currentLesson?.id,
+        courseId: effectiveCourseId,
+        result: score !== undefined ? { score, passed: score >= 70 } : undefined,
+      }
+    )
+
+    // Record correct answer for struggle detection (quiz pass)
+    if (currentAtom?.type === 'quiz' && score !== undefined && score >= 70) {
+      const responseTimeMs = Date.now() - answerStartTimeRef.current
+      const newStruggleState = recordAnswer(
+        sessionId,
+        true, // isCorrect
+        responseTimeMs,
+        currentLesson?.id // skillId
+      )
+      setStruggleState(newStruggleState)
+      // Clear struggle context on success
+      setStruggleContext(null)
+
+      // Track response time and show pacing indicator (Phase 3-2)
+      setLastResponseTimeMs(responseTimeMs)
+      setLearningInsights(prev => ({
+        ...prev,
+        responseTimes: [...prev.responseTimes, responseTimeMs],
+      }))
+      setShowPacingIndicator(true)
+      // Auto-hide pacing indicator after 5 seconds
+      setTimeout(() => setShowPacingIndicator(false), 5000)
     }
 
     // Track quiz success if this was a quiz with a passing score
@@ -585,10 +811,31 @@ export function CoachLearningView({
 
     setContentComplete(true)
     setCoachTip(getCoachTip('complete'))
-  }, [sessionState.completedAtomIds, currentAtom?.type, currentLesson])
+  }, [sessionState.completedAtomIds, currentAtom?.type, currentLesson, effectiveCourseId, withOfflineSupport, sessionId])
 
   // Handle quiz failure - send back to review material
   const handleQuizFail = useCallback((atomId: string, score: number) => {
+    // Calculate response time for struggle detection
+    const responseTimeMs = Date.now() - answerStartTimeRef.current
+
+    // Record wrong answer for struggle detection
+    const newStruggleState = recordAnswer(
+      sessionId,
+      false, // isCorrect
+      responseTimeMs,
+      currentLesson?.id // skillId
+    )
+    setStruggleState(newStruggleState)
+
+    // Set struggle context for when coach opens
+    if (newStruggleState.isStruggling) {
+      setStruggleContext(
+        `Student is struggling with ${currentLesson.title}. They just scored ${score}% on a quiz. ` +
+        `Signals: ${newStruggleState.signals.map(s => s.type).join(', ')}. ` +
+        `Severity: ${newStruggleState.overallSeverity}.`
+      )
+    }
+
     // Track the failed quiz attempt
     setLearningInsights(prev => {
       const newStruggleAreas = prev.struggleAreas.includes(currentLesson.title)
@@ -616,7 +863,7 @@ export function CoachLearningView({
     }))
     setContentComplete(false)
     setCoachTip(`Let's review the material. You scored ${score}% - aim for 70% to continue.`)
-  }, [currentLesson])
+  }, [currentLesson, sessionId])
 
   // Handle continue button
   const handleContinue = useCallback(() => {
@@ -628,11 +875,33 @@ export function CoachLearningView({
           completedLessonIds: [...prev.completedLessonIds, currentLesson.id],
         }))
         onLessonComplete?.(currentLesson.id)
+
+        // Queue lesson completion with offline support
+        withOfflineSupport(
+          async () => {
+            const response = await fetch('/api/progress/sync', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'lesson_complete',
+                lessonId: currentLesson.id,
+                courseId: effectiveCourseId,
+                timestamp: Date.now(),
+              }),
+            })
+            return response.ok
+          },
+          {
+            type: 'lesson_complete',
+            lessonId: currentLesson.id,
+            courseId: effectiveCourseId,
+          }
+        )
       }
 
       if (isLastLesson) {
         // Module complete!
-        setCoachTip("Congratulations! You've completed this module! 🎉")
+        setCoachTip("Congratulations! You've completed this module!")
       } else {
         // Move to next lesson
         setSessionState(prev => ({
@@ -650,7 +919,7 @@ export function CoachLearningView({
     }
 
     setContentComplete(false)
-  }, [isLastAtomInLesson, isLastLesson, currentLesson, sessionState.completedLessonIds, onLessonComplete])
+  }, [isLastAtomInLesson, isLastLesson, currentLesson, sessionState.completedLessonIds, onLessonComplete, effectiveCourseId, withOfflineSupport])
 
   // Handle swipe to previous atom
   const handleSwipePrevious = useCallback(() => {
@@ -696,6 +965,90 @@ export function CoachLearningView({
     setContentComplete(false)
   }, [module.lessons])
 
+  // Handle struggle intervention acceptance
+  const handleStruggleIntervention = useCallback((intervention: StruggleInterventionType) => {
+    switch (intervention) {
+      case 'coach_session':
+        // Open the coach chat with struggle context
+        setShowChatOverlay(true)
+        setLearningInsights(prev => ({
+          ...prev,
+          coachQuestionsAsked: prev.coachQuestionsAsked + 1,
+        }))
+        break
+      case 'hint':
+      case 'alternative_explanation':
+        // Open coach to provide help
+        setShowChatOverlay(true)
+        break
+      case 'prerequisite_review':
+        // Go to the first content atom (usually foundational material)
+        setSessionState(prev => ({
+          ...prev,
+          currentAtomIndex: 0,
+        }))
+        setContentComplete(false)
+        setCoachTip("Let's review the basics before tackling this quiz again.")
+        break
+      case 'simpler_practice':
+        // For now, go back to earlier content
+        setSessionState(prev => ({
+          ...prev,
+          currentAtomIndex: Math.max(0, prev.currentAtomIndex - 1),
+        }))
+        setContentComplete(false)
+        setCoachTip("Let's practice with some simpler examples first.")
+        break
+      case 'break_suggestion':
+        setCoachTip("Taking a break is smart! Come back refreshed in a few minutes.")
+        break
+      case 'engagement_prompt':
+        setCoachTip("Take your time - there's no rush. Really think about this one.")
+        break
+      default:
+        // Open coach for general help
+        setShowChatOverlay(true)
+        break
+    }
+    // Clear struggle state after handling
+    setStruggleState(null)
+  }, [])
+
+  // Handle struggle prompt dismiss
+  const handleStruggleDismiss = useCallback(() => {
+    // Don't clear struggle state, just let the prompt hide
+    // The StrugglePrompt handles its own visibility
+  }, [])
+
+  // Handle content skip for mastered content (Phase 3-2)
+  const handleSkipToQuiz = useCallback(() => {
+    // Find the quiz atom in the current lesson
+    const quizIndex = currentLesson?.atoms.findIndex(atom => atom.type === 'quiz')
+    if (quizIndex !== undefined && quizIndex >= 0) {
+      setSessionState(prev => ({
+        ...prev,
+        currentAtomIndex: quizIndex,
+      }))
+      setContentComplete(false)
+      setCoachTip("Let's see what you know! Ready for a quick assessment?")
+    }
+  }, [currentLesson])
+
+  // Get current skill mastery for the lesson (Phase 3-2)
+  const currentSkillMastery = useMemo(() => {
+    return learningInsights.skillMastery[currentLesson?.id] ?? learningInsights.averageQuizScore
+  }, [learningInsights.skillMastery, learningInsights.averageQuizScore, currentLesson?.id])
+
+  // Get previous skill mastery for delta display (Phase 3-2)
+  const previousSkillMastery = useMemo(() => {
+    return learningInsights.previousSkillMastery[currentLesson?.id]
+  }, [learningInsights.previousSkillMastery, currentLesson?.id])
+
+  // Calculate average response time for pacing (Phase 3-2)
+  const avgResponseTime = useMemo(() => {
+    return calculateAverageResponseTime(learningInsights.responseTimes, 30000)
+  }, [learningInsights.responseTimes])
+
   if (!currentLesson || !currentAtom) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -738,6 +1091,24 @@ export function CoachLearningView({
               </div>
             </div>
             <div className="flex items-center gap-3 flex-shrink-0">
+              {/* Offline Status Indicator */}
+              {!isOnline && (
+                <div className="flex items-center gap-1.5 px-2 py-1 bg-warning/10 text-warning rounded-full text-xs font-medium">
+                  <WifiOff className="w-3 h-3" />
+                  <span className="hidden sm:inline">Offline</span>
+                </div>
+              )}
+              {/* Pending Sync Indicator */}
+              {isOnline && pendingCount > 0 && (
+                <button
+                  onClick={() => syncPendingProgress()}
+                  disabled={isSyncing}
+                  className="flex items-center gap-1.5 px-2 py-1 bg-teal/10 text-teal rounded-full text-xs font-medium hover:bg-teal/20 transition-colors min-h-[32px]"
+                >
+                  <RefreshCw className={cn('w-3 h-3', isSyncing && 'animate-spin')} />
+                  <span className="hidden sm:inline">{isSyncing ? 'Syncing...' : `${pendingCount} pending`}</span>
+                </button>
+              )}
               {/* Review Due Badge */}
               {dueCount > 0 && (
                 <a
@@ -787,6 +1158,45 @@ export function CoachLearningView({
             </div>
           </div>
 
+          {/* Real-Time Mastery Bar (Phase 3-2) */}
+          {currentSkillMastery > 0 && (
+            <div className="mb-3 flex-shrink-0">
+              <RealTimeMasteryBar
+                currentMastery={currentSkillMastery}
+                previousMastery={previousSkillMastery}
+                skillName={currentLesson.title}
+                size="sm"
+                showChange={previousSkillMastery !== undefined}
+              />
+            </div>
+          )}
+
+          {/* Why This Content explanation (Phase 3-2) */}
+          {contentReason && sessionState.currentAtomIndex === 0 && (
+            <div className="mb-3 flex-shrink-0">
+              <WhyThisContent
+                reason={contentReason}
+                skillName={currentLesson.title}
+                currentMastery={currentSkillMastery}
+                targetMastery={85}
+                size="sm"
+                expandable={true}
+              />
+            </div>
+          )}
+
+          {/* Content Skip Option for mastered content (Phase 3-2) */}
+          {currentSkillMastery >= 85 && currentAtom.type !== 'quiz' && (
+            <div className="mb-3 flex-shrink-0">
+              <ContentSkipOption
+                mastery={currentSkillMastery}
+                masteryThreshold={85}
+                skillName={currentLesson.title}
+                onSkip={handleSkipToQuiz}
+              />
+            </div>
+          )}
+
           {/* Content - Fills remaining space */}
           <div className="flex-1 min-h-0 relative overflow-hidden">
             <SwipeableAtomView
@@ -807,6 +1217,20 @@ export function CoachLearningView({
               />
             </SwipeableAtomView>
           </div>
+
+          {/* Pacing Indicator after quiz answers (Phase 3-2) */}
+          {showPacingIndicator && currentAtom.type === 'quiz' && lastResponseTimeMs > 0 && (
+            <div className="mt-3 flex-shrink-0">
+              <PacingIndicator
+                responseTimeMs={lastResponseTimeMs}
+                avgTimeMs={avgResponseTime}
+                show={showPacingIndicator}
+                isCorrect={contentComplete}
+                size="md"
+                autoHideMs={5000}
+              />
+            </div>
+          )}
 
           {/* Smart Coach Bar */}
           <SmartCoachBar
@@ -829,16 +1253,36 @@ export function CoachLearningView({
         {showChatOverlay && (
           <ChatOverlay
             isOpen={showChatOverlay}
-            onClose={() => setShowChatOverlay(false)}
+            onClose={() => {
+              setShowChatOverlay(false)
+              // Clear struggle context when chat closes
+              setStruggleContext(null)
+            }}
             lessonContext={{
               lessonId: currentLesson.id,
               lessonTitle: currentLesson.title,
               atomType: currentAtom.type,
             }}
+            struggleContext={struggleContext}
             insights={learningInsights}
           />
         )}
       </AnimatePresence>
+
+      {/* Struggle Prompt - appears when user is struggling */}
+      <StrugglePrompt
+        struggleState={struggleState}
+        onAccept={handleStruggleIntervention}
+        onDismiss={handleStruggleDismiss}
+        showDelay={2000}
+      />
+
+      {/* Timing Prompt - shows at optimal learning moments (lower z-index than struggle prompt) */}
+      <TimingPrompt
+        trigger={timingTrigger}
+        onAction={handleTimingAction}
+        onDismiss={handleTimingDismiss}
+      />
     </div>
   )
 }

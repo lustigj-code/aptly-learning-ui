@@ -3,7 +3,13 @@
  *
  * Returns skill map data with user progress for visualization
  *
+ * Uses hybrid ML model for mastery predictions:
+ * - Confidence and model info per skill
+ * - Reasoning about prediction source
+ * - Model status in response
+ *
  * Part of Phase 14: Mastery Map UX
+ * Part of Phase 15.3: ML Model Full Integration
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -11,8 +17,15 @@ import { adminDb, adminAuth } from '@/lib/firebase/admin';
 import { getSkillMap } from '@/lib/skillmap/skillMapStorage';
 import { AI_AT_WORK_SKILL_MAP } from '@/data/skillMap';
 import { generateMasteryMapData } from '@/components/mastery/layoutUtils';
-import type { SkillState } from '@/lib/mastery/bkt';
+import type { SkillState, Skill } from '@/lib/mastery/bkt';
 import type { ConceptMastery } from '@/lib/mastery/knowledgeGraph';
+import {
+  getPredictionWithFallback,
+  shouldUseHybrid,
+  getCurrentModelForUser,
+} from '@/lib/ml/predictionFallback';
+import { logHybridPrediction } from '@/lib/ml/predictionLogger';
+import { DEFAULT_COLD_START_CONFIG } from '@/lib/ml/coldStart';
 
 export async function GET(request: NextRequest) {
   // Verify authentication
@@ -53,8 +66,8 @@ export async function GET(request: NextRequest) {
 
   try {
     // Get skill map
-    let skillMapData = await getSkillMap(courseId);
-    let skills: Record<string, any> = {};
+    const skillMapData = await getSkillMap(courseId);
+    let skills: Record<string, Skill> = {};
 
     if (skillMapData && skillMapData.skills) {
       skills = skillMapData.skills;
@@ -123,15 +136,88 @@ export async function GET(request: NextRequest) {
       currentSkillId
     );
 
+    // Calculate total interaction count
+    const totalInteractions = Object.values(skillStates).reduce(
+      (sum, state) => sum + (state.attempts || 0),
+      0
+    );
+
+    // Enhance nodes with ML predictions
+    const enhancedNodes = await Promise.all(
+      mapData.nodes.map(async (node) => {
+        const skillState = skillStates[node.id];
+        const attempts = skillState?.attempts ?? 0;
+
+        // Get ML prediction for this skill
+        const fallbackResult = await getPredictionWithFallback(
+          userId,
+          node.id,
+          undefined,
+          {
+            hybridTimeoutMs: 2000,
+            logFallbacks: false, // Don't log for map - too many predictions
+            coldStart: DEFAULT_COLD_START_CONFIG,
+          }
+        );
+
+        const prediction = fallbackResult.prediction;
+
+        // Generate reasoning based on model used
+        let reasoning: string;
+        if (fallbackResult.source === 'hybrid') {
+          reasoning = `Hybrid model prediction based on ${prediction.metadata.interactionCount} interactions. ` +
+            `Confidence: ${Math.round(prediction.confidence * 100)}%`;
+        } else if (prediction.metadata.isColdStart) {
+          reasoning = `Building your profile (${attempts}/${DEFAULT_COLD_START_CONFIG.coldStartThreshold} interactions needed for ML predictions)`;
+        } else {
+          reasoning = `BKT model prediction with ${attempts} attempts`;
+        }
+
+        return {
+          ...node,
+          // ML-enhanced fields
+          mlMastery: prediction.masteryProbability,
+          confidence: prediction.confidence,
+          modelUsed: fallbackResult.source === 'hybrid' ? 'hybrid' : 'bkt',
+          pathway: prediction.pathway,
+          reasoning,
+          correctProbability: prediction.correctProbability,
+          contributions: prediction.contributions,
+        };
+      })
+    );
+
+    // Determine current model status
+    const currentModel = getCurrentModelForUser(totalInteractions);
+    const usingHybrid = shouldUseHybrid(totalInteractions);
+
+    // Calculate average confidence
+    const avgConfidence = enhancedNodes.length > 0
+      ? enhancedNodes.reduce((sum, n) => sum + n.confidence, 0) / enhancedNodes.length
+      : 0;
+
     return NextResponse.json({
       success: true,
-      data: mapData,
+      data: {
+        ...mapData,
+        nodes: enhancedNodes,
+      },
       stats: {
         totalSkills: mapData.nodes.length,
         mastered: mapData.nodes.filter(n => n.status === 'mastered').length,
         available: mapData.nodes.filter(n => n.status === 'available').length,
         locked: mapData.nodes.filter(n => n.status === 'locked').length,
         decaying: mapData.nodes.filter(n => n.status === 'decaying').length,
+        avgConfidence: Math.round(avgConfidence * 100),
+      },
+      // Model information
+      modelInfo: {
+        currentModel,
+        usingHybrid,
+        interactionCount: totalInteractions,
+        hybridThreshold: DEFAULT_COLD_START_CONFIG.coldStartThreshold,
+        interactionsToHybrid: Math.max(0, DEFAULT_COLD_START_CONFIG.coldStartThreshold - totalInteractions),
+        avgConfidence: Math.round(avgConfidence * 100),
       },
     });
   } catch (error) {

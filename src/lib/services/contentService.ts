@@ -2,11 +2,49 @@
  * Content Management Service
  * Handles CRUD operations for courses, modules, lessons, and atoms
  * Supports both Firestore and mock data fallback
+ *
+ * Part of Phase 12.5: Includes auto-indexing hooks for RAG
  */
 
 import { adminDb } from '@/lib/firebase/admin'
 import { COURSES, COURSE_3_MODULE_1 } from '@/data/mockData'
 import type { Course, Module, Lesson, Atom } from '@/types'
+
+// ============================================
+// AUTO-INDEXING HOOKS
+// ============================================
+
+/**
+ * Trigger auto-indexing for a course after content changes
+ * Runs asynchronously to not block the main request
+ */
+async function triggerCourseIndexing(courseId: string): Promise<void> {
+  try {
+    // Dynamic import to avoid circular dependencies
+    const { forceReindexCourse } = await import('@/lib/rag/backgroundIndexer')
+    // Fire and forget - don't await
+    forceReindexCourse(courseId).catch((err) => {
+      console.error(`[ContentService] Background indexing failed for ${courseId}:`, err)
+    })
+  } catch (error) {
+    // Silently fail if RAG module not configured
+    console.warn('[ContentService] Auto-indexing not available:', error)
+  }
+}
+
+/**
+ * Trigger removal from index when content is deleted
+ */
+async function triggerIndexRemoval(contentId: string, contentType: 'atom' | 'lesson' | 'course'): Promise<void> {
+  try {
+    const { removeFromIndex } = await import('@/lib/rag/autoIndexer')
+    removeFromIndex(contentId, contentType).catch((err) => {
+      console.error(`[ContentService] Index removal failed for ${contentType} ${contentId}:`, err)
+    })
+  } catch (error) {
+    console.warn('[ContentService] Auto-indexing not available:', error)
+  }
+}
 
 const USE_MOCK_DATA = process.env.USE_MOCK_DATA === 'true'
 
@@ -62,6 +100,8 @@ export async function createCourse(course: Omit<Course, 'id'>): Promise<string> 
     createdAt: new Date(),
     updatedAt: new Date(),
   })
+  // Trigger auto-indexing (fire and forget)
+  triggerCourseIndexing(docRef.id)
   return docRef.id
 }
 
@@ -70,10 +110,14 @@ export async function updateCourse(courseId: string, updates: Partial<Course>): 
     ...updates,
     updatedAt: new Date(),
   })
+  // Trigger auto-indexing (fire and forget)
+  triggerCourseIndexing(courseId)
 }
 
 export async function deleteCourse(courseId: string): Promise<void> {
   await adminDb.collection('courses').doc(courseId).delete()
+  // Trigger index removal (fire and forget)
+  triggerIndexRemoval(courseId, 'course')
 }
 
 // ============================================
@@ -154,6 +198,8 @@ export async function createModule(courseId: string, module: Omit<Module, 'id'>)
       createdAt: new Date(),
       updatedAt: new Date(),
     })
+  // Trigger course reindexing (fire and forget)
+  triggerCourseIndexing(courseId)
   return docRef.id
 }
 
@@ -171,6 +217,8 @@ export async function updateModule(
       ...updates,
       updatedAt: new Date(),
     })
+  // Trigger course reindexing (fire and forget)
+  triggerCourseIndexing(courseId)
 }
 
 // ============================================
@@ -264,6 +312,8 @@ export async function createLesson(
       createdAt: new Date(),
       updatedAt: new Date(),
     })
+  // Trigger course reindexing (fire and forget)
+  triggerCourseIndexing(courseId)
   return docRef.id
 }
 
@@ -341,6 +391,11 @@ export async function seedCoursesToFirestore(): Promise<{ success: boolean; mess
     })
 
     await batch.commit()
+
+    // Trigger indexing for all seeded courses (fire and forget)
+    for (const course of COURSES) {
+      triggerCourseIndexing(course.id)
+    }
 
     return { success: true, message: `Seeded ${COURSES.length} courses and 1 module` }
   } catch (error) {

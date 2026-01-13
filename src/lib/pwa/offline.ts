@@ -7,17 +7,30 @@ const DB_NAME = 'aptly-offline';
 const DB_VERSION = 1;
 const PROGRESS_STORE = 'progressQueue';
 
+/** Maximum number of items to keep in the queue */
+const MAX_QUEUE_SIZE = 100;
+
+export interface ProgressData {
+  type: string;
+  atomId?: string;
+  skillId?: string;
+  lessonId?: string;
+  courseId?: string;
+  quizScore?: number;
+  timeSpent?: number;
+  result?: {
+    score?: number;
+    passed?: boolean;
+    timeSpent?: number;
+  };
+  timestamp: number;
+}
+
 export interface QueuedProgress {
   id?: number;
-  data: {
-    type: string;
-    lessonId?: string;
-    courseId?: string;
-    quizScore?: number;
-    timeSpent?: number;
-    timestamp: number;
-  };
+  data: ProgressData;
   createdAt: number;
+  retryCount?: number;
 }
 
 /**
@@ -72,6 +85,7 @@ function openDatabase(): Promise<IDBDatabase> {
 
 /**
  * Queue progress data for later sync
+ * Limits queue to MAX_QUEUE_SIZE items, removing oldest if exceeded
  */
 export async function queueProgress(data: QueuedProgress['data']): Promise<void> {
   if (typeof indexedDB === 'undefined') {
@@ -81,6 +95,23 @@ export async function queueProgress(data: QueuedProgress['data']): Promise<void>
 
   try {
     const db = await openDatabase();
+
+    // Check current queue size and trim if needed
+    const existingItems = await getQueuedProgress();
+    if (existingItems.length >= MAX_QUEUE_SIZE) {
+      // Remove oldest items to make room (keep most recent MAX_QUEUE_SIZE - 1)
+      const itemsToRemove = existingItems
+        .sort((a, b) => a.createdAt - b.createdAt)
+        .slice(0, existingItems.length - MAX_QUEUE_SIZE + 1);
+
+      for (const item of itemsToRemove) {
+        if (item.id) {
+          await removeQueuedProgress(item.id);
+        }
+      }
+      console.log(`[Offline] Removed ${itemsToRemove.length} oldest items from queue`);
+    }
+
     const tx = db.transaction(PROGRESS_STORE, 'readwrite');
     const store = tx.objectStore(PROGRESS_STORE);
 
@@ -90,6 +121,7 @@ export async function queueProgress(data: QueuedProgress['data']): Promise<void>
         timestamp: Date.now(),
       },
       createdAt: Date.now(),
+      retryCount: 0,
     };
 
     await new Promise<void>((resolve, reject) => {
@@ -176,32 +208,96 @@ export async function clearQueuedProgress(): Promise<void> {
   }
 }
 
+/** Maximum retry attempts for failed sync */
+const MAX_RETRY_ATTEMPTS = 3;
+
+/**
+ * Update retry count for a queued item
+ */
+async function updateRetryCount(id: number, retryCount: number): Promise<void> {
+  if (typeof indexedDB === 'undefined') {
+    return;
+  }
+
+  try {
+    const db = await openDatabase();
+    const tx = db.transaction(PROGRESS_STORE, 'readwrite');
+    const store = tx.objectStore(PROGRESS_STORE);
+
+    // Get the item first
+    const getRequest = store.get(id);
+    await new Promise<void>((resolve, reject) => {
+      getRequest.onsuccess = () => {
+        const item = getRequest.result;
+        if (item) {
+          item.retryCount = retryCount;
+          const putRequest = store.put(item);
+          putRequest.onsuccess = () => resolve();
+          putRequest.onerror = () => reject(putRequest.error);
+        } else {
+          resolve();
+        }
+      };
+      getRequest.onerror = () => reject(getRequest.error);
+    });
+  } catch (error) {
+    console.error('[Offline] Failed to update retry count:', error);
+  }
+}
+
 /**
  * Sync queued progress when online
+ * Includes retry logic with exponential backoff
  */
 export async function syncQueuedProgress(
   syncFn: (data: QueuedProgress['data']) => Promise<boolean>
-): Promise<{ synced: number; failed: number }> {
+): Promise<{ synced: number; failed: number; skipped: number }> {
   const items = await getQueuedProgress();
   let synced = 0;
   let failed = 0;
+  let skipped = 0;
 
-  for (const item of items) {
+  // Sort by createdAt to process oldest first
+  const sortedItems = [...items].sort((a, b) => a.createdAt - b.createdAt);
+
+  for (const item of sortedItems) {
+    // Skip items that have exceeded retry limit
+    if ((item.retryCount || 0) >= MAX_RETRY_ATTEMPTS) {
+      console.log(`[Offline] Skipping item ${item.id} - exceeded retry limit`);
+      // Remove items that have permanently failed
+      if (item.id) {
+        await removeQueuedProgress(item.id);
+      }
+      skipped++;
+      continue;
+    }
+
     try {
       const success = await syncFn(item.data);
       if (success && item.id) {
         await removeQueuedProgress(item.id);
         synced++;
       } else {
+        // Increment retry count on failure
+        if (item.id) {
+          await updateRetryCount(item.id, (item.retryCount || 0) + 1);
+        }
         failed++;
       }
     } catch {
+      // Increment retry count on error
+      if (item.id) {
+        await updateRetryCount(item.id, (item.retryCount || 0) + 1);
+      }
       failed++;
     }
+
+    // Small delay between sync attempts to avoid overwhelming the server
+    await new Promise(resolve => setTimeout(resolve, 100));
   }
 
-  console.log(`[Offline] Sync complete: ${synced} synced, ${failed} failed`);
-  return { synced, failed };
+  console.log(`[Offline] Sync complete: ${synced} synced, ${failed} failed, ${skipped} skipped`);
+  return { synced, failed, skipped };
 }
 
 /**

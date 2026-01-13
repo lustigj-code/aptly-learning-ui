@@ -1,6 +1,5 @@
 'use client';
 
-import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowRight, Clock, BookOpen, Target, Lock, CheckCircle, Zap, Play, MessageCircle, Flame, Brain } from 'lucide-react';
@@ -75,8 +74,8 @@ export default function DashboardPage() {
   const streak = user.streak || { currentStreak: 0, longestStreak: 0, freezesAvailable: 2, streakHistory: [] };
 
   // Get next 3-4 lessons for Learning Path Preview from actual course data
-  // Memoized to prevent recalculation on every render
-  const upcomingLessons = useMemo(() => {
+  // Note: Early returns above already prevent this from running unnecessarily
+  const getUpcomingLessons = () => {
     const completedLessonIds = new Set(progress.lessonsCompleted || []);
     const lessons: {
       id: string;
@@ -121,7 +120,9 @@ export default function DashboardPage() {
     }
 
     return lessons;
-  }, [progress.lessonsCompleted, currentCourse.modules]);
+  };
+
+  const upcomingLessons = getUpcomingLessons();
 
   return (
     <div className="space-y-8">

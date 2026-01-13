@@ -14,7 +14,8 @@
   --teal-dark: #1a8a91;
   --teal-light: #2bc4cd;
   --yellow: #FFDE00;
-  --yellow-dark: #e6c800;
+  --yellow-dark: #b89700;  /* Darkened for better contrast on white backgrounds (WCAG AA) */
+  --yellow-light: #fef3cd; /* Light background variant */
   --purple: #3B336E;
   --muted-teal: #69BCC1;
   --light-teal: #DEF2F2;
@@ -104,6 +105,7 @@
   --color-teal-light: var(--teal-light);
   --color-yellow: var(--yellow);
   --color-yellow-dark: var(--yellow-dark);
+  --color-yellow-light: var(--yellow-light);
   --color-purple: var(--purple);
   --color-muted-teal: var(--muted-teal);
   --color-light-teal: var(--light-teal);

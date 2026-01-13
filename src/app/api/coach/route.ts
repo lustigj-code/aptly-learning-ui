@@ -517,11 +517,13 @@ export async function POST(request: NextRequest) {
   try {
     // Check for API key
     if (!process.env.GOOGLE_GENAI_API_KEY) {
+      console.log('[Coach API] No GOOGLE_GENAI_API_KEY set - using mock responses')
       // Return a mock response for demo purposes
       const body = await request.json()
       return NextResponse.json({
         message: getMockResponse(body),
         conversationId: body.conversationId || 'demo-conversation',
+        _debug: { mode: 'mock', reason: 'GOOGLE_GENAI_API_KEY not configured' },
       })
     }
 
@@ -929,13 +931,39 @@ Provide a concise, memorable summary focusing on:
       pathModified: pathModificationApplied,
     })
   } catch (error) {
-    console.error('Coach API error:', error)
+    // Enhanced error logging for debugging
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    const errorStack = error instanceof Error ? error.stack : undefined
+
+    console.error('[Coach API] Error details:', {
+      message: errorMessage,
+      stack: errorStack,
+      userId,
+      conversationId,
+      hasApiKey: !!process.env.GOOGLE_GENAI_API_KEY,
+    })
+
+    // Return helpful error message based on error type
+    let userMessage = getSocraticErrorResponse()
+    let debugInfo: Record<string, unknown> = { errorType: 'unknown' }
+
+    if (errorMessage.includes('API key')) {
+      userMessage = "Coach requires AI API configuration. Please check your environment setup."
+      debugInfo = { errorType: 'api_key', hint: 'Check GOOGLE_GENAI_API_KEY in .env.local' }
+    } else if (errorMessage.includes('quota') || errorMessage.includes('rate')) {
+      userMessage = "I'm getting a lot of questions right now! Give me a moment and try again."
+      debugInfo = { errorType: 'rate_limit' }
+    } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+      userMessage = "I'm having trouble connecting to my AI service. Please check your internet connection."
+      debugInfo = { errorType: 'network' }
+    }
 
     return NextResponse.json(
       {
-        message: getSocraticErrorResponse(),
+        message: userMessage,
         error: true,
         conversationId,
+        _debug: debugInfo,
       },
       { status: 500 }
     )

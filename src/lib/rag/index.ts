@@ -181,3 +181,34 @@ export {
   CHARS_PER_TOKEN,
   BUDGET_ALLOCATION,
 } from './contextBuilder';
+
+// Phase 12.5: Auto-Indexing
+export type {
+  AutoIndexResult,
+  IndexRecord,
+} from './autoIndexer';
+
+export {
+  indexAtom,
+  indexLesson,
+  indexCourseAuto,
+  removeFromIndex,
+  incrementalIndex,
+  needsReindex,
+  getIndexingStatus,
+  getIndexRecord,
+} from './autoIndexer';
+
+// Phase 12.5: Background Indexer
+export type {
+  BackgroundIndexResult,
+  ReindexSchedule,
+} from './backgroundIndexer';
+
+export {
+  runBackgroundReindex,
+  forceReindexCourse,
+  forceReindexAll,
+  getCoursesNeedingReindex,
+  getBackgroundIndexerStats,
+} from './backgroundIndexer';

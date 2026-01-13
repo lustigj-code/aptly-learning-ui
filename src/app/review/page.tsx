@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -14,6 +14,8 @@ import {
   Flame,
   ArrowLeft,
   Home,
+  Lightbulb,
+  Info,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -23,6 +25,12 @@ import { cn } from '@/lib/utils';
 import { useUser } from '@/store/unifiedStore';
 import { useReviewQueue, type DueReviewItem } from '@/hooks/useReviewQueue';
 import { post, isSuccess } from '@/lib/api/client';
+
+// New enhanced review components
+import { TimingFeedback } from '@/components/mastery/TimingFeedback';
+import { MasteryTrajectory, CompactTrajectory } from '@/components/mastery/MasteryTrajectory';
+import { ReviewSessionInsights } from '@/components/mastery/ReviewSessionInsights';
+import { ReviewForecast } from '@/components/mastery/ReviewForecast';
 
 // ============================================
 // TYPES
@@ -34,6 +42,8 @@ type SessionStats = {
   reviewed: number;
   correct: number;
   streak: number;
+  maxStreak: number;
+  totalTimeSeconds: number;
 };
 
 // ============================================
@@ -43,7 +53,11 @@ type SessionStats = {
 export default function ReviewPage() {
   const router = useRouter();
   const { user } = useUser();
-  const { dueItems, dueCount, isLoading, refetch } = useReviewQueue(user?.id || null, 15);
+  const { dueItems, dueCount, isLoading, refetch, batch, optimalTime, forecast } = useReviewQueue(
+    user?.id || null,
+    15,
+    true // Include forecast
+  );
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [reviewState, setReviewState] = useState<ReviewState>('reviewing');
@@ -51,14 +65,31 @@ export default function ReviewPage() {
     reviewed: 0,
     correct: 0,
     streak: 0,
+    maxStreak: 0,
+    totalTimeSeconds: 0,
   });
   const [userAnswer, setUserAnswer] = useState('');
   const [showHint, setShowHint] = useState(false);
   const [startTime, setStartTime] = useState<number>(Date.now());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [masteryHistory, setMasteryHistory] = useState<number[]>([]);
 
   const currentItem = dueItems[currentIndex];
   const progress = dueCount > 0 ? (currentIndex / dueCount) * 100 : 0;
+
+  // Collect due dates for forecast
+  const upcomingDueDates = useMemo(() => {
+    return dueItems
+      .filter((item) => item.dueDate)
+      .map((item) => item.dueDate as string);
+  }, [dueItems]);
+
+  // Extract mastery history from current item
+  const currentMasteryHistory = useMemo(() => {
+    if (!currentItem) return masteryHistory;
+    // Start with existing history and add current mastery level
+    return [...masteryHistory, currentItem.masteryLevel];
+  }, [currentItem, masteryHistory]);
 
   const handleShowAnswer = () => {
     setReviewState('showing_answer');
@@ -80,12 +111,20 @@ export default function ReviewPage() {
           timeSpentSeconds: timeSpent,
         });
 
+        // Track mastery progression
+        setMasteryHistory((prev) => [...prev, currentItem.masteryLevel]);
+
         // Update session stats
-        setSessionStats((prev) => ({
-          reviewed: prev.reviewed + 1,
-          correct: prev.correct + (correct ? 1 : 0),
-          streak: correct ? prev.streak + 1 : 0,
-        }));
+        setSessionStats((prev) => {
+          const newStreak = correct ? prev.streak + 1 : 0;
+          return {
+            reviewed: prev.reviewed + 1,
+            correct: prev.correct + (correct ? 1 : 0),
+            streak: newStreak,
+            maxStreak: Math.max(prev.maxStreak, newStreak),
+            totalTimeSeconds: prev.totalTimeSeconds + timeSpent,
+          };
+        });
 
         // Move to next or complete
         if (currentIndex < dueCount - 1) {
@@ -110,10 +149,11 @@ export default function ReviewPage() {
     refetch();
     setCurrentIndex(0);
     setReviewState('reviewing');
-    setSessionStats({ reviewed: 0, correct: 0, streak: 0 });
+    setSessionStats({ reviewed: 0, correct: 0, streak: 0, maxStreak: 0, totalTimeSeconds: 0 });
     setUserAnswer('');
     setShowHint(false);
     setStartTime(Date.now());
+    setMasteryHistory([]);
   }, [refetch]);
 
   // Loading state
@@ -164,81 +204,65 @@ export default function ReviewPage() {
     );
   }
 
-  // Session complete
+  // Session complete - use enhanced ReviewSessionInsights
   if (reviewState === 'complete') {
-    const accuracy =
-      sessionStats.reviewed > 0
-        ? Math.round((sessionStats.correct / sessionStats.reviewed) * 100)
-        : 0;
+    // Calculate next review info
+    const nextReviewDate = dueItems.length > 0 && dueItems[0].dueDate
+      ? new Date(dueItems[0].dueDate)
+      : null;
 
     return (
-      <div className="max-w-md mx-auto p-6">
-        <Card variant="gradient" padding="xl" className="text-center">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="space-y-6"
+      <div className="max-w-md mx-auto p-6 space-y-6">
+        {/* Enhanced Session Insights */}
+        <ReviewSessionInsights
+          stats={{
+            reviewed: sessionStats.reviewed,
+            correct: sessionStats.correct,
+            streak: sessionStats.maxStreak,
+            totalTimeSeconds: sessionStats.totalTimeSeconds,
+          }}
+          nextReview={{
+            count: dueCount,
+            nextDate: nextReviewDate,
+          }}
+        />
+
+        {/* Mastery Trajectory */}
+        {masteryHistory.length > 2 && (
+          <Card variant="outlined" padding="md">
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-navy">Session Mastery Trend</p>
+              <MasteryTrajectory
+                history={masteryHistory}
+                maxBars={15}
+                height={50}
+                showTrend
+              />
+            </div>
+          </Card>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex flex-col gap-3">
+          <Button
+            variant="primary"
+            size="lg"
+            fullWidth
+            onClick={resetSession}
+            leftIcon={<RotateCcw size={20} />}
           >
-            <div className="w-20 h-20 mx-auto bg-teal/10 rounded-full flex items-center justify-center">
-              <Brain size={40} className="text-teal" />
-            </div>
-
-            <div>
-              <h3 className="text-2xl font-bold text-navy">Review Complete!</h3>
-              <p className="text-rich-black/70 mt-2">Great job strengthening your knowledge!</p>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div className="text-center">
-                <p className="text-3xl font-bold text-navy">{sessionStats.reviewed}</p>
-                <p className="text-xs text-rich-black/60">Reviewed</p>
-              </div>
-              <div className="text-center">
-                <p className="text-3xl font-bold text-success">{accuracy}%</p>
-                <p className="text-xs text-rich-black/60">Accuracy</p>
-              </div>
-              <div className="text-center">
-                <p className="text-3xl font-bold text-yellow">{sessionStats.streak}</p>
-                <p className="text-xs text-rich-black/60">Best Streak</p>
-              </div>
-            </div>
-
-            {accuracy >= 80 ? (
-              <p className="text-sm text-success bg-success-light p-3 rounded-lg">
-                Excellent retention! Your memory is getting stronger.
-              </p>
-            ) : accuracy >= 60 ? (
-              <p className="text-sm text-yellow bg-yellow-light/20 p-3 rounded-lg">
-                Good progress! Keep reviewing to strengthen these concepts.
-              </p>
-            ) : (
-              <p className="text-sm text-error bg-error-light p-3 rounded-lg">
-                These concepts need more practice. Consider reviewing the related lessons.
-              </p>
-            )}
-
-            <div className="flex flex-col gap-3">
-              <Button
-                variant="primary"
-                size="lg"
-                fullWidth
-                onClick={resetSession}
-                leftIcon={<RotateCcw size={20} />}
-              >
-                Review Again
-              </Button>
-              <Button
-                variant="secondary"
-                size="lg"
-                fullWidth
-                onClick={() => router.push('/dashboard')}
-                leftIcon={<Home size={20} />}
-              >
-                Back to Dashboard
-              </Button>
-            </div>
-          </motion.div>
-        </Card>
+            Review Again
+          </Button>
+          <Button
+            variant="secondary"
+            size="lg"
+            fullWidth
+            onClick={() => router.push('/dashboard')}
+            leftIcon={<Home size={20} />}
+          >
+            Back to Dashboard
+          </Button>
+        </div>
       </div>
     );
   }
@@ -259,6 +283,48 @@ export default function ReviewPage() {
         <h1 className="text-lg font-semibold text-navy">Daily Review</h1>
         <div className="w-20" /> {/* Spacer for centering */}
       </div>
+
+      {/* Smart Review Info (batch reasoning + optimal time) */}
+      {currentIndex === 0 && (batch || optimalTime) && (
+        <Card variant="outlined" padding="sm" className="bg-teal/5 border-teal/20">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-teal/10 flex items-center justify-center flex-shrink-0">
+              <Lightbulb size={16} className="text-teal" />
+            </div>
+            <div className="flex-1 space-y-1">
+              {batch && (
+                <p className="text-sm text-navy">{batch.batchReasoning}</p>
+              )}
+              {optimalTime && optimalTime.confidence > 0.4 && (
+                <p className="text-xs text-rich-black/60">
+                  <Info size={12} className="inline mr-1" />
+                  {optimalTime.reasoning}
+                </p>
+              )}
+              {batch && (
+                <p className="text-xs text-teal">
+                  Est. {batch.estimatedDurationMinutes} min | +{batch.expectedRetentionGain}% retention
+                </p>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Review Forecast Widget (collapsed at top) */}
+      {dueCount > 0 && currentIndex === 0 && (
+        <ReviewForecast
+          upcomingDueDates={
+            forecast
+              ? forecast.flatMap((f) =>
+                  Array(f.dueCount).fill(f.date)
+                )
+              : upcomingDueDates
+          }
+          avgSecondsPerReview={30}
+          daysAhead={7}
+        />
+      )}
 
       {/* Progress Header */}
       <div className="space-y-2">
@@ -293,15 +359,30 @@ export default function ReviewPage() {
             transition={{ duration: 0.2 }}
           >
             <Card variant="elevated" padding="xl" className="space-y-6">
+              {/* Timing Feedback */}
+              {currentItem.dueDate && (
+                <TimingFeedback
+                  scheduledTime={currentItem.dueDate}
+                  actualTime={new Date()}
+                />
+              )}
+
               {/* Concept Header */}
               <div className="flex items-start justify-between">
-                <div>
-                  <span className="inline-block px-2 py-1 text-xs font-medium rounded-full mb-2 bg-purple/10 text-purple">
-                    {currentItem.category}
-                  </span>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="inline-block px-2 py-1 text-xs font-medium rounded-full bg-purple/10 text-purple">
+                      {currentItem.category}
+                    </span>
+                    {currentItem.reasoning && (
+                      <span className="text-xs text-rich-black/50 italic">
+                        {currentItem.reasoning}
+                      </span>
+                    )}
+                  </div>
                   <h2 className="text-xl font-bold text-navy">{currentItem.conceptName}</h2>
                 </div>
-                <div className="text-right">
+                <div className="text-right space-y-1">
                   <p className="text-sm text-rich-black/60">Mastery</p>
                   <p
                     className={cn(
@@ -315,6 +396,10 @@ export default function ReviewPage() {
                   >
                     {Math.round(currentItem.masteryLevel)}%
                   </p>
+                  {/* Mini trajectory for this concept */}
+                  {currentMasteryHistory.length > 1 && (
+                    <CompactTrajectory history={currentMasteryHistory} />
+                  )}
                 </div>
               </div>
 
@@ -387,7 +472,7 @@ export default function ReviewPage() {
                       <ul className="text-sm text-navy space-y-1">
                         {currentItem.keyTerms.map((term, idx) => (
                           <li key={idx} className="flex items-start gap-2">
-                            <span className="text-teal mt-1">•</span>
+                            <span className="text-teal mt-1">*</span>
                             <span>{term}</span>
                           </li>
                         ))}

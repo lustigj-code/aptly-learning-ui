@@ -17,6 +17,9 @@ export { MasteryMapNode } from './MasteryMapNode';
 export { MiniMap, CollapsibleMiniMap } from './MiniMap';
 export { MasteryMapSidebar } from './MasteryMapSidebar';
 
+// Review Components
+export { ReviewForecast, CompactForecast } from './ReviewForecast';
+
 // Layout Utilities
 export {
   generateMasteryMapData,

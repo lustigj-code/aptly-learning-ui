@@ -220,10 +220,19 @@ export function useCoach() {
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || 'Failed to get coach response');
+          console.error('[useCoach] API response error:', {
+            status: response.status,
+            errorData,
+          });
+          throw new Error(errorData.message || `Failed to get coach response (${response.status})`);
         }
 
         const data = await response.json();
+
+        // Log debug info if available (for development)
+        if (data._debug && process.env.NODE_ENV === 'development') {
+          console.log('[useCoach] Debug info:', data._debug);
+        }
 
         // Add assistant response
         const assistantMessage: Message = {
@@ -244,6 +253,14 @@ export function useCoach() {
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Something went wrong';
         setError(errorMessage);
+
+        // Enhanced error logging for debugging
+        console.error('[useCoach] API request failed:', {
+          error: err,
+          errorMessage,
+          conversationId: currentConvId,
+          userId: user?.id,
+        });
 
         // Add a fallback error message from coach
         const errorResponse: Message = {

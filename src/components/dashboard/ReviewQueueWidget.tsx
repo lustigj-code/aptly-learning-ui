@@ -54,9 +54,9 @@ function getUrgencyConfig(urgency: 'overdue' | 'due_today' | 'upcoming') {
       };
     case 'due_today':
       return {
-        bgColor: 'bg-yellow/10',
-        borderColor: 'border-yellow/30',
-        textColor: 'text-yellow',
+        bgColor: 'bg-yellow-light',
+        borderColor: 'border-yellow-dark/30',
+        textColor: 'text-yellow-dark',
         icon: Clock,
         label: 'Due Today',
       };
@@ -133,7 +133,7 @@ function ReviewItemRow({ item }: { item: DueReviewItem }) {
         <p
           className={cn(
             'text-sm font-semibold',
-            item.masteryLevel >= 80 ? 'text-success' : item.masteryLevel >= 50 ? 'text-yellow' : 'text-error'
+            item.masteryLevel >= 80 ? 'text-success' : item.masteryLevel >= 50 ? 'text-yellow-dark' : 'text-error'
           )}
         >
           {Math.round(item.masteryLevel)}%
@@ -164,7 +164,7 @@ export function ReviewQueueWidget({ userId, maxItems = 5 }: ReviewQueueWidgetPro
   if (isLoading) {
     return (
       <Card variant="elevated" padding="lg" className="animate-pulse">
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div className="h-6 w-40 bg-grey/20 rounded" />
           <div className="h-16 bg-grey/20 rounded-lg" />
           <div className="h-16 bg-grey/20 rounded-lg" />
@@ -267,7 +267,7 @@ export function ReviewQueueWidget({ userId, maxItems = 5 }: ReviewQueueWidgetPro
                 </span>
               )}
               {dueTodayCount > 0 && (
-                <span className="px-2 py-1 text-xs font-semibold bg-yellow/20 text-yellow rounded-full">
+                <span className="px-2 py-1 text-xs font-semibold bg-yellow-light text-yellow-dark rounded-full">
                   {dueTodayCount} today
                 </span>
               )}
@@ -278,7 +278,7 @@ export function ReviewQueueWidget({ userId, maxItems = 5 }: ReviewQueueWidgetPro
           </CardDescription>
         </CardHeader>
 
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4">
           {/* Review Items List */}
           <div className="space-y-2">
             {displayItems.map((item, index) => (

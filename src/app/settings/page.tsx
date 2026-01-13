@@ -16,6 +16,11 @@ import {
   ChevronRight,
   Check,
   Loader2,
+  RefreshCw,
+  Sparkles,
+  Trophy,
+  ArrowRight,
+  BookOpen,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -25,7 +30,7 @@ import { Section } from '@/components/layout/AppLayout';
 import { ExamModeSettings } from '@/components/settings/ExamModeSettings';
 import { useUser, useAuth, useUnifiedStore } from '@/store/unifiedStore';
 import { cn } from '@/lib/utils';
-import type { LearningPace } from '@/types';
+import type { LearningPace, InterleavingIntensity } from '@/types';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -40,6 +45,15 @@ export default function SettingsPage() {
   const [dailyGoal, setDailyGoal] = useState(user?.preferences.dailyGoalMinutes ?? 15);
   const [learningPace, setLearningPace] = useState<LearningPace>(user?.preferences.learningPace ?? 'moderate');
   const [isSigningOut, setIsSigningOut] = useState(false);
+
+  // Interleaving preferences (Phase 13)
+  const [interleavingEnabled, setInterleavingEnabled] = useState(user?.preferences.interleavingEnabled ?? true);
+  const [interleavingIntensity, setInterleavingIntensity] = useState<InterleavingIntensity>(user?.preferences.interleavingIntensity ?? 'moderate');
+
+  // Coach timing preferences (Phase 3-2)
+  const [showMilestones, setShowMilestones] = useState(user?.preferences.showMilestones ?? true);
+  const [showTransitions, setShowTransitions] = useState(user?.preferences.showTransitions ?? true);
+  const [showDifficultyPrep, setShowDifficultyPrep] = useState(user?.preferences.showDifficultyPrep ?? true);
 
   // Edit Profile Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -74,6 +88,34 @@ export default function SettingsPage() {
   const handlePaceChange = (pace: LearningPace) => {
     setLearningPace(pace);
     updatePreferences({ learningPace: pace });
+  };
+
+  const handleInterleavingToggle = (enabled: boolean) => {
+    setInterleavingEnabled(enabled);
+    updatePreferences({ interleavingEnabled: enabled });
+  };
+
+  const handleInterleavingIntensityChange = (intensity: InterleavingIntensity) => {
+    setInterleavingIntensity(intensity);
+    updatePreferences({ interleavingIntensity: intensity });
+  };
+
+  // Coach timing preference handlers
+  const handleTimingToggle = (setting: 'milestones' | 'transitions' | 'difficultyPrep', value: boolean) => {
+    switch (setting) {
+      case 'milestones':
+        setShowMilestones(value);
+        updatePreferences({ showMilestones: value });
+        break;
+      case 'transitions':
+        setShowTransitions(value);
+        updatePreferences({ showTransitions: value });
+        break;
+      case 'difficultyPrep':
+        setShowDifficultyPrep(value);
+        updatePreferences({ showDifficultyPrep: value });
+        break;
+    }
   };
 
   const handleSignOut = async () => {
@@ -284,6 +326,74 @@ export default function SettingsPage() {
         />
       </Section>
 
+      {/* Review Interleaving Settings (Phase 13) */}
+      <Section delay={0.27}>
+        <Card variant="elevated" padding="lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <RefreshCw size={20} className="text-teal" />
+              Review Interleaving
+            </CardTitle>
+            <CardDescription>
+              Mix review challenges into your learning sessions for better retention
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Enable/Disable Toggle */}
+            <ToggleSetting
+              icon={<RefreshCw size={18} />}
+              label="Enable Review Mixing"
+              description="Automatically include review items during learning"
+              value={interleavingEnabled}
+              onChange={handleInterleavingToggle}
+            />
+
+            {/* Intensity Selection */}
+            {interleavingEnabled && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+              >
+                <label className="block text-sm font-medium text-navy mb-3">
+                  Review Intensity
+                </label>
+                <div className="space-y-2">
+                  {[
+                    { value: 'light' as InterleavingIntensity, label: 'Light', desc: '20% reviews - Gentle reinforcement', reviews: '~3 per session' },
+                    { value: 'moderate' as InterleavingIntensity, label: 'Moderate', desc: '30% reviews - Balanced retention', reviews: '~5 per session' },
+                    { value: 'heavy' as InterleavingIntensity, label: 'Heavy', desc: '50% reviews - Maximum reinforcement', reviews: '~7 per session' },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => handleInterleavingIntensityChange(option.value)}
+                      className={cn(
+                        'w-full p-3 rounded-xl text-left flex items-center justify-between transition-all',
+                        interleavingIntensity === option.value
+                          ? 'bg-amber-50 border-2 border-amber-400'
+                          : 'bg-light-grey border-2 border-transparent hover:bg-grey/50'
+                      )}
+                    >
+                      <div>
+                        <p className="font-medium text-navy">{option.label}</p>
+                        <p className="text-sm text-rich-black/60">{option.desc}</p>
+                        <p className="text-xs text-rich-black/40 mt-1">{option.reviews}</p>
+                      </div>
+                      {interleavingIntensity === option.value && (
+                        <Check size={20} className="text-amber-500" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-3 text-xs text-rich-black/50 italic">
+                  Research shows spaced interleaving improves long-term retention by up to 50%.
+                </p>
+              </motion.div>
+            )}
+          </CardContent>
+        </Card>
+      </Section>
+
       {/* Sound & Accessibility */}
       <Section delay={0.3}>
         <Card variant="elevated" padding="lg">
@@ -314,6 +424,44 @@ export default function SettingsPage() {
               description="Minimize animations for accessibility"
               value={reducedMotion}
               onChange={(v) => handleToggle('motion', v)}
+            />
+          </CardContent>
+        </Card>
+      </Section>
+
+      {/* Coach Prompts Settings */}
+      <Section delay={0.35}>
+        <Card variant="elevated" padding="lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles size={20} className="text-teal" />
+              Coach Prompts
+            </CardTitle>
+            <CardDescription>
+              Control when Sage appears to celebrate and guide your learning
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <ToggleSetting
+              icon={<Trophy size={18} />}
+              label="Mastery Milestones"
+              description="Celebrate when you reach 50%, 75%, 90%, 95% mastery"
+              value={showMilestones}
+              onChange={(v) => handleTimingToggle('milestones', v)}
+            />
+            <ToggleSetting
+              icon={<ArrowRight size={18} />}
+              label="Session Transitions"
+              description="Guidance when moving between warmup, main, and cooldown phases"
+              value={showTransitions}
+              onChange={(v) => handleTimingToggle('transitions', v)}
+            />
+            <ToggleSetting
+              icon={<BookOpen size={18} />}
+              label="Difficulty Preparation"
+              description="Heads-up before challenging content or weak prerequisites"
+              value={showDifficultyPrep}
+              onChange={(v) => handleTimingToggle('difficultyPrep', v)}
             />
           </CardContent>
         </Card>

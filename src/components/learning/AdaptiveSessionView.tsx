@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Clock, Brain, BookOpen, Zap, ChevronRight, Check } from 'lucide-react';
+import { Sparkles, Clock, Brain, BookOpen, Zap, ChevronRight, Check, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { cn } from '@/lib/utils';
 import { buildSession, getSessionSummary, type LearningSession, type SessionItem } from '@/lib/adaptive/sessionBuilder';
 import { getSkillName } from '@/data/skillMap';
+import { MiniReviewBadge } from './ReviewChallengeBadge';
 
 // ============================================
 // TYPES
@@ -78,18 +79,25 @@ function SessionOverview({ session, currentIndex, onStart }: SessionOverviewProp
               "flex items-center gap-3 p-3 rounded-lg transition-colors",
               idx < currentIndex && "bg-green-50 text-green-700",
               idx === currentIndex && "bg-teal/10 border border-teal/30",
-              idx > currentIndex && "bg-light-grey/50 text-grey"
+              idx > currentIndex && (item.isReviewChallenge ? "bg-amber-50/50 text-amber-700" : "bg-light-grey/50 text-grey")
             )}
           >
-            <ItemTypeIcon type={item.type} isCompleted={idx < currentIndex} />
+            <ItemTypeIcon type={item.type} isCompleted={idx < currentIndex} isReviewChallenge={item.isReviewChallenge} />
             <div className="flex-1 min-w-0">
-              <p className={cn(
-                "text-sm font-medium truncate",
-                idx === currentIndex && "text-navy"
-              )}>
-                {getSkillName(item.skillId)}
+              <div className="flex items-center gap-2">
+                <p className={cn(
+                  "text-sm font-medium truncate",
+                  idx === currentIndex && "text-navy"
+                )}>
+                  {getSkillName(item.skillId)}
+                </p>
+                {item.isReviewChallenge && idx >= currentIndex && (
+                  <MiniReviewBadge />
+                )}
+              </div>
+              <p className="text-xs text-grey truncate">
+                {item.isReviewChallenge ? `Review break: ${item.reason}` : item.reason}
               </p>
-              <p className="text-xs text-grey truncate">{item.reason}</p>
             </div>
             <span className="text-xs text-grey flex items-center gap-1">
               <Clock size={12} />
@@ -116,11 +124,20 @@ function SessionOverview({ session, currentIndex, onStart }: SessionOverviewProp
 // ITEM TYPE ICON
 // ============================================
 
-function ItemTypeIcon({ type, isCompleted }: { type: SessionItem['type']; isCompleted: boolean }) {
+function ItemTypeIcon({ type, isCompleted, isReviewChallenge }: { type: SessionItem['type']; isCompleted: boolean; isReviewChallenge?: boolean }) {
   if (isCompleted) {
     return (
       <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
         <Check className="text-white" size={16} />
+      </div>
+    );
+  }
+
+  // Special styling for review challenges
+  if (isReviewChallenge) {
+    return (
+      <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-gradient-to-br from-amber-100 to-amber-200 text-amber-700 border border-amber-300">
+        <RefreshCw size={16} />
       </div>
     );
   }
@@ -130,7 +147,7 @@ function ItemTypeIcon({ type, isCompleted }: { type: SessionItem['type']; isComp
     learn: <BookOpen size={16} />,
     practice: <Zap size={16} />,
     quiz: <Sparkles size={16} />,
-    review: <Brain size={16} />,
+    review: <RefreshCw size={16} />,
     cooldown: <Brain size={16} />,
   };
 

@@ -15,6 +15,7 @@ import { useInteractionLogger } from '@/hooks/useInteractionLogger';
 import { post } from '@/lib/api/client';
 import type { Atom, QuizContent, Question } from '@/types';
 import type { QuizQuestion } from '@/lib/ai/quiz-ai-integration';
+import { DifficultyIndicator } from '@/components/learning/DifficultyIndicator';
 
 type QuizAtomProps = {
   atom: Atom & { type: 'quiz'; content: QuizContent };
@@ -26,6 +27,8 @@ type QuizAtomProps = {
     skillId?: string;
     questionId: string;
   }) => void;
+  /** Optional normalized difficulty (0-1) for adaptive difficulty display */
+  difficulty?: number;
 };
 
 // Skill update from BKT
@@ -76,7 +79,7 @@ function toQuizQuestion(question: Question, index: number): QuizQuestion {
   };
 }
 
-export function QuizAtom({ atom, onComplete, onStruggleDetected }: QuizAtomProps) {
+export function QuizAtom({ atom, onComplete, onStruggleDetected, difficulty }: QuizAtomProps) {
   const [state, setState] = useState<QuizState>({
     currentQuestionIndex: 0,
     answers: {},
@@ -512,9 +515,22 @@ export function QuizAtom({ atom, onComplete, onStruggleDetected }: QuizAtomProps
               <Clock size={14} className={isActive ? 'text-teal' : 'text-grey'} />
               <span className="font-mono">{formatTimeMMSS(elapsedSeconds)}</span>
             </div>
-            <span className="text-xs font-medium text-teal">
-              Difficulty: {currentQuestion.difficulty}/5
-            </span>
+            {/* Use adaptive difficulty if provided, otherwise fall back to question difficulty */}
+            {difficulty !== undefined ? (
+              <DifficultyIndicator
+                difficulty={difficulty}
+                scale="0-1"
+                size="sm"
+                animate={false}
+              />
+            ) : (
+              <DifficultyIndicator
+                difficulty={currentQuestion.difficulty || 3}
+                scale="1-5"
+                size="sm"
+                animate={false}
+              />
+            )}
           </div>
         </div>
         <QuizProgress

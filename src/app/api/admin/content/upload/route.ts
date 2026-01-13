@@ -3,6 +3,19 @@ import { requireAdmin } from '@/lib/auth/apiAuth'
 import { adminDb } from '@/lib/firebase/admin'
 import JSZip from 'jszip'
 
+// Helper to trigger RAG auto-indexing
+async function triggerRAGIndexing(courseId: string): Promise<void> {
+  try {
+    const { forceReindexCourse } = await import('@/lib/rag/backgroundIndexer')
+    // Fire and forget - don't block the response
+    forceReindexCourse(courseId).catch((err) => {
+      console.error(`[Upload] RAG indexing failed for ${courseId}:`, err)
+    })
+  } catch (error) {
+    console.warn('[Upload] RAG auto-indexing not available:', error)
+  }
+}
+
 // Types for course manifest
 type CourseManifest = {
   version: string
@@ -171,15 +184,15 @@ export async function POST(request: NextRequest) {
     })
 
     // Create modules and lessons in Firestore
-    for (const module of structure.modules) {
-      const moduleRef = courseRef.collection('modules').doc(module.id)
+    for (const courseModule of structure.modules) {
+      const moduleRef = courseRef.collection('modules').doc(courseModule.id)
       await moduleRef.set({
-        ...module,
+        ...courseModule,
         createdAt: new Date(),
         updatedAt: new Date(),
       })
 
-      for (const lesson of module.lessons) {
+      for (const lesson of courseModule.lessons) {
         const lessonRef = moduleRef.collection('lessons').doc(lesson.id)
         await lessonRef.set({
           ...lesson,
@@ -207,6 +220,9 @@ export async function POST(request: NextRequest) {
       currentStep: 'Upload complete! AI processing will begin shortly.',
       completedAt: new Date(),
     })
+
+    // Trigger RAG auto-indexing (fire and forget)
+    triggerRAGIndexing(courseId)
 
     return NextResponse.json({
       success: true,

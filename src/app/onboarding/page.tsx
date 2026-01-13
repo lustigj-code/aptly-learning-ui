@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -14,6 +14,10 @@ import {
   Mic,
   ArrowRight,
   Check,
+  Brain,
+  Share2,
+  BarChart3,
+  FolderKanban,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Button } from '@/components/ui/Button';
@@ -26,23 +30,63 @@ import { BADGES } from '@/data/mockData';
 import { updateProfile, updatePreferences } from '@/lib/api/userApi';
 import { cn, calculateWeeksToComplete } from '@/lib/utils';
 import type { OnboardingStep, LearningPace } from '@/types';
-import { DEFAULT_COURSE_ID } from '@/data/courseRegistry';
+import { DEFAULT_COURSE_ID, getPrimaryCourseForDomain } from '@/data/courseRegistry';
+import { getActiveDomains, type DomainConfig } from '@/lib/content/domainConfig';
 
-const STEPS: OnboardingStep[] = ['welcome', 'name', 'goal', 'experience', 'time', 'style', 'complete'];
+const STEPS: OnboardingStep[] = ['welcome', 'name', 'domain', 'goal', 'experience', 'time', 'style', 'complete'];
 
-const goals = [
-  { id: 'certified', label: 'Get Meta Certified', icon: Award, description: 'Earn your professional certification' },
-  { id: 'learn', label: 'Learn Social Media Marketing', icon: TrendingUp, description: 'Build valuable skills' },
-  { id: 'career', label: 'Advance My Career', icon: Briefcase, description: 'Take the next step professionally' },
-  { id: 'explore', label: 'Explore What\'s Possible', icon: Compass, description: 'See what this is all about' },
-];
+// Map domain icon names to Lucide components
+const DOMAIN_ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+  Brain,
+  Share2,
+  BarChart3,
+  FolderKanban,
+};
 
-const experienceLevels = [
-  { id: 0, label: 'Brand New', description: 'Never done social media marketing' },
-  { id: 25, label: 'Some Basics', description: 'Know the fundamentals' },
-  { id: 50, label: 'Intermediate', description: 'Have practical experience' },
-  { id: 75, label: 'Pretty Advanced', description: 'Work with it regularly' },
-];
+// Goals are now dynamic based on selected domain
+const getGoalsForDomain = (domain: DomainConfig | null) => {
+  const certName = domain?.certification?.name || 'certification';
+  const domainName = domain?.name || 'this topic';
+
+  return [
+    {
+      id: 'certified',
+      label: domain?.certification ? `Get ${certName}` : 'Earn a Certificate',
+      icon: Award,
+      description: domain?.certification ? `Earn your ${domain.certification.provider} certification` : 'Earn your professional certification',
+    },
+    {
+      id: 'learn',
+      label: `Learn ${domainName}`,
+      icon: TrendingUp,
+      description: 'Build valuable skills',
+    },
+    {
+      id: 'career',
+      label: 'Advance My Career',
+      icon: Briefcase,
+      description: 'Take the next step professionally',
+    },
+    {
+      id: 'explore',
+      label: 'Explore What\'s Possible',
+      icon: Compass,
+      description: 'See what this is all about',
+    },
+  ];
+};
+
+// Experience levels are now dynamic based on domain
+const getExperienceLevelsForDomain = (domain: DomainConfig | null) => {
+  const domainName = domain?.name?.toLowerCase() || 'this topic';
+
+  return [
+    { id: 0, label: 'Brand New', description: `Never worked with ${domainName}` },
+    { id: 25, label: 'Some Basics', description: 'Know the fundamentals' },
+    { id: 50, label: 'Intermediate', description: 'Have practical experience' },
+    { id: 75, label: 'Pretty Advanced', description: 'Work with it regularly' },
+  ];
+};
 
 const timeCommitments: { minutes: number; pace: LearningPace; label: string }[] = [
   { minutes: 10, pace: 'relaxed', label: '10 min/day' },
@@ -57,6 +101,7 @@ export default function OnboardingPage() {
 
   const [currentStep, setCurrentStep] = useState<OnboardingStep>('welcome');
   const [name, setName] = useState('');
+  const [selectedDomainId, setSelectedDomainId] = useState<string | null>(null);
   const [selectedGoal, setSelectedGoal] = useState<string | null>(null);
   const [experienceLevel, setExperienceLevel] = useState<number>(0);
   const [dailyMinutes, setDailyMinutes] = useState<number>(15);
@@ -65,13 +110,24 @@ export default function OnboardingPage() {
   const [quizTiming, setQuizTiming] = useState<'during' | 'end'>('during');
   const [voiceEnabled, setVoiceEnabled] = useState(false);
 
+  // Get available domains
+  const activeDomains = useMemo(() => getActiveDomains(), []);
+  const selectedDomain = useMemo(
+    () => activeDomains.find(d => d.id === selectedDomainId) || null,
+    [activeDomains, selectedDomainId]
+  );
+
+  // Dynamic goals and experience levels based on domain
+  const goals = useMemo(() => getGoalsForDomain(selectedDomain), [selectedDomain]);
+  const experienceLevels = useMemo(() => getExperienceLevelsForDomain(selectedDomain), [selectedDomain]);
+
   const currentStepIndex = STEPS.indexOf(currentStep);
   const progress = ((currentStepIndex + 1) / STEPS.length) * 100;
 
-  const weeksToComplete = calculateWeeksToComplete(
-    60 * 60, // ~60 hours of content in minutes
-    dailyMinutes
-  );
+  // Calculate weeks based on selected domain's primary course
+  const selectedCourse = selectedDomainId ? getPrimaryCourseForDomain(selectedDomainId) : null;
+  const totalContentMinutes = selectedCourse ? selectedCourse.estimatedHours * 60 : 60 * 60;
+  const weeksToComplete = calculateWeeksToComplete(totalContentMinutes, dailyMinutes);
 
   const goToNextStep = () => {
     const nextIndex = currentStepIndex + 1;
@@ -106,13 +162,30 @@ export default function OnboardingPage() {
     newUser.goal = selectedGoal || undefined;
     newUser.experienceLevel = experienceLevel;
 
-    // Start with fresh progress - beginning of AI at Work course
+    // Get the primary course for the selected domain
+    const domainCourse = selectedDomainId ? getPrimaryCourseForDomain(selectedDomainId) : null;
+    const startingCourseId = domainCourse?.id || DEFAULT_COURSE_ID;
+
+    // Determine starting position based on domain
+    // For AI at Work: ai-m1, lesson 1.1
+    // For Social Media Marketing: c1-m1, lesson c1-m1-l1
+    let startingModuleId = 'ai-m1';
+    let startingLessonId = '1.1';
+    let startingAtomId = '1.1-intro';
+
+    if (selectedDomainId === 'social-media-marketing') {
+      startingModuleId = 'c1-m1';
+      startingLessonId = 'c1-m1-l1';
+      startingAtomId = 'c1-m1-l1-a1';
+    }
+
+    // Start with fresh progress - beginning of selected domain's course
     newUser.progress = {
       ...newUser.progress,
-      currentCourseId: DEFAULT_COURSE_ID, // ai-at-work
-      currentModuleId: 'ai-m1',
-      currentLessonId: '1.1',
-      currentAtomId: '1.1-intro',
+      currentCourseId: startingCourseId,
+      currentModuleId: startingModuleId,
+      currentLessonId: startingLessonId,
+      currentAtomId: startingAtomId,
       overallPercentage: 0,
       coursesCompleted: [],
       modulesCompleted: [],
@@ -277,6 +350,92 @@ export default function OnboardingPage() {
                   rightIcon={<ArrowRight size={20} />}
                   onClick={goToNextStep}
                   disabled={!name.trim()}
+                  fullWidth
+                >
+                  Continue
+                </Button>
+              </motion.div>
+            )}
+
+            {/* Domain Selection */}
+            {currentStep === 'domain' && (
+              <motion.div
+                key="domain"
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+              >
+                <div className="flex items-start gap-4 mb-6">
+                  <Character character="owl" mood="encouraging" size="sm" />
+                  <Card variant="outlined" padding="md" className="flex-1 coach-bubble relative">
+                    <p className="text-navy">
+                      Great, <strong>{name}</strong>! What would you like to learn?
+                    </p>
+                  </Card>
+                </div>
+
+                <div className="grid gap-3 mb-6">
+                  {activeDomains.map((domain) => {
+                    const IconComponent = DOMAIN_ICONS[domain.icon] || Brain;
+                    const isSelected = selectedDomainId === domain.id;
+
+                    // Get domain-specific color classes
+                    const colorClasses: Record<string, { bg: string; selected: string; text: string }> = {
+                      purple: { bg: 'bg-purple', selected: 'border-purple bg-purple/10', text: 'text-purple' },
+                      teal: { bg: 'bg-teal', selected: 'border-teal bg-light-teal/30', text: 'text-teal' },
+                      navy: { bg: 'bg-navy', selected: 'border-navy bg-navy/10', text: 'text-navy' },
+                      yellow: { bg: 'bg-yellow', selected: 'border-yellow bg-yellow/10', text: 'text-yellow' },
+                    };
+                    const colors = colorClasses[domain.color] || colorClasses.teal;
+
+                    return (
+                      <motion.button
+                        key={domain.id}
+                        onClick={() => setSelectedDomainId(domain.id)}
+                        className={cn(
+                          'w-full p-4 rounded-xl border-2 text-left transition-all',
+                          'flex items-center gap-4',
+                          isSelected
+                            ? colors.selected
+                            : 'border-grey bg-white hover:border-muted-teal'
+                        )}
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.99 }}
+                      >
+                        <div
+                          className={cn(
+                            'w-14 h-14 rounded-xl flex items-center justify-center',
+                            isSelected ? colors.bg + ' text-white' : 'bg-light-grey text-navy'
+                          )}
+                        >
+                          <IconComponent size={28} />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-semibold text-navy">{domain.name}</p>
+                          <p className="text-sm text-rich-black/60 line-clamp-2">{domain.description}</p>
+                          {domain.certification && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <Award size={14} className={colors.text} />
+                              <span className={cn('text-xs font-medium', colors.text)}>
+                                {domain.certification.provider} Certification
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        {isSelected && (
+                          <Check className={colors.text} size={24} />
+                        )}
+                      </motion.button>
+                    );
+                  })}
+                </div>
+
+                <Button
+                  size="lg"
+                  rightIcon={<ArrowRight size={20} />}
+                  onClick={goToNextStep}
+                  disabled={!selectedDomainId}
                   fullWidth
                 >
                   Continue
@@ -628,28 +787,58 @@ export default function OnboardingPage() {
                   </p>
 
                   <Card variant="elevated" padding="lg" className="mb-6 text-left">
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="w-12 h-12 rounded-xl bg-teal/10 flex items-center justify-center">
-                        <Award className="text-teal" size={24} />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-navy">Meta Certification Path</p>
-                        <p className="text-sm text-rich-black/60">5 courses · ~{weeksToComplete} weeks</p>
-                      </div>
-                    </div>
+                    {(() => {
+                      // Get domain-specific info for the completion card
+                      const DomainIcon = selectedDomain ? (DOMAIN_ICONS[selectedDomain.icon] || Brain) : Award;
+                      const colorClasses: Record<string, { bg: string; text: string }> = {
+                        purple: { bg: 'bg-purple/10', text: 'text-purple' },
+                        teal: { bg: 'bg-teal/10', text: 'text-teal' },
+                        navy: { bg: 'bg-navy/10', text: 'text-navy' },
+                        yellow: { bg: 'bg-yellow/10', text: 'text-yellow' },
+                      };
+                      const colors = selectedDomain ? (colorClasses[selectedDomain.color] || colorClasses.teal) : colorClasses.teal;
+                      const courseCount = selectedDomainId ? (getPrimaryCourseForDomain(selectedDomainId)?.modules?.length || 1) : 5;
 
-                    <ProgressBar
-                      value={experienceLevel}
-                      size="md"
-                      color="teal"
-                      showLabel
-                      labelPosition="right"
-                      className="mb-4"
-                    />
+                      return (
+                        <>
+                          <div className="flex items-center gap-4 mb-4">
+                            <div className={cn('w-12 h-12 rounded-xl flex items-center justify-center', colors.bg)}>
+                              <DomainIcon className={colors.text} size={24} />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-navy">
+                                {selectedDomain?.certification?.name || selectedDomain?.name || 'Learning Path'}
+                              </p>
+                              <p className="text-sm text-rich-black/60">
+                                {courseCount} {courseCount === 1 ? 'module' : 'modules'} · ~{weeksToComplete} weeks
+                              </p>
+                            </div>
+                          </div>
 
-                    <p className="text-sm text-rich-black/60">
-                      Starting at {experienceLevel}% based on your experience
-                    </p>
+                          {selectedDomain?.certification && (
+                            <div className="flex items-center gap-2 mb-4 text-sm">
+                              <Award size={16} className={colors.text} />
+                              <span className="text-rich-black/70">
+                                Prepares you for {selectedDomain.certification.provider} certification
+                              </span>
+                            </div>
+                          )}
+
+                          <ProgressBar
+                            value={experienceLevel}
+                            size="md"
+                            color={selectedDomain?.color === 'purple' ? 'purple' : selectedDomain?.color === 'yellow' ? 'yellow' : 'teal'}
+                            showLabel
+                            labelPosition="right"
+                            className="mb-4"
+                          />
+
+                          <p className="text-sm text-rich-black/60">
+                            Starting at {experienceLevel}% based on your experience
+                          </p>
+                        </>
+                      );
+                    })()}
                   </Card>
 
                   <Button

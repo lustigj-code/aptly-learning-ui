@@ -22,17 +22,15 @@ import type { AtomType } from '@/types';
 export function useContentViewLogging(atomId: string, atomType: AtomType) {
   const { logContentView } = useInteractionLogger();
 
-  // Track view start time
-  const viewStartTimeRef = useRef<number>(Date.now());
+  // Track view start time - initialized in useEffect to avoid impure render
+  const viewStartTimeRef = useRef<number>(0);
   const hasLoggedViewRef = useRef<boolean>(false);
 
   useEffect(() => {
-    // Reset refs when atomId changes
-    viewStartTimeRef.current = Date.now();
+    // Initialize/reset refs when atomId changes
+    const startTime = Date.now();
+    viewStartTimeRef.current = startTime;
     hasLoggedViewRef.current = false;
-
-    // Capture values for cleanup
-    const startTime = viewStartTimeRef.current;
 
     return () => {
       // Log content view on unmount if not already logged

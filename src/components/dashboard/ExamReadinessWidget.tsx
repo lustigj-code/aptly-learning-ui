@@ -12,12 +12,22 @@ import {
   ChevronRight,
   TrendingUp,
   Clock,
+  Brain,
+  Info,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { CircularProgress } from '@/components/ui/ProgressBar';
 import { cn } from '@/lib/utils';
 import type { ExamReadinessResult } from '@/lib/mastery/examReadiness';
+
+type ModelInfo = {
+  currentModel: 'bkt' | 'blended' | 'hybrid';
+  usingHybrid: boolean;
+  interactionCount: number;
+  hybridThreshold: number;
+  avgConfidence: number;
+};
 
 type ExamReadinessWidgetProps = {
   examDate: Date;
@@ -32,27 +42,79 @@ export function ExamReadinessWidget({
 }: ExamReadinessWidgetProps) {
   const router = useRouter();
   const [readiness, setReadiness] = useState<ExamReadinessResult | null>(null);
+  const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
+  const [avgMastery, setAvgMastery] = useState<number>(0);
+  const [avgConfidence, setAvgConfidence] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [showModelTooltip, setShowModelTooltip] = useState(false);
 
   useEffect(() => {
-    // Calculate days until exam
-    const now = new Date();
-    const daysUntil = Math.ceil((examDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+    async function fetchReadinessData() {
+      try {
+        // Get auth token from Firebase
+        const { getAuth } = await import('firebase/auth');
+        const auth = getAuth();
+        const user = auth.currentUser;
 
-    // For now, use a mock readiness calculation
-    // In production, this would fetch from an API that calculates based on actual mastery data
-    const mockReadiness: ExamReadinessResult = {
-      overallReadiness: Math.min(100, Math.max(0, 85 - Math.floor(Math.random() * 20))),
-      daysUntilExam: daysUntil,
-      onTrack: daysUntil > 14,
-      dailyReviewsNeeded: Math.ceil(Math.max(0, 5 - daysUntil / 10)),
-      conceptsAtRisk: [],
-      projectedRetention: Math.min(100, targetRetention * 100 * (0.8 + Math.random() * 0.2)),
-    };
+        if (!user) {
+          setIsLoading(false);
+          return;
+        }
 
-    setReadiness(mockReadiness);
-    setIsLoading(false);
-  }, [examDate, targetRetention, userId]);
+        const token = await user.getIdToken();
+
+        // Fetch mastery map data which includes ML predictions
+        const response = await fetch(`/api/mastery/map?userId=${userId}&courseId=ai-at-work`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+
+          // Extract model info
+          if (data.modelInfo) {
+            setModelInfo(data.modelInfo);
+          }
+
+          // Calculate average mastery and confidence from nodes
+          if (data.data?.nodes && data.data.nodes.length > 0) {
+            const nodes = data.data.nodes;
+            const totalMastery = nodes.reduce((sum: number, n: any) => sum + (n.mlMastery ?? n.mastery ?? 0), 0);
+            const totalConfidence = nodes.reduce((sum: number, n: any) => sum + (n.confidence ?? 0.5), 0);
+            setAvgMastery(totalMastery / nodes.length);
+            setAvgConfidence(totalConfidence / nodes.length);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching readiness data:', error);
+      }
+
+      // Calculate days until exam
+      const now = new Date();
+      const daysUntil = Math.ceil((examDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+
+      // Calculate readiness based on average mastery (use ML-enhanced data when available)
+      const effectiveMastery = avgMastery > 0 ? avgMastery : 0.5;
+      const readinessScore = Math.min(100, Math.round(effectiveMastery * 100));
+
+      // Calculate readiness from real mastery data
+      const calculatedReadiness: ExamReadinessResult = {
+        overallReadiness: readinessScore,
+        daysUntilExam: daysUntil,
+        onTrack: daysUntil > 14 && readinessScore >= 60,
+        dailyReviewsNeeded: Math.ceil(Math.max(0, 5 - daysUntil / 10)),
+        conceptsAtRisk: [],
+        projectedRetention: Math.min(100, targetRetention * 100 * (0.8 + effectiveMastery * 0.2)),
+      };
+
+      setReadiness(calculatedReadiness);
+      setIsLoading(false);
+    }
+
+    fetchReadinessData();
+  }, [examDate, targetRetention, userId, avgMastery]);
 
   if (isLoading || !readiness) {
     return (
@@ -95,10 +157,10 @@ export function ExamReadinessWidget({
     }
     if (daysUntilExam <= 7) {
       return {
-        bgGradient: 'from-yellow/10 to-error/5',
-        borderColor: 'border-yellow/30',
+        bgGradient: 'from-yellow-light to-error/5',
+        borderColor: 'border-yellow-dark/30',
         statusText: 'Final Week',
-        statusColor: 'text-yellow',
+        statusColor: 'text-yellow-dark',
         icon: AlertTriangle,
       };
     }
@@ -172,7 +234,7 @@ export function ExamReadinessWidget({
           </div>
 
           {/* Metrics Row */}
-          <div className="grid grid-cols-2 gap-4 pt-2 border-t border-grey/20">
+          <div className="grid grid-cols-3 gap-3 pt-2 border-t border-grey/20">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-purple/10 flex items-center justify-center">
                 <Target size={16} className="text-purple" />
@@ -190,6 +252,52 @@ export function ExamReadinessWidget({
                 <p className="text-sm font-medium text-navy">{dailyReviewsNeeded}/day</p>
                 <p className="text-xs text-rich-black/60">Reviews needed</p>
               </div>
+            </div>
+            {/* AI Confidence - ML Model Info */}
+            <div
+              className="flex items-center gap-2 relative"
+              onMouseEnter={() => setShowModelTooltip(true)}
+              onMouseLeave={() => setShowModelTooltip(false)}
+            >
+              <div className="w-8 h-8 rounded-lg bg-navy/10 flex items-center justify-center">
+                <Brain size={16} className="text-navy" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-navy flex items-center gap-1">
+                  {Math.round(avgConfidence * 100)}%
+                  <Info size={12} className="text-rich-black/40" />
+                </p>
+                <p className="text-xs text-rich-black/60">
+                  {modelInfo?.usingHybrid ? 'AI Confidence' : 'Building profile'}
+                </p>
+              </div>
+              {/* Tooltip */}
+              {showModelTooltip && (
+                <motion.div
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="absolute bottom-full left-0 mb-2 p-2 bg-navy text-white text-xs rounded-lg shadow-lg z-10 w-48"
+                >
+                  {modelInfo?.usingHybrid ? (
+                    <>
+                      <p className="font-medium mb-1">Hybrid ML Model Active</p>
+                      <p className="text-white/80">
+                        Using {modelInfo.interactionCount} interactions to predict your mastery with{' '}
+                        {Math.round(avgConfidence * 100)}% confidence.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-medium mb-1">Building Your Profile</p>
+                      <p className="text-white/80">
+                        {modelInfo?.hybridThreshold
+                          ? `${modelInfo.hybridThreshold - (modelInfo?.interactionCount || 0)} more interactions needed for personalized AI predictions.`
+                          : 'Keep practicing to unlock personalized predictions!'}
+                      </p>
+                    </>
+                  )}
+                </motion.div>
+              )}
             </div>
           </div>
 

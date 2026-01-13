@@ -65,7 +65,7 @@ export function ConceptProgress({
       case 'mastered':
         return <CheckCircle size={16} className="text-success" />;
       case 'due':
-        return <Clock size={16} className="text-yellow" />;
+        return <Clock size={16} className="text-yellow-dark" />;
       case 'decaying':
         return <AlertCircle size={16} className="text-error" />;
       default:
@@ -121,7 +121,7 @@ export function ConceptProgress({
               <span
                 className={cn(
                   status === 'mastered' && 'text-success',
-                  status === 'due' && 'text-yellow',
+                  status === 'due' && 'text-yellow-dark',
                   status === 'decaying' && 'text-error',
                   status === 'learning' && 'text-teal'
                 )}
