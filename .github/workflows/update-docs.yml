@@ -1,0 +1,68 @@
+name: Update Documentation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'package.json'
+
+jobs:
+  update-docs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Get current date
+        id: date
+        run: echo "date=$(date +'%Y-%m-%d %H:%M UTC')" >> $GITHUB_OUTPUT
+
+      - name: Update documentation timestamps
+        run: |
+          # Update timestamp in all docs
+          for file in docs/*.md; do
+            if [ -f "$file" ]; then
+              # Update the "Last Updated" line
+              sed -i "s/> \*\*Last Updated:\*\* .*/> **Last Updated:** ${{ steps.date.outputs.date }}/" "$file"
+            fi
+          done
+
+      - name: Generate codebase stats
+        run: |
+          # Count files and lines
+          TOTAL_FILES=$(find src -name "*.ts" -o -name "*.tsx" | wc -l | xargs)
+          TOTAL_LINES=$(find src -name "*.ts" -o -name "*.tsx" -exec cat {} + | wc -l | xargs)
+          API_ROUTES=$(find src/app/api -name "route.ts" | wc -l | xargs)
+          COMPONENTS=$(find src/components -name "*.tsx" | wc -l | xargs)
+
+          # Update ARCHITECTURE.md with fresh stats
+          sed -i "s/> \*\*Codebase:\*\* [0-9]* files.*/> **Codebase:** $TOTAL_FILES files | $TOTAL_LINES lines of TypeScript\/TSX/" docs/ARCHITECTURE.md
+          sed -i "s/> \*\*Total Endpoints:\*\* [0-9]*.*/> **Total Endpoints:** $API_ROUTES+ across 13 categories/" docs/API_MAP.md
+          sed -i "s/> \*\*Total Components:\*\* [0-9]*.*/> **Total Components:** $COMPONENTS+ across 20 categories/" docs/COMPONENT_TREE.md
+
+      - name: Check for changes
+        id: changes
+        run: |
+          git diff --quiet docs/ || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Commit and push if changed
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add docs/
+          git commit -m "docs: auto-update documentation timestamps and stats"
+          git push
