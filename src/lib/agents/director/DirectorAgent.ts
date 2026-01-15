@@ -198,6 +198,22 @@ export class DirectorAgent extends AgentBase {
         agent: 'remediation',
       },
       {
+        // Learning requests - route to AI tutor (remediation)
+        patterns: [
+          /i\s*(want|'d like)\s*to\s*learn/i,
+          /teach\s*me/i,
+          /i\s*need\s*to\s*(learn|study|understand)/i,
+          /can\s*you\s*teach/i,
+          /i'?m\s*(trying|learning)\s*to/i,
+          /show\s*me\s*how/i,
+          /start\s*(learning|studying)/i,
+          /tell\s*me\s*about/i,
+          /learn\s*about/i,
+        ],
+        intent: 'ask_question',
+        agent: 'remediation',
+      },
+      {
         patterns: [/\?$/, /how do/i, /what is/i, /why does/i, /can you tell/i],
         intent: 'ask_question',
         agent: 'remediation',
@@ -220,7 +236,7 @@ export class DirectorAgent extends AgentBase {
       {
         patterns: [/hi/i, /hello/i, /hey/i, /thanks/i, /thank you/i],
         intent: 'general_chat',
-        agent: 'director',
+        agent: 'remediation', // Route greetings to AI tutor for friendly response
       },
     ];
 
