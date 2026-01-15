@@ -1,12 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-// Routes that don't require authentication
-const PUBLIC_ROUTES = ['/', '/login', '/signup', '/forgot-password', '/reset-password', '/privacy', '/help']
-
-// Routes that require admin role
-const ADMIN_ROUTES = ['/admin']
-
 // Security headers for all responses
 const securityHeaders = {
   'X-Frame-Options': 'SAMEORIGIN',
@@ -33,39 +27,14 @@ const cspHeader = [
 ].join('; ')
 
 /**
- * Middleware for route protection, RBAC, and security headers
+ * Middleware for security headers only
+ *
+ * Note: Auth protection is handled client-side via Firebase Auth hooks.
+ * Server-side session cookies require Firebase Admin SDK which isn't configured.
+ * Each protected page uses the useAuth hook for client-side auth checking.
  */
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
-  const sessionCookie = request.cookies.get('session')?.value
-
-  // Check if route is public
-  const isPublicRoute = PUBLIC_ROUTES.includes(pathname)
-
-  // If no session and route requires auth
-  if (!sessionCookie && !isPublicRoute) {
-    const response = NextResponse.redirect(new URL('/login', request.url))
-    applySecurityHeaders(response)
-    return response
-  }
-
-  // If has session and trying to access login/signup, redirect to dashboard (dashboard-first architecture)
-  if (sessionCookie && (pathname === '/login' || pathname === '/signup')) {
-    const response = NextResponse.redirect(new URL('/dashboard', request.url))
-    applySecurityHeaders(response)
-    return response
-  }
-
-  // Check admin routes (basic check - full verification in API routes)
-  if (pathname.startsWith('/admin')) {
-    if (!sessionCookie) {
-      const response = NextResponse.redirect(new URL('/login', request.url))
-      applySecurityHeaders(response)
-      return response
-    }
-  }
-
-  // Continue with security headers
+  // Apply security headers to all responses
   const response = NextResponse.next()
   applySecurityHeaders(response)
   return response
