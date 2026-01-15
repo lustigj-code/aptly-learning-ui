@@ -232,7 +232,7 @@ export async function handleSocraticMode(
 
 /**
  * Fallback Socratic handler when grounded coach fails
- * Uses simpler retrieval and generation
+ * Works WITHOUT RAG when embedding service is unavailable
  */
 async function handleSocraticModeFallback(
   userId: string,
@@ -260,24 +260,32 @@ async function handleSocraticModeFallback(
     studentAnswer: context.selectedAnswer,
   };
 
-  // Simple RAG retrieval
-  const ragChunks = await retrievePedagogicalContext({
-    query: message,
-    courseId: context.currentCourse || 'course-1',
-    lessonId: undefined,
-    questionId: context.questionId,
-    distractorId: context.selectedAnswer,
-    studentAbility: studentContext.predictedAbility,
-    preferStudentFriendly: studentContext.predictedAbility < 0.5,
-    chunkTypes: context.selectedAnswer
-      ? ['misconception', 'hint', 'content']
-      : ['content', 'hint'],
-    topK: 5,
-  });
+  // Try RAG retrieval, but continue without it if it fails
+  let ragChunks: Awaited<ReturnType<typeof retrievePedagogicalContext>> = [];
+  let ragContextString = '';
 
-  // Format RAG context
-  const formattedContext = formatRAGContext(ragChunks.map((r) => r.chunk));
-  const ragContextString = formatContextForPrompt(formattedContext);
+  try {
+    ragChunks = await retrievePedagogicalContext({
+      query: message,
+      courseId: context.currentCourse || 'course-1',
+      lessonId: undefined,
+      questionId: context.questionId,
+      distractorId: context.selectedAnswer,
+      studentAbility: studentContext.predictedAbility,
+      preferStudentFriendly: studentContext.predictedAbility < 0.5,
+      chunkTypes: context.selectedAnswer
+        ? ['misconception', 'hint', 'content']
+        : ['content', 'hint'],
+      topK: 5,
+    });
+
+    // Format RAG context
+    const formattedContext = formatRAGContext(ragChunks.map((r) => r.chunk));
+    ragContextString = formatContextForPrompt(formattedContext);
+  } catch (ragError) {
+    console.warn('[SocraticHandler] RAG retrieval failed, continuing without grounding:', ragError);
+    ragContextString = '(No course-specific context available - respond with general educational approach)';
+  }
 
   // Get misconception if available
   const misconceptionChunk = ragChunks.find((r) => r.chunk.chunkType === 'misconception');
