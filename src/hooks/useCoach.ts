@@ -282,7 +282,15 @@ export function useCoach() {
         if (!currentConvId) {
           dispatch({ type: 'SET_ERROR', payload: 'Failed to create conversation' });
           dispatch({ type: 'SET_LOADING', payload: false });
-          return null;
+          // Return a fallback message instead of null so UI always shows something
+          const initErrorMessage: Message = {
+            id: `assistant-init-error-${Date.now()}`,
+            role: 'assistant',
+            content: "I'm having trouble starting our conversation. Please try refreshing the page or check your connection.",
+            timestamp: new Date(),
+          };
+          dispatch({ type: 'ADD_MESSAGE', payload: initErrorMessage });
+          return initErrorMessage;
         }
       }
 

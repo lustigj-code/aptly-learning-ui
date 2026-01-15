@@ -355,6 +355,32 @@ export class RemediationAgent extends AgentBase {
   }
 
   /**
+   * Check if this help type should use direct explanation mode (not Socratic)
+   * Socratic mode is for remediation (quiz errors, struggling)
+   * Direct mode is for information requests (concept questions, explanations)
+   */
+  private shouldUseDirectExplanationMode(helpType: HelpType, studentState: StudentState): boolean {
+    // Use Socratic mode when student is struggling or got quiz wrong
+    if (helpType === 'stuck_on_quiz' && studentState.consecutiveWrong > 0) {
+      return false; // Use Socratic for quiz remediation
+    }
+    if (helpType === 'struggling' && studentState.consecutiveWrong >= 2) {
+      return false; // Use Socratic when really struggling
+    }
+
+    // Use direct explanation for informational requests
+    if (helpType === 'concept_clarification' || helpType === 'general_question') {
+      return true; // Direct explanations for "What is X?" questions
+    }
+    if (helpType === 'need_example') {
+      return true; // Provide examples directly when asked
+    }
+
+    // Default to direct mode for better user experience
+    return true;
+  }
+
+  /**
    * Generate tier-appropriate response using AI (Gemini via socraticHandler)
    */
   private async generateTierResponse(
@@ -372,7 +398,17 @@ export class RemediationAgent extends AgentBase {
     groundingScore: number;
     citations: Citation[];
   }> {
-    // Try to use the Socratic handler for AI-powered responses
+    // Check if we should use direct explanation mode vs Socratic mode
+    const useDirectMode = this.shouldUseDirectExplanationMode(helpType, studentState);
+
+    if (useDirectMode) {
+      console.log('[RemediationAgent] Using direct explanation mode for helpType:', helpType);
+      return this.generateDirectExplanation(message, helpType, conceptId, userId, context, conversationHistory);
+    }
+
+    console.log('[RemediationAgent] Using Socratic mode for helpType:', helpType, 'tier:', tier);
+
+    // Try to use the Socratic handler for AI-powered responses (quiz remediation)
     try {
       // Build context for socratic handler
       const socraticContext: SocraticRequestContext = {
@@ -444,6 +480,112 @@ export class RemediationAgent extends AgentBase {
       groundingScore: 0.5,
       citations: [],
     };
+  }
+
+  /**
+   * Generate direct explanation using the model router (for concept questions)
+   * This bypasses Socratic questioning and provides helpful explanations
+   */
+  private async generateDirectExplanation(
+    message: string,
+    helpType: HelpType,
+    conceptId: string,
+    userId: string,
+    context?: AgentRequest['context'],
+    conversationHistory?: { role: 'user' | 'assistant'; content: string }[]
+  ): Promise<{
+    message: string;
+    isGrounded: boolean;
+    groundingScore: number;
+    citations: Citation[];
+  }> {
+    try {
+      // Import model router dynamically to avoid circular deps
+      const { getModelRouter } = await import('@/lib/training/serving/modelRouter');
+      const modelRouter = getModelRouter();
+
+      // Build a direct explanation prompt (not Socratic)
+      const systemPrompt = `You are Sage, an AI tutor for the Aptly Learning platform specializing in social media marketing and Meta certification.
+
+Your role is to HELP students by providing clear, accurate explanations when they ask questions.
+
+Guidelines:
+- When a student asks "What is X?" or "Can you explain Y?", provide a clear, helpful explanation
+- Be conversational and friendly, not robotic
+- Use examples when helpful
+- Keep responses focused and not too long (2-4 paragraphs max)
+- If relevant, connect concepts to social media marketing context
+- Be encouraging and supportive
+
+Current context:
+- Course: ${context?.courseId || 'Social Media Marketing'}
+- Lesson: ${context?.lessonId || 'Current Lesson'}
+
+Remember: The student is asking for help understanding something. Be helpful and educational!`;
+
+      const messages = [
+        { role: 'system' as const, content: systemPrompt },
+        ...(conversationHistory || []).slice(-6).map((m) => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        })),
+        { role: 'user' as const, content: message },
+      ];
+
+      const result = await modelRouter.generate({
+        messages,
+        maxTokens: 1000,
+        temperature: 0.7,
+        userId,
+      });
+
+      console.log('[RemediationAgent] Direct explanation generated:', {
+        model: result.model,
+        responseLength: result.content.length,
+        latencyMs: result.latencyMs,
+      });
+
+      return {
+        message: result.content,
+        isGrounded: false, // Direct explanations don't use RAG grounding
+        groundingScore: 0.5,
+        citations: [],
+      };
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error('[RemediationAgent] Direct explanation failed:', errorMsg);
+
+      // Fallback to a helpful template response
+      return {
+        message: this.getDirectExplanationFallback(message, helpType),
+        isGrounded: false,
+        groundingScore: 0,
+        citations: [],
+      };
+    }
+  }
+
+  /**
+   * Fallback for direct explanation when AI fails
+   */
+  private getDirectExplanationFallback(message: string, helpType: HelpType): string {
+    if (helpType === 'concept_clarification') {
+      return `That's a great question! Let me help you understand this concept.
+
+In social media marketing, the terms and strategies can sometimes feel overwhelming, but they build on each other in logical ways.
+
+Could you tell me a bit more about what specific aspect you'd like me to clarify? I want to make sure I give you the most helpful explanation.`;
+    }
+
+    if (helpType === 'need_example') {
+      return `Great idea to look at examples - they really help cement these concepts!
+
+Let me think of a relevant example from the social media marketing world. What specific scenario or platform would be most helpful to see as an example?`;
+    }
+
+    return `I'd be happy to help you understand this better!
+
+Could you tell me a bit more about what you're trying to learn? That way I can give you the most useful explanation.`;
   }
 
   /**

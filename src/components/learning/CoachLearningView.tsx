@@ -492,8 +492,15 @@ function ChatOverlay({
         currentLesson: lessonContext.lessonTitle,
         atomType: lessonContext.atomType,
       })
-      if (response) {
+      if (response && response.content) {
         setMessages(prev => [...prev, { role: 'coach', content: response.content }])
+      } else {
+        // Handle case where sendMessage returned null (e.g., conversation init failed)
+        console.warn('[ChatOverlay] No response from coach, adding fallback message')
+        setMessages(prev => [...prev, {
+          role: 'coach',
+          content: "I'm having trouble connecting right now. Let me try again - what would you like to know?"
+        }])
       }
     } catch (err) {
       console.error('[ChatOverlay] Coach request failed:', err)
