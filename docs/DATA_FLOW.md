@@ -1,6 +1,6 @@
 # Aptly Learning - Data Flow Documentation
 
-> **Last Updated:** 2026-01-15 09:49 UTC
+> **Last Updated:** 2026-01-15 10:13 UTC
 
 ---
 
