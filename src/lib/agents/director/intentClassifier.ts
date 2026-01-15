@@ -140,7 +140,7 @@ const INTENT_PATTERNS: IntentPattern[] = [
     priority: 60,
   },
 
-  // Learning intent - route to AI tutor
+  // Learning intent - route to AI tutor for conversational learning
   {
     intent: 'general_chat',
     patterns: [
