@@ -68,7 +68,46 @@ export const queryKeys = {
   // Reviews (FSRS)
   reviewQueue: (uid: string) => ['reviewQueue', uid] as const,
   reviewsDue: (uid: string) => ['reviewsDue', uid] as const,
+
+  // Mastery levels (for prerequisite checking)
+  masteryLevels: (uid: string) => ['masteryLevels', uid] as const,
 } as const;
+
+// ============================================
+// QUIZ RESULT EVENT BUS
+// ============================================
+
+type QuizResultListener = (uid: string) => void;
+const quizResultListeners = new Set<QuizResultListener>();
+
+/**
+ * Event emitter for quiz result events.
+ * Call this when a quiz is completed to trigger immediate cache invalidation
+ * of mastery-related queries.
+ */
+export function emitQuizResult(uid: string): void {
+  quizResultListeners.forEach((listener) => listener(uid));
+}
+
+/**
+ * Subscribe to quiz result events.
+ * Returns an unsubscribe function.
+ */
+export function onQuizResult(listener: QuizResultListener): () => void {
+  quizResultListeners.add(listener);
+  return () => {
+    quizResultListeners.delete(listener);
+  };
+}
+
+/**
+ * Invalidate mastery levels cache immediately.
+ * Called internally when quiz results are emitted.
+ */
+export function invalidateMasteryLevels(uid: string): void {
+  queryClient.invalidateQueries({ queryKey: queryKeys.masteryLevels(uid) });
+  queryClient.invalidateQueries({ queryKey: queryKeys.reviewQueue(uid) });
+}
 
 // Pre-configured query invalidation patterns
 export const invalidateQueries = {

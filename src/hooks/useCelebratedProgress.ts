@@ -3,7 +3,9 @@
 import { useCallback } from 'react';
 import { useCelebration } from '@/components/celebration/CelebrationSystem';
 import { useUser, useUserProfileStore } from '@/store/userProfileStore';
-import type { Badge } from '@/types';
+import { useAuthStore } from '@/store';
+import { emitQuizResult } from '@/lib/api/queryClient';
+// Badge type is used implicitly via user?.badges
 import { SCORE_THRESHOLDS, XP, STREAK } from '@/config/constants';
 import { useBadgeCheck } from './useBadgeCheck';
 
@@ -181,30 +183,49 @@ export function useCelebratedProgress() {
 }
 
 /**
- * Hook specifically for quiz celebrations
+ * Hook specifically for quiz celebrations.
+ * Also handles cache invalidation for mastery levels.
  */
 export function useQuizCelebration() {
   const { celebrate, celebrateXP } = useCelebration();
   const { addXP } = useUser();
+  const authUser = useAuthStore((state) => state.authUser);
 
   const onQuizComplete = useCallback(
     async (score: number, passed: boolean) => {
+      // Emit quiz result event to trigger mastery levels cache invalidation
+      // This ensures the UI immediately reflects updated progress
+      const uid = authUser?.uid;
+      if (uid) {
+        emitQuizResult(uid);
+      }
+
       if (passed) {
         const xp = score >= SCORE_THRESHOLDS.EXCELLENT ? SCORE_THRESHOLDS.EXCELLENT_XP : score >= SCORE_THRESHOLDS.GOOD ? SCORE_THRESHOLDS.GOOD_XP : SCORE_THRESHOLDS.FAIR_XP;
         await addXP(xp);
         celebrate(2, score === 100 ? 'Perfect Score!' : 'Quiz Passed!');
       }
     },
-    [addXP, celebrate]
+    [addXP, celebrate, authUser]
   );
 
   const onCorrectAnswer = useCallback(() => {
     celebrateXP(XP.ATOM_COMPLETION);
-  }, [celebrateXP]);
+
+    // Also emit quiz result for individual correct answers to update mastery
+    const uid = authUser?.uid;
+    if (uid) {
+      emitQuizResult(uid);
+    }
+  }, [celebrateXP, authUser]);
 
   const onIncorrectAnswer = useCallback(() => {
-    // Could add a subtle feedback here
-  }, []);
+    // Emit on incorrect as well - mastery may decrease
+    const uid = authUser?.uid;
+    if (uid) {
+      emitQuizResult(uid);
+    }
+  }, [authUser]);
 
   return {
     onQuizComplete,

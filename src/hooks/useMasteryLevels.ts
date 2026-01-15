@@ -1,16 +1,22 @@
 /**
  * useMasteryLevels Hook
- * Fetches user's concept mastery levels for prerequisite checking
+ * Fetches user's concept mastery levels for prerequisite checking.
  *
  * Cold-start handling: Returns 0% mastery for all concepts when user
  * has no review history (new users). This ensures prerequisite checks
  * work correctly and lessons without prerequisites are accessible.
+ *
+ * Cache Strategy:
+ * - Mastery levels are user-specific and change after quiz completions
+ * - Cache is invalidated immediately upon any quiz_result event
+ * - This ensures the UI reflects progress instantly after quiz completion
  */
 
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { queryKeys } from '@/lib/api/queryClient';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryKeys, onQuizResult } from '@/lib/api/queryClient';
 import { get, isSuccess } from '@/lib/api/client';
 import type { ConceptId } from '@/lib/mastery/knowledgeGraph';
 import { SOCIAL_MEDIA_MARKETING_GRAPH } from '@/lib/mastery/knowledgeGraph';
@@ -48,17 +54,38 @@ function getDefaultMasteryLevels(): Record<ConceptId, number> {
 // ============================================
 
 /**
- * Fetch user's mastery levels for all concepts
- * Returns a Record<ConceptId, number> for easy prerequisite checking
+ * Fetch user's mastery levels for all concepts.
+ * Returns a Record<ConceptId, number> for easy prerequisite checking.
  *
  * Cold-start behavior:
  * - New users get 0% mastery for all concepts
  * - This ensures lessons without prerequisites are accessible
  * - Prerequisite checks work correctly from day one
+ *
+ * Cache is automatically invalidated when quiz results are submitted,
+ * ensuring immediate UI updates after quiz completion.
  */
 export function useMasteryLevels(uid: string | null) {
+  const queryClient = useQueryClient();
+
+  // Subscribe to quiz result events for immediate cache invalidation
+  useEffect(() => {
+    if (!uid) return;
+
+    const unsubscribe = onQuizResult((eventUid) => {
+      // Only invalidate if the event is for our user
+      if (eventUid === uid) {
+        // Immediately invalidate mastery levels cache
+        queryClient.invalidateQueries({ queryKey: queryKeys.masteryLevels(uid) });
+      }
+    });
+
+    return unsubscribe;
+  }, [uid, queryClient]);
+
   const query = useQuery({
-    queryKey: queryKeys.reviewQueue(uid || ''),
+    // Use dedicated mastery levels query key (not reviewQueue)
+    queryKey: queryKeys.masteryLevels(uid || ''),
     queryFn: async () => {
       if (!uid) throw new Error('No user ID provided');
 
@@ -83,7 +110,10 @@ export function useMasteryLevels(uid: string | null) {
       return levels;
     },
     enabled: !!uid,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    // Short stale time since we want fresh data after quiz completion
+    // Cache invalidation on quiz_result events ensures immediate updates
+    staleTime: 30 * 1000, // 30 seconds - will be refetched on quiz result anyway
+    gcTime: 5 * 60 * 1000, // 5 minutes GC time
   });
 
   // Return defaults when loading or error to prevent empty object issues
