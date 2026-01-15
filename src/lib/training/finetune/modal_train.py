@@ -404,11 +404,14 @@ def push_to_hub(
     login(token=os.environ["HF_TOKEN"])
     api = HfApi()
 
+    # Create repo first (handles private setting)
+    api.create_repo(repo_id=repo_id, repo_type="model", private=private, exist_ok=True)
+
+    # Then upload the model files
     api.upload_folder(
         folder_path=model_path,
         repo_id=repo_id,
         repo_type="model",
-        private=private,
     )
 
     return {"status": "pushed", "repo": repo_id}
