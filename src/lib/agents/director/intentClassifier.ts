@@ -150,7 +150,7 @@ const INTENT_PATTERNS: IntentPattern[] = [
       /^(good|great|awesome|nice|cool)\b/i,
     ],
     keywords: ['hi', 'hello', 'thanks', 'ok'],
-    suggestedAgent: 'director',
+    suggestedAgent: 'remediation',
     priority: 10,
   },
 ];
