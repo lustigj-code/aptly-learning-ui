@@ -123,10 +123,8 @@ export type HealthStatus = {
 // DEFAULT CONFIGURATION
 // ============================================
 
-// HuggingFace endpoint for fine-tuned Sage model
-const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY || '';
-const HUGGINGFACE_MODEL_ID = process.env.HUGGINGFACE_MODEL_ID || 'lustigj/sage-tutor-v1';
-const SAGE_ENDPOINT = `https://router.huggingface.co/models/${HUGGINGFACE_MODEL_ID}`;
+// Modal endpoint for fine-tuned Sage model
+const SAGE_ENDPOINT = process.env.SAGE_MODEL_ENDPOINT || 'https://lustigj-code--sage-tutor-serve-generate.modal.run';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 
 export const DEFAULT_ROUTER_CONFIG: RouterConfig = {
@@ -172,25 +170,8 @@ export const DEFAULT_ROUTER_CONFIG: RouterConfig = {
 };
 
 // ============================================
-// SAGE MODEL CLIENT (HuggingFace)
+// SAGE MODEL CLIENT (Modal)
 // ============================================
-
-/**
- * Format messages for HuggingFace chat format
- */
-function formatMessagesForHF(messages: Array<{ role: string; content: string }>): string {
-  return messages
-    .map((msg) => {
-      if (msg.role === 'system') {
-        return `System: ${msg.content}`;
-      }
-      if (msg.role === 'user') {
-        return `User: ${msg.content}`;
-      }
-      return `Assistant: ${msg.content}`;
-    })
-    .join('\n\n');
-}
 
 async function callSageModel(
   config: ModelConfig,
@@ -198,27 +179,15 @@ async function callSageModel(
 ): Promise<GenerateResponse> {
   const startTime = Date.now();
 
-  if (!HUGGINGFACE_API_KEY) {
-    throw new Error('HUGGINGFACE_API_KEY is not configured');
-  }
-
-  // Format messages for HuggingFace
-  const prompt = formatMessagesForHF(request.messages);
-
   const response = await fetch(config.endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${HUGGINGFACE_API_KEY}`,
     },
     body: JSON.stringify({
-      inputs: prompt,
-      parameters: {
-        max_new_tokens: request.maxTokens || config.maxTokens,
-        temperature: request.temperature || config.temperature,
-        top_p: 0.95,
-        return_full_text: false,
-      },
+      messages: request.messages.map(m => ({ role: m.role, content: m.content })),
+      max_tokens: request.maxTokens || config.maxTokens,
+      temperature: request.temperature || config.temperature,
     }),
     signal: AbortSignal.timeout(config.timeout),
   });
@@ -231,17 +200,13 @@ async function callSageModel(
   const data = await response.json();
   const latencyMs = Date.now() - startTime;
 
-  // HuggingFace returns array of generated texts
-  const generated = Array.isArray(data) ? data[0]?.generated_text : data.generated_text;
-
-  // Estimate tokens (rough: 1 token ≈ 4 chars)
   const tokensUsed = {
-    prompt: Math.ceil(prompt.length / 4),
-    completion: Math.ceil((generated?.length || 0) / 4),
+    prompt: data.usage?.prompt_tokens || 0,
+    completion: data.usage?.completion_tokens || 0,
   };
 
   return {
-    content: generated || '',
+    content: data.content || '',
     model: 'sage',
     latencyMs,
     tokensUsed,
