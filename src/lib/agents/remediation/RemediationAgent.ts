@@ -417,8 +417,16 @@ export class RemediationAgent extends AgentBase {
         };
       }
     } catch (error) {
-      console.warn('[RemediationAgent] Socratic handler failed, using fallback:', error);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.warn('[RemediationAgent] Socratic handler threw error, using template fallback:', {
+        error: errorMsg,
+        userId,
+        conceptId,
+      });
     }
+
+    // If socraticHandler returned null, also log it
+    console.log('[RemediationAgent] AI returned null, using template fallback for tier', tier);
 
     // Fallback to template responses if AI fails
     const tierResponses = {

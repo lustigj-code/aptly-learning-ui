@@ -97,6 +97,12 @@ export async function getInterventionState(
     return cached;
   }
 
+  // Safety check: if adminDb is not initialized, return null
+  if (!adminDb) {
+    console.warn('[InterventionStateManager] adminDb not initialized, returning null');
+    return null;
+  }
+
   try {
     const doc = await adminDb.collection(COLLECTION).doc(docId).get();
 
@@ -140,6 +146,7 @@ export async function getInterventionState(
  * Get or create intervention state
  *
  * Creates new state if none exists for the user/concept combination
+ * CRITICAL: Returns default state on any error to prevent AI response failures
  *
  * @param userId - User's Firebase UID
  * @param conceptId - Concept/skill identifier
@@ -151,21 +158,37 @@ export async function getOrCreateInterventionState(
   conceptId: string,
   questionId?: string
 ): Promise<InterventionState> {
-  const existing = await getInterventionState(userId, conceptId);
+  try {
+    const existing = await getInterventionState(userId, conceptId);
 
-  if (existing) {
-    return existing;
+    if (existing) {
+      return existing;
+    }
+
+    // Create new state
+    const newState = createState(conceptId, questionId);
+
+    // Try to save, but don't fail if Firestore is unavailable
+    try {
+      await saveInterventionState(userId, newState);
+    } catch (saveError) {
+      console.warn('[InterventionStateManager] Could not save state (Firestore may be unavailable):', saveError);
+      // Continue with in-memory state
+    }
+
+    return newState;
+  } catch (error) {
+    console.error('[InterventionStateManager] Error in getOrCreateInterventionState:', error);
+    // Return default tier 1 state to allow AI to still respond
+    console.log('[InterventionStateManager] Returning default state to allow AI response');
+    return createState(conceptId, questionId);
   }
-
-  // Create new state
-  const newState = createState(conceptId, questionId);
-  await saveInterventionState(userId, newState);
-
-  return newState;
 }
 
 /**
  * Save intervention state to Firestore
+ * NOTE: Does not throw on error - logs warning and continues
+ * This prevents AI response failures when Firestore is unavailable
  *
  * @param userId - User's Firebase UID
  * @param state - InterventionState to save
@@ -175,6 +198,13 @@ export async function saveInterventionState(
   state: InterventionState
 ): Promise<void> {
   const docId = getDocId(userId, state.conceptId);
+
+  // Safety check: if adminDb is not initialized, just cache locally
+  if (!adminDb) {
+    console.warn('[InterventionStateManager] adminDb not initialized, caching locally only');
+    setCachedState(docId, state);
+    return;
+  }
 
   try {
     const document: InterventionStateDocument = {
@@ -195,8 +225,10 @@ export async function saveInterventionState(
     // Update cache
     setCachedState(docId, state);
   } catch (error) {
-    console.error('[InterventionStateManager] Error saving state:', error);
-    throw new Error(`Failed to save intervention state: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    // Don't throw - just log and continue (allows AI to still respond)
+    console.warn('[InterventionStateManager] Error saving state (non-fatal):', error);
+    // Still update local cache even if Firestore fails
+    setCachedState(docId, state);
   }
 }
 

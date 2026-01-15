@@ -12,10 +12,10 @@
  * Part of Phase 12.3: RAG Retrieval Integration
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import {
   queryComprehensive,
 } from '@/lib/rag/ragQuery';
+import { getModelRouter } from '@/lib/training/serving/modelRouter';
 import type { LearnerState, SourceCitation } from '@/lib/rag/contextBuilder';
 import {
   generateGroundedResponse,
@@ -87,18 +87,7 @@ export interface EnhancedSocraticResult {
 // CONFIGURATION
 // ============================================
 
-let genAI: GoogleGenerativeAI | null = null;
-
-function getGenAI(): GoogleGenerativeAI {
-  if (!genAI) {
-    const apiKey = process.env.GOOGLE_GENAI_API_KEY;
-    if (!apiKey) {
-      throw new Error('GOOGLE_GENAI_API_KEY is not configured');
-    }
-    genAI = new GoogleGenerativeAI(apiKey);
-  }
-  return genAI;
-}
+// ModelRouter handles Sage (fine-tuned) → OpenAI fallback automatically
 
 // ============================================
 // MAIN HANDLER
@@ -208,10 +197,18 @@ export async function handleSocraticMode(
       ragQueryTime,
     };
   } catch (error) {
-    console.error('[SocraticHandler] Error:', error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : '';
+    console.error('[SocraticHandler] Main handler failed:', {
+      error: errorMsg,
+      stack: errorStack,
+      userId,
+      courseId: context.currentCourse,
+    });
 
     // Attempt fallback with basic RAG
     try {
+      console.log('[SocraticHandler] Attempting fallback...');
       return await handleSocraticModeFallback(
         userId,
         message,
@@ -219,7 +216,11 @@ export async function handleSocraticMode(
         conversationHistory
       );
     } catch (fallbackError) {
-      console.error('[SocraticHandler] Fallback also failed:', fallbackError);
+      const fallbackMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+      console.error('[SocraticHandler] Fallback also failed:', {
+        error: fallbackMsg,
+        mainError: errorMsg,
+      });
       return null;
     }
   }
@@ -296,17 +297,9 @@ async function handleSocraticModeFallback(
   const interventionState = await getOrCreateInterventionState(userId, conceptId);
   const interventionDirective = getInterventionDirective(interventionState);
 
-  // Generate with Gemini
+  // Generate with ModelRouter (Sage fine-tuned model → OpenAI fallback)
   const genConfig = getSocraticGenerationConfig();
-  const ai = getGenAI();
-  const socraticModel = ai.getGenerativeModel({
-    model: 'gemini-2.0-flash',
-    generationConfig: {
-      temperature: genConfig.temperature,
-      maxOutputTokens: genConfig.maxOutputTokens,
-      topP: genConfig.topP,
-    },
-  });
+  const modelRouter = getModelRouter();
 
   const fullPrompt = `${systemPrompt}
 
@@ -319,16 +312,24 @@ ${interventionDirective.examples.slice(0, 2).map((e) => `- ${e}`).join('\n')}
 Constraints:
 ${interventionDirective.constraints.slice(0, 3).map((c) => `- ${c}`).join('\n')}`;
 
-  const chat = socraticModel.startChat({
-    history: conversationHistory.slice(-6).map((m) => ({
-      role: m.role === 'assistant' ? 'model' as const : 'user' as const,
-      parts: [{ text: m.content }],
+  // Build messages array for the router
+  const messages = [
+    { role: 'system', content: fullPrompt },
+    ...conversationHistory.slice(-6).map((m) => ({
+      role: m.role,
+      content: m.content,
     })),
-    systemInstruction: { role: 'user', parts: [{ text: fullPrompt }] },
+    { role: 'user', content: message },
+  ];
+
+  const result = await modelRouter.generate({
+    messages,
+    maxTokens: genConfig.maxOutputTokens,
+    temperature: genConfig.temperature,
+    userId,
   });
 
-  const result = await chat.sendMessage(message);
-  const response = result.response.text();
+  const response = result.content;
 
   // Calculate basic grounding score
   const groundingScore = calculateGroundingScore(response, ragChunks);
