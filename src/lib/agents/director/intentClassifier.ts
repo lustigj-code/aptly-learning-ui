@@ -140,6 +140,23 @@ const INTENT_PATTERNS: IntentPattern[] = [
     priority: 60,
   },
 
+  // Learning intent - route to AI tutor
+  {
+    intent: 'general_chat',
+    patterns: [
+      /i\s*(want|'d like)\s*to\s*learn/i,
+      /teach\s*me/i,
+      /i\s*need\s*to\s*(learn|study|understand)/i,
+      /can\s*you\s*teach/i,
+      /i'?m\s*(trying|learning)\s*to/i,
+      /show\s*me\s*how/i,
+      /start\s*(learning|studying)/i,
+    ],
+    keywords: ['learn', 'teach', 'study'],
+    suggestedAgent: 'remediation',
+    priority: 75,
+  },
+
   // General chat/greetings
   {
     intent: 'general_chat',
