@@ -21,6 +21,12 @@ import {
   InterventionAction,
   Citation,
 } from '../types';
+import {
+  handleSocraticMode,
+  getSocraticErrorResponse,
+  type SocraticRequestContext,
+  type SocraticMessage,
+} from '@/lib/coach/socraticHandler';
 
 /**
  * Intervention tier levels
@@ -183,13 +189,23 @@ export class RemediationAgent extends AgentBase {
       // Get current intervention tier from state
       const currentTier = this.getCurrentTier(state.studentState);
 
-      // Generate remediation response
+      // Extract conversation history from state messages
+      const conversationHistory = state.messages
+        .filter((m) => m.role === 'user' || m.role === 'assistant')
+        .slice(-10) // Last 10 messages for context
+        .map((m) => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        }));
+
+      // Generate remediation response with AI
       const result = await this.generateRemediation(
         request.message,
         helpType,
         currentTier,
         context,
-        state.studentState
+        state.studentState,
+        conversationHistory
       );
 
       // Build actions
@@ -282,7 +298,8 @@ export class RemediationAgent extends AgentBase {
     helpType: HelpType,
     tier: InterventionTier,
     context: AgentRequest['context'],
-    studentState: StudentState
+    studentState: StudentState,
+    conversationHistory?: { role: 'user' | 'assistant'; content: string }[]
   ): Promise<RemediationResult> {
     // Get concept from context
     const conceptId = context.atomId || 'general';
@@ -290,13 +307,15 @@ export class RemediationAgent extends AgentBase {
     // Determine if we should escalate
     const shouldEscalate = this.shouldEscalateTier(studentState, tier);
 
-    // Generate tier-appropriate response
+    // Generate tier-appropriate response with AI
     const response = await this.generateTierResponse(
       message,
       helpType,
       shouldEscalate ? Math.min(3, tier + 1) as InterventionTier : tier,
       conceptId,
-      studentState
+      studentState,
+      context,
+      conversationHistory
     );
 
     return {
@@ -333,23 +352,71 @@ export class RemediationAgent extends AgentBase {
   }
 
   /**
-   * Generate tier-appropriate response
+   * Generate tier-appropriate response using AI (Gemini via socraticHandler)
    */
   private async generateTierResponse(
     message: string,
     helpType: HelpType,
     tier: InterventionTier,
     conceptId: string,
-    studentState: StudentState
+    studentState: StudentState,
+    context?: AgentRequest['context'],
+    conversationHistory?: { role: 'user' | 'assistant'; content: string }[]
   ): Promise<{
     message: string;
     isGrounded: boolean;
     groundingScore: number;
     citations: Citation[];
   }> {
-    // TODO: Integrate with existing Socratic handler and RAG system
-    // For now, return tier-appropriate template responses
+    // Try to use the Socratic handler for AI-powered responses
+    try {
+      // Build context for socratic handler
+      const socraticContext: SocraticRequestContext = {
+        userName: 'Student',
+        currentCourse: context?.courseId || 'default',
+        currentModule: context?.moduleId || '',
+        currentLesson: context?.lessonId || '',
+        currentAtom: context?.atomId || conceptId,
+        atomType: context?.currentActivity?.type || 'reading',
+        masteryLevel: studentState.masteryLevels?.[conceptId] ?? 50,
+        consecutiveWrong: studentState.consecutiveWrong || 0,
+        conceptId,
+        questionText: context?.currentActivity?.type === 'quiz' ? message : undefined,
+        selectedAnswer: context?.currentActivity?.selectedAnswer,
+      };
 
+      // Convert conversation history to socratic format
+      const socraticHistory: SocraticMessage[] = (conversationHistory || []).map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      // Call the socratic handler (uses Gemini with RAG)
+      const result = await handleSocraticMode(
+        'anonymous', // userId - will be set properly in production
+        message,
+        socraticContext,
+        socraticHistory,
+        context?.lessonId
+      );
+
+      if (result) {
+        return {
+          message: result.response,
+          isGrounded: result.isGrounded,
+          groundingScore: result.groundingScore,
+          citations: result.sourceCitations.map((c) => ({
+            sourceId: c.chunkId || c.lessonId || 'unknown',
+            content: c.title,
+            relevance: c.relevance,
+          })),
+        };
+      }
+    } catch (error) {
+      console.warn('[RemediationAgent] Socratic handler failed, using fallback:', error);
+    }
+
+    // Fallback to template responses if AI fails
     const tierResponses = {
       1: this.getTier1Response(message, helpType, conceptId),
       2: this.getTier2Response(message, helpType, conceptId),
@@ -360,9 +427,9 @@ export class RemediationAgent extends AgentBase {
 
     return {
       message: response,
-      isGrounded: true, // Will be calculated from RAG
-      groundingScore: 0.8, // Will be calculated from RAG
-      citations: [], // Will be populated from RAG
+      isGrounded: false,
+      groundingScore: 0.5,
+      citations: [],
     };
   }
 

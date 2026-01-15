@@ -43,7 +43,7 @@ export class HuggingFaceProvider implements AIProvider {
 
     try {
       const response = await fetch(
-        `https://api-inference.huggingface.co/models/${this.modelId}`,
+        `https://router.huggingface.co/models/${this.modelId}`,
         {
           method: 'POST',
           headers: {
@@ -92,7 +92,7 @@ export class HuggingFaceProvider implements AIProvider {
   async embed(text: string): Promise<EmbeddingResult> {
     try {
       const response = await fetch(
-        `https://api-inference.huggingface.co/models/${this.embeddingModelId}`,
+        `https://router.huggingface.co/models/${this.embeddingModelId}`,
         {
           method: 'POST',
           headers: {

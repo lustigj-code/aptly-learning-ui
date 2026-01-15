@@ -37,7 +37,7 @@ export type DeploymentStatus = {
 export const FREE_DEPLOYMENT_CONFIG: DeploymentConfig = {
   modelRepository: 'lustigj/sage-tutor-v1',
   modelVersion: 'v1.0.0',
-  servingEndpoint: 'https://api-inference.huggingface.co',
+  servingEndpoint: 'https://router.huggingface.co',
   fallbackProvider: 'gemini',
   features: {
     ragEnabled: true,
