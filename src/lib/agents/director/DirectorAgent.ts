@@ -330,8 +330,8 @@ export class DirectorAgent extends AgentBase {
         reason: 'Student wants to review',
       },
       general_chat: {
-        agent: 'director',
-        reason: 'General conversation, handled by director',
+        agent: 'remediation',
+        reason: 'Conversational response from AI tutor',
       },
     };
 
