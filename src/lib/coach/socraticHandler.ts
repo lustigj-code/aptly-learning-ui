@@ -206,23 +206,14 @@ export async function handleSocraticMode(
       courseId: context.currentCourse,
     });
 
-    // Attempt fallback with basic RAG
-    try {
-      console.log('[SocraticHandler] Attempting fallback...');
-      return await handleSocraticModeFallback(
-        userId,
-        message,
-        context,
-        conversationHistory
-      );
-    } catch (fallbackError) {
-      const fallbackMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
-      console.error('[SocraticHandler] Fallback also failed:', {
-        error: fallbackMsg,
-        mainError: errorMsg,
-      });
-      return null;
-    }
+    // Fallback handler is now guaranteed to return a result (never throws)
+    console.log('[SocraticHandler] Attempting fallback handler...');
+    return await handleSocraticModeFallback(
+      userId,
+      message,
+      context,
+      conversationHistory
+    );
   }
 }
 
@@ -239,7 +230,11 @@ async function handleSocraticModeFallback(
   message: string,
   context: SocraticRequestContext,
   conversationHistory: SocraticMessage[]
-): Promise<EnhancedSocraticResult | null> {
+): Promise<EnhancedSocraticResult> {
+  // DEFENSIVE: Wrap entire fallback in try-catch to ensure we ALWAYS return a result
+  try {
+    console.log('[SocraticHandler] Fallback handler started for user:', userId);
+
   // Build student context for personalized prompts
   const studentContext: StudentContext = {
     name: context.userName || 'Student',
@@ -330,14 +325,42 @@ ${interventionDirective.constraints.slice(0, 3).map((c) => `- ${c}`).join('\n')}
     { role: 'user', content: message },
   ];
 
-  const result = await modelRouter.generate({
-    messages,
-    maxTokens: genConfig.maxOutputTokens,
-    temperature: genConfig.temperature,
-    userId,
-  });
-
-  const response = result.content;
+  let response: string;
+  let modelUsed = 'unknown';
+  try {
+    console.log('[SocraticHandler] Calling ModelRouter in fallback handler...', {
+      messagesCount: messages.length,
+      maxTokens: genConfig.maxOutputTokens,
+      temperature: genConfig.temperature,
+    });
+    const result = await modelRouter.generate({
+      messages,
+      maxTokens: genConfig.maxOutputTokens,
+      temperature: genConfig.temperature,
+      userId,
+    });
+    response = result.content;
+    modelUsed = result.model;
+    console.log('[SocraticHandler] ModelRouter success:', {
+      model: result.model,
+      responseLength: response.length,
+      latencyMs: result.latencyMs,
+      tokensUsed: result.tokensUsed,
+    });
+  } catch (modelError) {
+    const errorMsg = modelError instanceof Error ? modelError.message : String(modelError);
+    const errorStack = modelError instanceof Error ? modelError.stack : '';
+    console.error('[SocraticHandler] ModelRouter failed in fallback:', {
+      error: errorMsg,
+      stack: errorStack?.slice(0, 500),
+      userId,
+      courseId: context.currentCourse,
+    });
+    // Instead of throwing, return a Socratic fallback response
+    // This ensures we NEVER return null from the handler
+    response = getTierFallbackResponse(interventionState.currentTier);
+    console.log('[SocraticHandler] Using tier-based fallback response, tier:', interventionState.currentTier);
+  }
 
   // Calculate basic grounding score
   const groundingScore = calculateGroundingScore(response, ragChunks);
@@ -348,6 +371,7 @@ ${interventionDirective.constraints.slice(0, 3).map((c) => `- ${c}`).join('\n')}
     await saveInterventionState(userId, newState);
   }
 
+  console.log('[SocraticHandler] Fallback handler returning response, length:', response.length);
   return {
     response,
     interventionTier: interventionState.currentTier,
@@ -360,6 +384,22 @@ ${interventionDirective.constraints.slice(0, 3).map((c) => `- ${c}`).join('\n')}
       relevance: c.score,
     })),
   };
+  } catch (unexpectedError) {
+    // LAST RESORT: Return a basic Socratic response if anything fails
+    const errorMsg = unexpectedError instanceof Error ? unexpectedError.message : String(unexpectedError);
+    console.error('[SocraticHandler] Unexpected error in fallback handler:', {
+      error: errorMsg,
+      userId,
+      courseId: context.currentCourse,
+    });
+    return {
+      response: getTierFallbackResponse(1),
+      interventionTier: 1,
+      isGrounded: false,
+      groundingScore: 0,
+      sourceCitations: [],
+    };
+  }
 }
 
 // ============================================
@@ -376,6 +416,33 @@ function determineInterventionZone(
   if (accuracy < 0.36) return 'frustration';
   if (accuracy > 0.70) return 'mastery';
   return 'zpd';
+}
+
+/**
+ * Get tier-appropriate fallback response when AI is unavailable
+ * These are educational and Socratic even when the AI model fails
+ */
+function getTierFallbackResponse(tier: number): string {
+  const tier1Responses = [
+    "Let's explore this together! What aspect of the topic interests you most right now?",
+    "Great question to think about! What do you already know about this concept?",
+    "I'd love to help you think through this. What comes to mind when you consider this topic?",
+  ];
+
+  const tier2Responses = [
+    "Here's a hint to get you started: Think about how this concept connects to what we discussed earlier. What patterns do you notice?",
+    "Consider this: The key to understanding this lies in the relationship between the concepts. What connections can you identify?",
+    "Let me point you in a direction: Focus on the underlying principle here. What's the main idea you're working with?",
+  ];
+
+  const tier3Responses = [
+    "Let me walk you through a similar example: Imagine we're applying this concept in a different context. First, we'd identify the key elements, then consider how they interact. Can you apply this same thinking to your question?",
+    "Here's how I'd approach a similar problem: Start by breaking it down into smaller parts. What's the first piece you can tackle?",
+    "Let's work through this step by step: The first thing to consider is the foundation. What basic concept underlies this?",
+  ];
+
+  const responses = tier === 3 ? tier3Responses : tier === 2 ? tier2Responses : tier1Responses;
+  return responses[Math.floor(Math.random() * responses.length)];
 }
 
 /**
