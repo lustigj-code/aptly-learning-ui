@@ -5,7 +5,7 @@ import { useCelebration } from '@/components/celebration/CelebrationSystem';
 import { useUser, useUserProfileStore } from '@/store/userProfileStore';
 import { useAuthStore } from '@/store';
 import { emitQuizResult } from '@/lib/api/queryClient';
-import type { Badge } from '@/types';
+// Badge type is used implicitly via user?.badges
 import { SCORE_THRESHOLDS, XP, STREAK } from '@/config/constants';
 import { useBadgeCheck } from './useBadgeCheck';
 
@@ -195,8 +195,9 @@ export function useQuizCelebration() {
     async (score: number, passed: boolean) => {
       // Emit quiz result event to trigger mastery levels cache invalidation
       // This ensures the UI immediately reflects updated progress
-      if (authUser?.uid) {
-        emitQuizResult(authUser.uid);
+      const uid = authUser?.uid;
+      if (uid) {
+        emitQuizResult(uid);
       }
 
       if (passed) {
@@ -205,24 +206,26 @@ export function useQuizCelebration() {
         celebrate(2, score === 100 ? 'Perfect Score!' : 'Quiz Passed!');
       }
     },
-    [addXP, celebrate, authUser?.uid]
+    [addXP, celebrate, authUser]
   );
 
   const onCorrectAnswer = useCallback(() => {
     celebrateXP(XP.ATOM_COMPLETION);
 
     // Also emit quiz result for individual correct answers to update mastery
-    if (authUser?.uid) {
-      emitQuizResult(authUser.uid);
+    const uid = authUser?.uid;
+    if (uid) {
+      emitQuizResult(uid);
     }
-  }, [celebrateXP, authUser?.uid]);
+  }, [celebrateXP, authUser]);
 
   const onIncorrectAnswer = useCallback(() => {
     // Emit on incorrect as well - mastery may decrease
-    if (authUser?.uid) {
-      emitQuizResult(authUser.uid);
+    const uid = authUser?.uid;
+    if (uid) {
+      emitQuizResult(uid);
     }
-  }, [authUser?.uid]);
+  }, [authUser]);
 
   return {
     onQuizComplete,

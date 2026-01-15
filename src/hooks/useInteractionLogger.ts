@@ -250,7 +250,7 @@ export function useInteractionLogger() {
       getTimeGap,
       updateLastAttemptTime,
       updateConsecutiveWrong,
-      authUser?.uid,
+      authUser,
     ]
   );
 
@@ -413,7 +413,7 @@ export function useInteractionLogger() {
       getTimeGap,
       updateLastAttemptTime,
       updateConsecutiveWrong,
-      authUser?.uid,
+      authUser,
     ]
   );
 
