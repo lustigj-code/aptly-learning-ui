@@ -1,0 +1,20 @@
+# Development files
+.next/
+.git/
+node_modules/
+
+# Large video files (should be hosted on CDN/Firebase Storage)
+public/videos/
+
+# Training artifacts
+training-data/
+__pycache__/
+*.pyc
+
+# Local development
+.claude/
+.env.local
+
+# IDE
+.idea/
+.vscode/
