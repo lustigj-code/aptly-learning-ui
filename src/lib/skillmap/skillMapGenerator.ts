@@ -408,11 +408,11 @@ export function mergeSkillMaps(
 function serializeCourseContent(content: ParsedCourseContent): string {
   const lines: string[] = [];
 
-  for (const module of content.modules) {
-    lines.push(`\n## Module ${module.number}: ${module.title}`);
-    lines.push(`Objectives: ${module.objectives.join(', ')}`);
+  for (const courseModule of content.modules) {
+    lines.push(`\n## Module ${courseModule.number}: ${courseModule.title}`);
+    lines.push(`Objectives: ${courseModule.objectives.join(', ')}`);
 
-    for (const lesson of module.lessons) {
+    for (const lesson of courseModule.lessons) {
       lines.push(`\n### Lesson: ${lesson.title} (ID: ${lesson.id})`);
       lines.push(`Objectives: ${lesson.objectives.join(', ')}`);
 

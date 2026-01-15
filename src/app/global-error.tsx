@@ -3,6 +3,9 @@
 // This is a minimal global error boundary for Next.js
 // It must not use any external dependencies or hooks
 
+// Force dynamic rendering to prevent prerender issues
+export const dynamic = 'force-dynamic';
+
 export default function GlobalError({
   error,
   reset,

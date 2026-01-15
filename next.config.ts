@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Use standalone output for better Docker/serverless deployment
+  output: 'standalone',
+
   // Transpile framer-motion for better SSR compatibility
   transpilePackages: ['framer-motion'],
 
@@ -119,7 +122,13 @@ const nextConfig: NextConfig = {
       'recharts',
       '@tanstack/react-query',
     ],
+    // Disable SSR for global error page (workaround for Next.js 16 bug)
+    // https://github.com/vercel/next.js/issues/72628
+    serverActions: {
+      bodySizeLimit: '2mb',
+    },
   },
+
 };
 
 export default nextConfig;
