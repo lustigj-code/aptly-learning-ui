@@ -205,6 +205,7 @@ export class RemediationAgent extends AgentBase {
         currentTier,
         context,
         state.studentState,
+        state.userId || 'anonymous',
         conversationHistory
       );
 
@@ -299,6 +300,7 @@ export class RemediationAgent extends AgentBase {
     tier: InterventionTier,
     context: AgentRequest['context'],
     studentState: StudentState,
+    userId: string,
     conversationHistory?: { role: 'user' | 'assistant'; content: string }[]
   ): Promise<RemediationResult> {
     // Get concept from context
@@ -314,6 +316,7 @@ export class RemediationAgent extends AgentBase {
       shouldEscalate ? Math.min(3, tier + 1) as InterventionTier : tier,
       conceptId,
       studentState,
+      userId,
       context,
       conversationHistory
     );
@@ -360,6 +363,7 @@ export class RemediationAgent extends AgentBase {
     tier: InterventionTier,
     conceptId: string,
     studentState: StudentState,
+    userId: string,
     context?: AgentRequest['context'],
     conversationHistory?: { role: 'user' | 'assistant'; content: string }[]
   ): Promise<{
@@ -393,7 +397,7 @@ export class RemediationAgent extends AgentBase {
 
       // Call the socratic handler (uses Gemini with RAG)
       const result = await handleSocraticMode(
-        'anonymous', // userId - will be set properly in production
+        userId,
         message,
         socraticContext,
         socraticHistory,
@@ -423,10 +427,11 @@ export class RemediationAgent extends AgentBase {
       3: this.getTier3Response(message, helpType, conceptId),
     };
 
-    const response = tierResponses[tier];
+    // Always fallback to tier 1 if tier is invalid
+    const response = tierResponses[tier] || tierResponses[1];
 
     return {
-      message: response,
+      message: response || "I'm here to help! What would you like to know?",
       isGrounded: false,
       groundingScore: 0.5,
       citations: [],

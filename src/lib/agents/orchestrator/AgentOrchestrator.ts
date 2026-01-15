@@ -134,6 +134,11 @@ export class AgentOrchestrator {
         const agent = this.getAgent(currentRequest.toAgent);
         if (!agent) {
           errors.push(`Agent not found: ${currentRequest.toAgent}`);
+          // Add fallback response instead of just breaking with no response
+          if (this.config.enableFallbacks) {
+            const fallbackResponse = this.createFallbackResponse(currentRequest, 'Agent not found');
+            responses.push(fallbackResponse);
+          }
           break;
         }
 
