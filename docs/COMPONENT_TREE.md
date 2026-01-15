@@ -1,6 +1,6 @@
 # Aptly Learning - Component Tree
 
-> **Last Updated:** 2026-01-15 08:37 UTC
+> **Last Updated:** 2026-01-15 08:51 UTC
 > **Total Components:** 127+ across 20 categories
 
 ---
