@@ -1,6 +1,6 @@
 /**
  * Rate Limiting Utility
- * Enforces a 10 messages/minute per user limit for AI coach interactions
+ * Enforces a daily message limit per user for AI coach interactions
  * Stores usage data in Firestore `aiUsage` collection
  * Resets daily at midnight UTC
  */
@@ -21,7 +21,8 @@ export type TokenUsageData = {
   updatedAt: Date;
 };
 
-const MESSAGES_PER_MINUTE = 10;
+// Daily message limit per user (resets at midnight UTC)
+const MESSAGES_PER_DAY = 100;
 
 /**
  * Get usage document ID for a user on a specific date
@@ -57,7 +58,7 @@ export async function checkRateLimit(userId: string): Promise<{
     if (!doc.exists) {
       return {
         hasMessages: true,
-        messagesRemaining: MESSAGES_PER_MINUTE,
+        messagesRemaining: MESSAGES_PER_DAY,
         lastMessage: undefined,
       };
     }
@@ -66,7 +67,7 @@ export async function checkRateLimit(userId: string): Promise<{
     if (!data) {
       return {
         hasMessages: true,
-        messagesRemaining: MESSAGES_PER_MINUTE,
+        messagesRemaining: MESSAGES_PER_DAY,
         lastMessage: undefined,
       };
     }
@@ -76,7 +77,7 @@ export async function checkRateLimit(userId: string): Promise<{
     // In production, you might want to track timestamps of last N messages
     const recentMessageCount = data.messageCount || 0;
 
-    const messagesRemaining = Math.max(0, MESSAGES_PER_MINUTE - recentMessageCount);
+    const messagesRemaining = Math.max(0, MESSAGES_PER_DAY - recentMessageCount);
     const hasMessages = messagesRemaining > 0;
 
     // Get last message timestamp if available
@@ -111,7 +112,7 @@ export async function recordMessage(userId: string): Promise<number> {
     // First check if we have messages remaining
     const { hasMessages } = await checkRateLimit(userId);
     if (!hasMessages) {
-      throw new Error('Rate limit exceeded: Maximum 10 messages per minute');
+      throw new Error('Rate limit exceeded: Maximum 100 messages per day');
     }
 
     const docId = getUsageDocId(userId);
