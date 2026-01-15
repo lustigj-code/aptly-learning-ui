@@ -207,18 +207,23 @@ export async function saveInterventionState(
   }
 
   try {
-    const document: InterventionStateDocument = {
+    // Build document without undefined values (Firestore doesn't accept undefined)
+    const document: Partial<InterventionStateDocument> = {
       userId,
       conceptId: state.conceptId,
       currentTier: state.currentTier,
       tier1Attempts: state.tier1Attempts,
       tier2Attempts: state.tier2Attempts,
       tier3Used: state.tier3Used,
-      questionId: state.questionId,
       startedAt: state.startedAt,
       lastInteractionAt: state.lastInteractionAt,
       updatedAt: new Date(),
     };
+
+    // Only add questionId if defined
+    if (state.questionId !== undefined) {
+      document.questionId = state.questionId;
+    }
 
     await adminDb.collection(COLLECTION).doc(docId).set(document, { merge: true });
 

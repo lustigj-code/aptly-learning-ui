@@ -37,18 +37,20 @@ logger = logging.getLogger(__name__)
 
 app = modal.App("sage-tutor-serve")
 
-# Model serving image with vLLM
+# Model serving image with Transformers + bitsandbytes (for 4-bit quantized models)
 serving_image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install("git")
     .pip_install(
-        "vllm>=0.4.0",
         "torch>=2.1.0",
         "transformers>=4.40.0",
+        "accelerate>=0.27.0",
+        "bitsandbytes>=0.42.0",
         "fastapi>=0.109.0",
         "uvicorn>=0.27.0",
         "pydantic>=2.5.0",
         "huggingface_hub>=0.22.0",
+        "scipy",
     )
 )
 
@@ -56,7 +58,7 @@ serving_image = (
 model_volume = modal.Volume.from_name("sage-model-weights", create_if_missing=True)
 
 # GPU configuration
-GPU_CONFIG = modal.gpu.A10G(count=1)  # A10G is cost-effective for inference
+GPU_CONFIG = "A10G"  # A10G is cost-effective for inference
 
 
 # ============================================
@@ -129,29 +131,24 @@ class HealthResponse(BaseModel):
 @app.cls(
     image=serving_image,
     gpu=GPU_CONFIG,
-    container_idle_timeout=300,  # Keep warm for 5 minutes
-    allow_concurrent_inputs=16,  # Handle multiple requests
+    scaledown_window=300,  # Keep warm for 5 minutes
     volumes={"/models": model_volume},
-    secrets=[modal.Secret.from_name("huggingface-secret", required=False)],
+    secrets=[modal.Secret.from_name("huggingface-secret")],
 )
 class SageTutorServer:
     """
-    High-performance serving for Sage tutor model.
+    Serving for Sage tutor model using Transformers.
 
-    Uses vLLM for:
-    - Continuous batching
-    - PagedAttention for memory efficiency
-    - Fast KV-cache management
+    Supports 4-bit quantized models via bitsandbytes.
     """
-
-    def __init__(self):
-        self.start_time = datetime.now()
 
     @modal.enter()
     def load_model(self):
         """Load the model when container starts."""
-        from vllm import LLM, SamplingParams
-        from transformers import AutoTokenizer
+        import torch
+        from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+
+        self.start_time = datetime.now()
 
         # Determine which model to load
         model_path = os.environ.get("SAGE_MODEL_PATH", "/models/sage-tutor-v1")
@@ -167,22 +164,25 @@ class SageTutorServer:
 
         # Load tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
 
-        # Load model with vLLM
-        self.llm = LLM(
-            model=self.model_name,
-            tensor_parallel_size=1,
-            gpu_memory_utilization=0.9,
-            max_model_len=4096,
+        # Load model - it will auto-detect 4-bit quantization from config
+        logger.info("Loading model (this may take a minute)...")
+        self.model = AutoModelForCausalLM.from_pretrained(
+            self.model_name,
+            device_map="auto",
+            torch_dtype=torch.float16,
             trust_remote_code=True,
         )
+        self.model.eval()
 
         logger.info("Model loaded successfully!")
 
     @modal.method()
     def generate(self, request: GenerateRequest) -> GenerateResponse:
         """Generate a response from the model."""
-        from vllm import SamplingParams
+        import torch
         import time
 
         start_time = time.time()
@@ -198,25 +198,36 @@ class SageTutorServer:
             add_generation_prompt=True,
         )
 
-        # Sampling parameters
-        sampling_params = SamplingParams(
-            max_tokens=request.max_tokens,
-            temperature=request.temperature,
-            top_p=request.top_p,
-        )
+        # Tokenize
+        inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
+        prompt_tokens = inputs.input_ids.shape[1]
 
         # Generate
-        outputs = self.llm.generate([prompt], sampling_params)
-        generated_text = outputs[0].outputs[0].text
+        with torch.no_grad():
+            outputs = self.model.generate(
+                **inputs,
+                max_new_tokens=request.max_tokens,
+                temperature=request.temperature,
+                top_p=request.top_p,
+                do_sample=request.temperature > 0,
+                pad_token_id=self.tokenizer.pad_token_id,
+            )
+
+        # Decode only the new tokens
+        generated_text = self.tokenizer.decode(
+            outputs[0][prompt_tokens:],
+            skip_special_tokens=True
+        )
 
         latency_ms = (time.time() - start_time) * 1000
+        completion_tokens = outputs[0].shape[0] - prompt_tokens
 
         return GenerateResponse(
             content=generated_text,
             model=self.model_name,
             usage={
-                "prompt_tokens": len(outputs[0].prompt_token_ids),
-                "completion_tokens": len(outputs[0].outputs[0].token_ids),
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
             },
             latency_ms=latency_ms,
         )
@@ -274,7 +285,7 @@ def health() -> HealthResponse:
     gpu=GPU_CONFIG,
     container_idle_timeout=300,
     volumes={"/models": model_volume},
-    secrets=[modal.Secret.from_name("huggingface-secret", required=False)],
+    secrets=[modal.Secret.from_name("huggingface-secret")],
 )
 def generate_stream(
     messages: List[Dict[str, str]],

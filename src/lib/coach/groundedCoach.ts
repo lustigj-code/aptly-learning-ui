@@ -9,9 +9,11 @@
  * - Intervention tier compliance
  *
  * Part of Phase 12.3: RAG Retrieval Integration
+ *
+ * Updated: Now uses ModelRouter (Sage fine-tuned model) instead of Gemini directly
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getModelRouter } from '@/lib/training/serving/modelRouter';
 import type { RetrievedChunk } from '../rag/types';
 import type { LearnerState, BuiltContext, SourceCitation } from '../rag/contextBuilder';
 import { buildContext, buildMisconceptionContext } from '../rag/contextBuilder';
@@ -61,22 +63,9 @@ export interface CoachContext {
 // CONFIGURATION
 // ============================================
 
-const DEFAULT_MODEL = 'gemini-2.0-flash';
 const MIN_GROUNDING_SCORE = 0.5;
 
-// Initialize Gemini client (lazy)
-let genAI: GoogleGenerativeAI | null = null;
-
-function getGenAI(): GoogleGenerativeAI {
-  if (!genAI) {
-    const apiKey = process.env.GOOGLE_GENAI_API_KEY;
-    if (!apiKey) {
-      throw new Error('GOOGLE_GENAI_API_KEY environment variable is not set');
-    }
-    genAI = new GoogleGenerativeAI(apiKey);
-  }
-  return genAI;
-}
+// ModelRouter handles Sage (fine-tuned) → OpenAI fallback automatically
 
 // ============================================
 // MAIN GENERATION FUNCTION
@@ -166,31 +155,28 @@ ${interventionDirective.constraints.slice(0, 3).map((c) => `- ${c}`).join('\n')}
   const genConfig = getSocraticGenerationConfig();
 
   try {
-    const ai = getGenAI();
-    const model = ai.getGenerativeModel({
-      model: DEFAULT_MODEL,
-      generationConfig: {
-        temperature: genConfig.temperature,
-        maxOutputTokens: genConfig.maxOutputTokens,
-        topP: genConfig.topP,
-      },
+    // Use ModelRouter (Sage fine-tuned → OpenAI fallback)
+    const modelRouter = getModelRouter();
+
+    // Build messages array for the router
+    const messages = [
+      { role: 'system', content: fullPrompt },
+      ...(conversationHistory ?? []).slice(-6).map((m) => ({
+        role: m.role,
+        content: m.content,
+      })),
+      { role: 'user', content: userMessage },
+    ];
+
+    // Generate response via ModelRouter
+    const result = await modelRouter.generate({
+      messages,
+      maxTokens: genConfig.maxOutputTokens,
+      temperature: genConfig.temperature,
+      userId: learnerState.userId,
     });
 
-    // Build conversation history for context
-    const history = (conversationHistory ?? []).slice(-6).map((m) => ({
-      role: m.role === 'assistant' ? 'model' as const : 'user' as const,
-      parts: [{ text: m.content }],
-    }));
-
-    // Create chat session
-    const chat = model.startChat({
-      history,
-      systemInstruction: { role: 'user', parts: [{ text: fullPrompt }] },
-    });
-
-    // Generate response
-    const result = await chat.sendMessage(userMessage);
-    const responseText = result.response.text();
+    const responseText = result.content;
 
     // Calculate grounding score
     const groundingScore = calculateGroundingScore(
@@ -198,11 +184,8 @@ ${interventionDirective.constraints.slice(0, 3).map((c) => `- ${c}`).join('\n')}
       retrievedContext
     );
 
-    // Get token usage
-    const usageMetadata = result.response.usageMetadata;
-    const tokensUsed =
-      (usageMetadata?.promptTokenCount ?? 0) +
-      (usageMetadata?.candidatesTokenCount ?? 0);
+    // Get token usage from result
+    const tokensUsed = result.tokensUsed.prompt + result.tokensUsed.completion;
 
     const latencyMs = Date.now() - startTime;
 
