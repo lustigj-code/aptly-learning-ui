@@ -183,10 +183,17 @@ export function RealTimeMasteryBar({
       </div>
 
       {/* Progress bar */}
-      <div className={cn(
-        'relative bg-grey/10 rounded-full overflow-hidden',
-        styles.height
-      )}>
+      <div
+        className={cn(
+          'relative bg-grey/10 rounded-full overflow-hidden',
+          styles.height
+        )}
+        role="progressbar"
+        aria-valuenow={Math.round(currentMastery)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={`${skillName ? `${skillName} mastery` : 'Mastery level'}: ${Math.round(currentMastery)}%${change !== 0 ? ` (${change > 0 ? '+' : ''}${Math.round(change)}% change)` : ''}`}
+      >
         {/* Previous mastery marker (ghost) */}
         {previousMastery !== undefined && previousMastery !== currentMastery && (
           <motion.div
@@ -197,6 +204,7 @@ export function RealTimeMasteryBar({
               'absolute inset-y-0 left-0 rounded-full opacity-30',
               getMasteryColor(previousMastery)
             )}
+            aria-hidden="true"
           />
         )}
 
@@ -215,6 +223,7 @@ export function RealTimeMasteryBar({
             getMasteryColor(currentMastery),
             currentMastery >= 85 && `shadow-lg ${getGlowColor(currentMastery)}`
           )}
+          aria-hidden="true"
         >
           {/* Shimmer on high mastery */}
           {currentMastery >= 70 && (
@@ -226,12 +235,13 @@ export function RealTimeMasteryBar({
                 duration: 2,
                 ease: 'linear',
               }}
+              aria-hidden="true"
             />
           )}
         </motion.div>
 
         {/* Mastery level markers */}
-        <div className="absolute inset-0 flex items-center">
+        <div className="absolute inset-0 flex items-center" aria-hidden="true">
           {/* 70% marker */}
           <div
             className="absolute h-full w-px bg-grey/30"
@@ -278,9 +288,16 @@ export function MasteryIndicator({
   const change = previousMastery !== undefined ? mastery - previousMastery : 0;
 
   return (
-    <div className={cn('flex items-center gap-2', className)}>
+    <div
+      className={cn('flex items-center gap-2', className)}
+      role="progressbar"
+      aria-valuenow={Math.round(mastery)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label={`Mastery level: ${Math.round(mastery)}%${change !== 0 ? ` (${change > 0 ? '+' : ''}${Math.round(change)}% change)` : ''}`}
+    >
       {/* Circular progress indicator */}
-      <div className="relative w-8 h-8">
+      <div className="relative w-8 h-8" aria-hidden="true">
         <svg className="w-8 h-8 transform -rotate-90" viewBox="0 0 32 32">
           <circle
             cx="16"
@@ -320,6 +337,7 @@ export function MasteryIndicator({
               ? 'bg-green-100 text-green-700'
               : 'bg-red-100 text-red-600'
           )}
+          aria-hidden="true"
         >
           {change > 0 ? '+' : ''}{Math.round(change)}%
         </motion.span>
