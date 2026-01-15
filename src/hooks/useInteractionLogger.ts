@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useEffect, useMemo } from 'react';
 import { useUserProfileStore, useAuthStore } from '@/store';
+import { emitQuizResult } from '@/lib/api/queryClient';
 import type { InteractionType, InteractionLogInput, AtomType, DeviceType } from '@/types';
 import { INTERACTION } from '@/config/constants';
 
@@ -233,6 +234,12 @@ export function useInteractionLogger() {
       });
 
       updateLastAttemptTime(skillId);
+
+      // Emit quiz result event to trigger immediate mastery cache invalidation
+      const userId = authUser?.uid;
+      if (userId) {
+        emitQuizResult(userId);
+      }
     },
     [
       addToBatch,
@@ -243,6 +250,7 @@ export function useInteractionLogger() {
       getTimeGap,
       updateLastAttemptTime,
       updateConsecutiveWrong,
+      authUser?.uid,
     ]
   );
 
@@ -389,6 +397,12 @@ export function useInteractionLogger() {
       });
 
       updateLastAttemptTime(skillId);
+
+      // Emit quiz result event to trigger immediate mastery cache invalidation
+      const userId = authUser?.uid;
+      if (userId) {
+        emitQuizResult(userId);
+      }
     },
     [
       addToBatch,
@@ -399,6 +413,7 @@ export function useInteractionLogger() {
       getTimeGap,
       updateLastAttemptTime,
       updateConsecutiveWrong,
+      authUser?.uid,
     ]
   );
 
