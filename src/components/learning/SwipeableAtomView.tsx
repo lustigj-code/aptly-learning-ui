@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -69,6 +69,40 @@ export function SwipeableAtomView({
     return () => clearTimeout(timer);
   }, [showSwipeHint]);
 
+  // Keyboard navigation handler for accessibility
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    // Don't interfere with input elements
+    const target = event.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+      return;
+    }
+
+    if (disabled) return;
+
+    switch (event.key) {
+      case 'ArrowLeft':
+        event.preventDefault();
+        if (canSwipePrevious && onSwipePrevious) {
+          onSwipePrevious();
+        }
+        break;
+      case 'ArrowRight':
+        event.preventDefault();
+        if (canSwipeNext && onSwipeNext) {
+          onSwipeNext();
+        }
+        break;
+    }
+  }, [disabled, canSwipePrevious, canSwipeNext, onSwipePrevious, onSwipeNext]);
+
+  // Attach keyboard listener
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleKeyDown]);
+
   const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     setIsDragging(false);
 
@@ -104,7 +138,14 @@ export function SwipeableAtomView({
       };
 
   return (
-    <div ref={containerRef} className="relative h-full w-full overflow-hidden">
+    <div
+      ref={containerRef}
+      className="relative h-full w-full overflow-hidden"
+      role="region"
+      aria-label={`Learning content navigation. Showing item ${currentIndex + 1} of ${totalCount}. Use left and right arrow keys to navigate.`}
+      aria-roledescription="carousel"
+      tabIndex={0}
+    >
       {/* Swipe Hint Overlay (Mobile only, first time) */}
       {showSwipeHint && (
         <motion.div
@@ -112,6 +153,7 @@ export function SwipeableAtomView({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="absolute inset-0 z-50 bg-rich-black/80 flex items-center justify-center pointer-events-none"
+          aria-hidden="true"
         >
           <div className="text-center space-y-4 px-6">
             <motion.div
@@ -119,9 +161,9 @@ export function SwipeableAtomView({
               transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
               className="flex items-center justify-center gap-3"
             >
-              <ChevronLeft className="w-8 h-8 text-white" />
+              <ChevronLeft className="w-8 h-8 text-white" aria-hidden="true" />
               <span className="text-white text-lg font-medium">Swipe to navigate</span>
-              <ChevronRight className="w-8 h-8 text-white" />
+              <ChevronRight className="w-8 h-8 text-white" aria-hidden="true" />
             </motion.div>
           </div>
         </motion.div>
@@ -134,7 +176,14 @@ export function SwipeableAtomView({
 
       {/* Mobile Progress Dots */}
       {totalCount > 1 && (
-        <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 pointer-events-none md:hidden">
+        <div
+          className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 pointer-events-none md:hidden"
+          role="progressbar"
+          aria-valuenow={currentIndex + 1}
+          aria-valuemin={1}
+          aria-valuemax={totalCount}
+          aria-label={`Progress: Step ${currentIndex + 1} of ${totalCount}`}
+        >
           {Array.from({ length: totalCount }).map((_, index) => (
             <motion.div
               key={index}
@@ -151,19 +200,24 @@ export function SwipeableAtomView({
                 scale: index === currentIndex ? 1.2 : 1,
               }}
               transition={{ duration: 0.2 }}
+              aria-hidden="true"
             />
           ))}
         </div>
       )}
 
       {/* Desktop Navigation Hints */}
-      <div className="hidden md:flex absolute bottom-4 left-0 right-0 justify-between px-6 pointer-events-none">
+      <nav
+        className="hidden md:flex absolute bottom-4 left-0 right-0 justify-between px-6 pointer-events-none"
+        aria-label="Content navigation"
+      >
         {canSwipePrevious && onSwipePrevious && (
           <button
             onClick={onSwipePrevious}
             className="pointer-events-auto flex items-center gap-2 px-4 py-2 bg-white/90 hover:bg-white rounded-full shadow-lg text-sm text-navy font-medium transition-all hover:scale-105"
+            aria-label={`Go to previous item (${currentIndex} of ${totalCount})`}
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4" aria-hidden="true" />
             <span>Previous</span>
           </button>
         )}
@@ -172,12 +226,13 @@ export function SwipeableAtomView({
           <button
             onClick={onSwipeNext}
             className="pointer-events-auto flex items-center gap-2 px-4 py-2 bg-white/90 hover:bg-white rounded-full shadow-lg text-sm text-navy font-medium transition-all hover:scale-105"
+            aria-label={`Go to next item (${currentIndex + 2} of ${totalCount})`}
           >
             <span>Next</span>
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4" aria-hidden="true" />
           </button>
         )}
-      </div>
+      </nav>
     </div>
   );
 }
