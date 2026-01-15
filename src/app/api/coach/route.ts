@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
 
     const orchestrator = getOrchestrator({
       maxSteps: 10,
-      timeoutMs: 30000,
+      timeoutMs: 120000, // 2 min for Modal cold starts
       enableFallbacks: true,
       enableMetrics: true,
     });

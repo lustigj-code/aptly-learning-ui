@@ -133,7 +133,7 @@ export const DEFAULT_ROUTER_CONFIG: RouterConfig = {
     endpoint: SAGE_ENDPOINT,
     maxTokens: 512,
     temperature: 0.7,
-    timeout: 30000,
+    timeout: 90000, // Increased for Modal cold starts
     costPer1kTokens: 0.0001, // Very cheap (self-hosted)
   },
 
@@ -179,39 +179,60 @@ async function callSageModel(
 ): Promise<GenerateResponse> {
   const startTime = Date.now();
 
-  const response = await fetch(config.endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      messages: request.messages.map(m => ({ role: m.role, content: m.content })),
-      max_tokens: request.maxTokens || config.maxTokens,
-      temperature: request.temperature || config.temperature,
-    }),
-    signal: AbortSignal.timeout(config.timeout),
+  console.log('[ModelRouter] Calling Sage model:', {
+    endpoint: config.endpoint,
+    messageCount: request.messages.length,
+    timeout: config.timeout,
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Sage model error: ${response.status} ${errorText}`);
+  try {
+    const response = await fetch(config.endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messages: request.messages.map(m => ({ role: m.role, content: m.content })),
+        max_tokens: request.maxTokens || config.maxTokens,
+        temperature: request.temperature || config.temperature,
+      }),
+      signal: AbortSignal.timeout(config.timeout),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[ModelRouter] Sage model HTTP error:', response.status, errorText);
+      throw new Error(`Sage model error: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    const latencyMs = Date.now() - startTime;
+
+    console.log('[ModelRouter] Sage model success:', {
+      latencyMs,
+      contentLength: data.content?.length || 0,
+    });
+
+    const tokensUsed = {
+      prompt: data.usage?.prompt_tokens || 0,
+      completion: data.usage?.completion_tokens || 0,
+    };
+
+    return {
+      content: data.content || '',
+      model: 'sage',
+      latencyMs,
+      tokensUsed,
+      estimatedCost: ((tokensUsed.prompt + tokensUsed.completion) / 1000) * config.costPer1kTokens,
+    };
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('[ModelRouter] Sage model failed:', {
+      error: errorMsg,
+      latencyMs: Date.now() - startTime,
+    });
+    throw error;
   }
-
-  const data = await response.json();
-  const latencyMs = Date.now() - startTime;
-
-  const tokensUsed = {
-    prompt: data.usage?.prompt_tokens || 0,
-    completion: data.usage?.completion_tokens || 0,
-  };
-
-  return {
-    content: data.content || '',
-    model: 'sage',
-    latencyMs,
-    tokensUsed,
-    estimatedCost: ((tokensUsed.prompt + tokensUsed.completion) / 1000) * config.costPer1kTokens,
-  };
 }
 
 // ============================================
