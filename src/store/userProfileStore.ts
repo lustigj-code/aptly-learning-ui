@@ -48,6 +48,7 @@ export interface UserProfileState {
   // Actions - Streak
   checkAndUpdateStreak: () => Promise<void>;
   useStreakFreeze: () => Promise<boolean>;
+  purchaseStreakFreeze: (xpCost: number) => Promise<boolean>;
   updateStreak: (streak: Partial<StreakData>) => Promise<void>;
 
   // Actions - Badges
@@ -453,6 +454,44 @@ export const useUserProfileStore = create<UserProfileState>()(
           return true;
         },
 
+        purchaseStreakFreeze: async (xpCost) => {
+          const { user } = get();
+          if (!user) return false;
+
+          // Check if user has enough XP
+          if (user.progress.xp < xpCost) return false;
+
+          const updatedProgress = {
+            ...user.progress,
+            xp: user.progress.xp - xpCost,
+          };
+
+          const updatedStreak: StreakData = {
+            ...user.streak,
+            freezesAvailable: user.streak.freezesAvailable + 1,
+          };
+
+          const updatedUser = {
+            ...user,
+            progress: updatedProgress,
+            streak: updatedStreak,
+          };
+
+          // Optimistic update
+          set({ user: updatedUser });
+
+          // Sync to Firestore
+          const authUser = useAuthStore.getState().authUser;
+          if (authUser?.uid) {
+            await get().syncToFirestore({
+              progress: updatedProgress,
+              streak: updatedStreak,
+            });
+          }
+
+          return true;
+        },
+
         updateStreak: async (streak) => {
           const { user } = get();
           if (!user) return;
@@ -695,6 +734,9 @@ export function useUser() {
     (state) => state.checkAndUpdateStreak
   );
   const useStreakFreeze = useUserProfileStore((state) => state.useStreakFreeze);
+  const purchaseStreakFreeze = useUserProfileStore(
+    (state) => state.purchaseStreakFreeze
+  );
   const earnBadge = useUserProfileStore((state) => state.earnBadge);
   const completeAtom = useUserProfileStore((state) => state.completeAtom);
   const completeLesson = useUserProfileStore((state) => state.completeLesson);
@@ -712,6 +754,7 @@ export function useUser() {
     addXP,
     checkAndUpdateStreak,
     useStreakFreeze,
+    purchaseStreakFreeze,
     earnBadge,
     completeAtom,
     completeLesson,

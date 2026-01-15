@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Target,
@@ -10,6 +10,7 @@ import {
   Award,
   TrendingUp,
   Calendar,
+  ShoppingBag,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/Card';
 import { ProgressBar, CircularProgress } from '@/components/ui/ProgressBar';
@@ -20,6 +21,7 @@ import {
   MasteryTrajectoryChart,
   ExportProgressReport,
 } from '@/components/progress';
+import { StreakShop } from '@/components/gamification';
 import { Section } from '@/components/layout/AppLayout';
 import { SkillMap } from '@/components/mastery/SkillMap';
 import { useUser } from '@/store/userProfileStore';
@@ -30,6 +32,7 @@ import { cn, formatDuration } from '@/lib/utils';
 
 export default function ProgressPage() {
   const { user, isLoading } = useUser();
+  const [isStreakShopOpen, setIsStreakShopOpen] = useState(false);
 
   // Fetch progress report data
   const {
@@ -216,10 +219,17 @@ export default function ProgressPage() {
               <div className="w-10 h-10 rounded-xl bg-yellow/20 flex items-center justify-center">
                 <Flame size={20} className="text-yellow-dark" />
               </div>
-              <div>
+              <div className="flex-1">
                 <CardTitle>Learning Streak</CardTitle>
                 <CardDescription>Consistency is key!</CardDescription>
               </div>
+              <button
+                onClick={() => setIsStreakShopOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-teal bg-teal/10 rounded-lg hover:bg-teal/20 transition-colors"
+              >
+                <ShoppingBag size={16} />
+                Shop
+              </button>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between mb-6">
@@ -335,6 +345,12 @@ export default function ProgressPage() {
           </div>
         </Card>
       </Section>
+
+      {/* Streak Shop Modal */}
+      <StreakShop
+        isOpen={isStreakShopOpen}
+        onClose={() => setIsStreakShopOpen(false)}
+      />
     </div>
   );
 }
