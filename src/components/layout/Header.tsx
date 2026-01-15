@@ -5,6 +5,7 @@ import { Bell, User, ChevronDown, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getGreeting } from '@/lib/utils';
 import { InlineStreak } from '@/components/progress/StreakCounter';
+import { ConnectivityStatus } from '@/components/pwa/ConnectivityStatus';
 import { useUser } from '@/store/userProfileStore';
 import { useUIStore } from '@/store/uiStore';
 
@@ -75,6 +76,9 @@ export function Header({
 
       {/* Right side - Actions */}
       <div className="flex items-center gap-4">
+        {/* Connectivity Status */}
+        <ConnectivityStatus />
+
         {/* Streak (mobile-visible) */}
         {user && (
           <motion.div
