@@ -35,7 +35,7 @@ export type DeploymentStatus = {
  * FREE deployment configuration
  */
 export const FREE_DEPLOYMENT_CONFIG: DeploymentConfig = {
-  modelRepository: 'YOUR_USERNAME/sage-llama-3.1-8b-lora',
+  modelRepository: 'lustigj/sage-tutor-v1',
   modelVersion: 'v1.0.0',
   servingEndpoint: 'https://api-inference.huggingface.co',
   fallbackProvider: 'gemini',
