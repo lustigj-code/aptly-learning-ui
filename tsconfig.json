@@ -30,5 +30,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "functions", "e2e", "firestore.test.ts"]
+  "exclude": ["node_modules", "functions", "e2e", "firestore.test.ts", "**/__tests__/**", "**/*.test.ts", "**/*.test.tsx", "src/test/**"]
 }
