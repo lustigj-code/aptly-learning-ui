@@ -344,7 +344,7 @@ function ProgressSidebar({
 }
 
 // ============================================
-// SMART COACH BAR
+// SMART COACH BAR (Floating Glassmorphic Panel)
 // ============================================
 
 function SmartCoachBar({
@@ -360,35 +360,64 @@ function SmartCoachBar({
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 px-4 py-3 bg-light-grey/50 rounded-xl mt-4 flex-shrink-0"
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{
+        type: 'spring',
+        stiffness: 400,
+        damping: 30,
+      }}
+      className={cn(
+        'fixed bottom-6 left-1/2 -translate-x-1/2 z-40',
+        'flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4',
+        'px-5 py-4 rounded-2xl',
+        'bg-white/70 backdrop-blur-xl',
+        'border border-white/50',
+        'shadow-lg shadow-navy/10',
+        'max-w-[90vw] sm:max-w-2xl'
+      )}
     >
       {/* Sage Avatar */}
-      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal to-teal-dark flex items-center justify-center flex-shrink-0">
+      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal to-teal-dark flex items-center justify-center flex-shrink-0 shadow-md">
         <span className="text-lg">🦉</span>
       </div>
 
       {/* Message */}
-      <p className="flex-1 text-sm text-navy min-w-0">{message}</p>
+      <p className="flex-1 text-sm text-navy min-w-0 font-medium">{message}</p>
 
       {/* Actions */}
       <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto">
-        <button
+        <motion.button
           onClick={onAskSage}
-          className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm text-teal hover:bg-teal/10 rounded-lg transition-colors min-h-[44px] flex-1 sm:flex-initial"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className={cn(
+            'flex items-center justify-center gap-1.5 px-4 py-2.5',
+            'text-sm font-medium text-teal',
+            'bg-teal/10 hover:bg-teal/20',
+            'rounded-xl transition-colors',
+            'min-h-[44px] flex-1 sm:flex-initial'
+          )}
         >
           <MessageCircle className="w-4 h-4" />
           <span>Ask Sage</span>
-        </button>
+        </motion.button>
         {showContinue && (
-          <button
+          <motion.button
             onClick={onContinue}
-            className="flex items-center justify-center gap-1.5 px-4 py-2 bg-teal text-white text-sm font-medium rounded-lg hover:bg-teal-dark transition-colors min-h-[44px] flex-1 sm:flex-initial"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className={cn(
+              'flex items-center justify-center gap-1.5 px-4 py-2.5',
+              'bg-teal text-white text-sm font-medium',
+              'rounded-xl hover:bg-teal-dark transition-colors',
+              'min-h-[44px] flex-1 sm:flex-initial',
+              'shadow-md shadow-teal/30'
+            )}
           >
             <span>Continue</span>
             <ChevronRight className="w-4 h-4" />
-          </button>
+          </motion.button>
         )}
       </div>
     </motion.div>
@@ -433,14 +462,23 @@ function ChatOverlay({
     return "Hi! I'm here to help. What would you like to know about this lesson?"
   }
 
+  // Initialize greeting message when chat opens
+  const hasInitializedRef = useRef(false)
+
   useEffect(() => {
     if (isOpen) {
       inputRef.current?.focus()
-      if (messages.length === 0) {
-        setMessages([{ role: 'coach', content: getGreeting() }])
+      if (!hasInitializedRef.current && messages.length === 0) {
+        hasInitializedRef.current = true
+        // Use setTimeout to avoid synchronous setState in effect
+        setTimeout(() => {
+          setMessages([{ role: 'coach', content: getGreeting() }])
+        }, 0)
       }
+    } else {
+      hasInitializedRef.current = false
     }
-  }, [isOpen, messages.length])
+  }, [isOpen])
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return
@@ -469,72 +507,136 @@ function ChatOverlay({
   if (!isOpen) return null
 
   return (
-    <motion.div
-      initial={{ y: '100%' }}
-      animate={{ y: 0 }}
-      exit={{ y: '100%' }}
-      className="fixed inset-x-0 bottom-0 bg-white border-t border-grey/20 shadow-2xl z-50 max-h-[70vh] sm:max-h-[60vh] flex flex-col"
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-grey/20">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal to-teal-dark flex items-center justify-center">
-            <span className="text-sm">🦉</span>
-          </div>
-          <span className="font-medium text-navy">Ask Sage</span>
-        </div>
-        <button onClick={onClose} className="p-1 hover:bg-light-grey rounded min-h-[44px] min-w-[44px] flex items-center justify-center">
-          <X className="w-5 h-5 text-grey" />
-        </button>
-      </div>
+    <>
+      {/* Backdrop with blur */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        className="fixed inset-0 bg-navy/20 backdrop-blur-sm z-45"
+        onClick={onClose}
+      />
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {messages.map((msg, i) => (
-          <div
-            key={i}
-            className={cn(
-              'max-w-[80%] px-3 py-2 rounded-lg text-sm',
-              msg.role === 'user'
-                ? 'ml-auto bg-teal text-white'
-                : 'bg-light-grey text-rich-black'
-            )}
-          >
-            {msg.content}
-          </div>
-        ))}
-        {isLoading && (
-          <div className="flex items-center gap-2 text-grey text-sm">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Thinking...
-          </div>
+      {/* Chat Panel */}
+      <motion.div
+        initial={{ y: '100%', opacity: 0, scale: 0.95 }}
+        animate={{ y: 0, opacity: 1, scale: 1 }}
+        exit={{ y: '100%', opacity: 0, scale: 0.95 }}
+        transition={{
+          type: 'spring',
+          stiffness: 300,
+          damping: 30,
+          mass: 1,
+        }}
+        className={cn(
+          'fixed inset-x-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 bottom-4 z-50',
+          'sm:w-full sm:max-w-lg',
+          'bg-white/80 backdrop-blur-xl',
+          'border border-white/60',
+          'rounded-2xl shadow-xl shadow-navy/15',
+          'max-h-[75vh] sm:max-h-[65vh] flex flex-col',
+          'overflow-hidden'
         )}
-      </div>
-
-      {/* Input */}
-      <div className="p-3 border-t border-grey/20">
-        <div className="flex gap-2">
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Type your question..."
-            className="flex-1 px-3 py-2 rounded-lg border border-grey/30 text-sm focus:border-teal focus:ring-1 focus:ring-teal/20 outline-none min-h-[44px]"
-            disabled={isLoading}
-          />
-          <Button
-            onClick={handleSend}
-            disabled={!input.trim() || isLoading}
-            size="sm"
-            className="min-h-[44px] min-w-[44px]"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-grey/10 bg-white/50">
+          <div className="flex items-center gap-2">
+            <motion.div
+              className="w-9 h-9 rounded-full bg-gradient-to-br from-teal to-teal-dark flex items-center justify-center shadow-md"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 15, delay: 0.1 }}
+            >
+              <span className="text-base">🦉</span>
+            </motion.div>
+            <motion.span
+              className="font-semibold text-navy"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.15 }}
+            >
+              Ask Sage
+            </motion.span>
+          </div>
+          <motion.button
+            onClick={onClose}
+            className="p-2 hover:bg-grey/10 rounded-xl min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
-            <Send className="w-4 h-4" />
-          </Button>
+            <X className="w-5 h-5 text-grey" />
+          </motion.button>
         </div>
-      </div>
-    </motion.div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {messages.map((msg, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{
+                type: 'spring',
+                stiffness: 400,
+                damping: 25,
+                delay: i * 0.05,
+              }}
+              className={cn(
+                'max-w-[85%] px-4 py-2.5 rounded-2xl text-sm',
+                msg.role === 'user'
+                  ? 'ml-auto bg-teal text-white rounded-br-md shadow-md shadow-teal/20'
+                  : 'bg-light-grey/70 text-rich-black rounded-bl-md'
+              )}
+            >
+              {msg.content}
+            </motion.div>
+          ))}
+          {isLoading && (
+            <motion.div
+              className="flex items-center gap-2 text-grey text-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Thinking...
+            </motion.div>
+          )}
+        </div>
+
+        {/* Input */}
+        <div className="p-3 border-t border-grey/10 bg-white/50">
+          <div className="flex gap-2">
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+              placeholder="Type your question..."
+              className={cn(
+                'flex-1 px-4 py-2.5 rounded-xl',
+                'bg-white/70 border border-grey/20',
+                'text-sm placeholder:text-grey/60',
+                'focus:border-teal focus:ring-2 focus:ring-teal/20 outline-none',
+                'min-h-[44px] transition-all'
+              )}
+              disabled={isLoading}
+            />
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <Button
+                onClick={handleSend}
+                disabled={!input.trim() || isLoading}
+                size="sm"
+                className="min-h-[44px] min-w-[44px] rounded-xl shadow-md shadow-teal/20"
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+            </motion.div>
+          </div>
+        </div>
+      </motion.div>
+    </>
   )
 }
 
@@ -561,7 +663,7 @@ export function CoachLearningView({
   // Get courseId from props, user progress, or default
   const effectiveCourseId = courseId || user?.progress?.currentCourseId || DEFAULT_COURSE_ID
   const effectiveModuleId = user?.progress?.currentModuleId
-  const module = getModule(effectiveCourseId, effectiveModuleId)
+  const currentModule = getModule(effectiveCourseId, effectiveModuleId)
 
   // Mastery levels for prerequisite checking (cold-start safe)
   const { masteryLevels, isColdStart } = useMasteryLevels(user?.id || null)
@@ -571,12 +673,12 @@ export function CoachLearningView({
   const [sessionState, setSessionState] = useState<SessionState>(() => {
     const saved = loadSession()
     // Only restore session if both courseId and moduleId match
-    if (saved && saved.courseId === effectiveCourseId && saved.moduleId === module.id) {
+    if (saved && saved.courseId === effectiveCourseId && saved.moduleId === currentModule.id) {
       return saved
     }
     return {
       courseId: effectiveCourseId,
-      moduleId: module.id,
+      moduleId: currentModule.id,
       currentLessonIndex: 0,
       currentAtomIndex: 0,
       completedAtomIds: [],
@@ -627,10 +729,9 @@ export function CoachLearningView({
   const [previousMastery, setPreviousMastery] = useState<Record<string, number>>({})
   const [currentSessionPhase, setCurrentSessionPhase] = useState<SessionPhase>('warmup')
 
-  // Generate a unique session ID for struggle tracking
-  const sessionId = useMemo(() => {
-    return `session_${user?.id || 'anon'}_${Date.now()}`
-  }, [user?.id])
+  // Generate a unique session ID for struggle tracking (useState with lazy init is allowed for impure calls)
+  const [sessionStartTime] = useState(() => Date.now())
+  const sessionId = `session_${user?.id || 'anon'}_${sessionStartTime}`
 
   // Initialize struggle tracking on mount
   useEffect(() => {
@@ -641,13 +742,13 @@ export function CoachLearningView({
   }, [sessionId])
 
   // Current lesson and atom
-  const currentLesson = module.lessons[sessionState.currentLessonIndex]
+  const currentLesson = currentModule.lessons[sessionState.currentLessonIndex]
   const currentAtom = currentLesson?.atoms[sessionState.currentAtomIndex]
   const isLastAtomInLesson = sessionState.currentAtomIndex >= (currentLesson?.atoms.length || 0) - 1
-  const isLastLesson = sessionState.currentLessonIndex >= module.lessons.length - 1
+  const isLastLesson = sessionState.currentLessonIndex >= currentModule.lessons.length - 1
 
   // Progress calculations
-  const totalAtoms = module.lessons.reduce((sum, l) => sum + l.atoms.length, 0)
+  const totalAtoms = currentModule.lessons.reduce((sum, l) => sum + l.atoms.length, 0)
   const completedAtoms = sessionState.completedAtomIds.length
   const progressPercent = totalAtoms > 0 ? Math.round((completedAtoms / totalAtoms) * 100) : 0
 
@@ -667,13 +768,13 @@ export function CoachLearningView({
     if (serverLessonsCompleted.length === 0) return
 
     // Get current lesson
-    const currentLessonId = module.lessons[sessionState.currentLessonIndex]?.id
+    const currentLessonId = currentModule.lessons[sessionState.currentLessonIndex]?.id
 
     // Check if current lesson is already completed on server
     if (currentLessonId && serverLessonsCompleted.includes(currentLessonId)) {
       // Find next uncompleted lesson starting from current position
       const next = findNextUncompletedLesson(
-        module,
+        currentModule,
         serverLessonsCompleted,
         sessionState.currentLessonIndex
       )
@@ -712,7 +813,7 @@ export function CoachLearningView({
         return prev
       })
     }
-  }, [user?.progress?.lessonsCompleted, module.id])
+  }, [user?.progress?.lessonsCompleted, currentModule.id])
 
   // Set initial coach tip - personalized based on insights and learning preferences
   useEffect(() => {
@@ -1023,7 +1124,7 @@ export function CoachLearningView({
       setContentComplete(false)
     } else if (sessionState.currentLessonIndex > 0) {
       // Go to last atom of previous lesson
-      const prevLesson = module.lessons[sessionState.currentLessonIndex - 1]
+      const prevLesson = currentModule.lessons[sessionState.currentLessonIndex - 1]
       setSessionState(prev => ({
         ...prev,
         currentLessonIndex: prev.currentLessonIndex - 1,
@@ -1031,7 +1132,7 @@ export function CoachLearningView({
       }))
       setContentComplete(false)
     }
-  }, [sessionState.currentAtomIndex, sessionState.currentLessonIndex, module.lessons])
+  }, [sessionState.currentAtomIndex, sessionState.currentLessonIndex, currentModule.lessons])
 
   // Handle swipe to next atom (only if content is complete)
   const handleSwipeNext = useCallback(() => {
@@ -1042,7 +1143,7 @@ export function CoachLearningView({
 
   // Handle lesson selection from sidebar
   const handleSelectLesson = useCallback((index: number) => {
-    const targetLesson = module.lessons[index]
+    const targetLesson = currentModule.lessons[index]
     if (!targetLesson) return
 
     // Check if prerequisites are met (mastery gating)
@@ -1068,7 +1169,7 @@ export function CoachLearningView({
 
     // If selected lesson is already completed, find next uncompleted lesson
     if (serverLessonsCompleted.includes(targetLesson.id)) {
-      const next = findNextUncompletedLesson(module, serverLessonsCompleted, index)
+      const next = findNextUncompletedLesson(currentModule, serverLessonsCompleted, index)
       if (next) {
         // Navigate to next uncompleted lesson instead
         setSessionState(prev => ({
@@ -1090,7 +1191,7 @@ export function CoachLearningView({
       currentAtomIndex: 0,
     }))
     setContentComplete(false)
-  }, [module.lessons, module, user?.progress?.lessonsCompleted, masteryLevels])
+  }, [currentModule.lessons, currentModule, user?.progress?.lessonsCompleted, masteryLevels])
 
   // Handle struggle intervention acceptance
   const handleStruggleIntervention = useCallback((intervention: StruggleInterventionType) => {
@@ -1188,7 +1289,7 @@ export function CoachLearningView({
     <div className="flex h-screen bg-white">
       {/* Progress Sidebar */}
       <ProgressSidebar
-        module={module}
+        module={currentModule}
         currentLessonIndex={sessionState.currentLessonIndex}
         completedLessonIds={sessionState.completedLessonIds}
         onSelectLesson={handleSelectLesson}
@@ -1196,8 +1297,8 @@ export function CoachLearningView({
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Content Area - Full Screen */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden px-4 sm:px-6 md:px-8 py-4 sm:py-6">
+        {/* Content Area - Full Screen (with bottom padding for floating coach bar) */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden px-4 sm:px-6 md:px-8 py-4 sm:py-6 pb-24">
           {/* Inline Header */}
           <div className="flex items-center justify-between mb-4 flex-shrink-0">
             <div className="flex items-center gap-3 min-w-0">
