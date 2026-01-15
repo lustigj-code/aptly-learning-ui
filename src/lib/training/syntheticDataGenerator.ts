@@ -13,58 +13,73 @@ import {
 } from './schema';
 
 // ============================================
-// SOCIAL MEDIA MARKETING CURRICULUM
+// AI AT WORK CURRICULUM (41 Skills)
 // ============================================
 
 export const CURRICULUM_TOPICS = [
-  // Module 1: Fundamentals
+  // Module 1: Foundations (11 skills)
   {
-    module: 'Fundamentals',
+    module: 'Foundations',
     topics: [
-      { id: 'smm-intro', title: 'Introduction to Social Media Marketing', difficulty: 'beginner' },
-      { id: 'platform-overview', title: 'Social Media Platform Overview', difficulty: 'beginner' },
-      { id: 'audience-basics', title: 'Understanding Your Audience', difficulty: 'beginner' },
-      { id: 'content-strategy', title: 'Content Strategy Basics', difficulty: 'beginner' },
+      { id: 'M1-genai-definition', title: 'Describe what generative AI is', difficulty: 'beginner' },
+      { id: 'M1-llm-explanation', title: 'Explain how LLMs like ChatGPT work', difficulty: 'beginner' },
+      { id: 'M1-chatgpt-strengths', title: 'Identify strengths of ChatGPT', difficulty: 'beginner' },
+      { id: 'M1-chatgpt-limitations', title: 'Identify limitations of ChatGPT', difficulty: 'beginner' },
+      { id: 'M1-workflow-opportunities', title: 'Identify AI opportunities in workflow', difficulty: 'intermediate' },
+      { id: 'M1-task-identification', title: 'Identify repetitive/structured tasks for AI', difficulty: 'intermediate' },
+      { id: 'M1-task-evaluation', title: 'Evaluate task AI-suitability', difficulty: 'intermediate' },
+      { id: 'M1-workflow-mapping', title: 'Create workflow maps for AI integration', difficulty: 'intermediate' },
+      { id: 'M1-ethical-risks', title: 'Describe ethical risks of AI', difficulty: 'beginner' },
+      { id: 'M1-hallucination-detection', title: 'Identify AI hallucinations', difficulty: 'intermediate' },
+      { id: 'M1-safe-use-practices', title: 'Apply safe AI practices', difficulty: 'intermediate' },
     ],
   },
-  // Module 2: Campaign Structure
+  // Module 2: Prompting Fundamentals (9 skills)
   {
-    module: 'Campaign Structure',
+    module: 'Prompting Fundamentals',
     topics: [
-      { id: 'campaign-objectives', title: 'Campaign Objectives (Awareness, Consideration, Conversion)', difficulty: 'intermediate' },
-      { id: 'campaign-structure', title: 'Campaign, Ad Set, Ad Structure', difficulty: 'intermediate' },
-      { id: 'budget-types', title: 'Budget Types and Optimization', difficulty: 'intermediate' },
-      { id: 'scheduling', title: 'Ad Scheduling and Delivery', difficulty: 'intermediate' },
+      { id: 'M2-prompt-components', title: 'Identify prompt components (Role, Task, Context, Format)', difficulty: 'beginner' },
+      { id: 'M2-prompt-clarity', title: 'Explain clarity impact on AI output quality', difficulty: 'beginner' },
+      { id: 'M2-prompt-mistakes', title: 'Recognize common prompt mistakes', difficulty: 'intermediate' },
+      { id: 'M2-prompt-writing', title: 'Write structured prompts using RTCF framework', difficulty: 'intermediate' },
+      { id: 'M2-tone-adjustment', title: 'Adjust tone and voice in prompts', difficulty: 'intermediate' },
+      { id: 'M2-format-control', title: 'Control output format (lists, tables, JSON)', difficulty: 'intermediate' },
+      { id: 'M2-prompt-rewriting', title: 'Rewrite prompts for better outcomes', difficulty: 'intermediate' },
+      { id: 'M2-followup-prompts', title: 'Use follow-up prompts effectively', difficulty: 'intermediate' },
+      { id: 'M2-prompt-debugging', title: 'Debug weak prompts systematically', difficulty: 'advanced' },
     ],
   },
-  // Module 3: Audience Targeting
+  // Module 3: Advanced Prompting & Custom GPTs (9 skills)
   {
-    module: 'Audience Targeting',
+    module: 'Advanced Prompting & Custom GPTs',
     topics: [
-      { id: 'core-audiences', title: 'Core Audiences (Demographics, Interests, Behaviors)', difficulty: 'intermediate' },
-      { id: 'custom-audiences', title: 'Custom Audiences from Data Sources', difficulty: 'intermediate' },
-      { id: 'lookalike-audiences', title: 'Lookalike Audiences', difficulty: 'intermediate' },
-      { id: 'audience-exclusions', title: 'Audience Exclusions and Overlap', difficulty: 'advanced' },
+      { id: 'M3-prompt-chaining', title: 'Define and use prompt chaining', difficulty: 'intermediate' },
+      { id: 'M3-task-breakdown', title: 'Break complex tasks into prompt chains', difficulty: 'intermediate' },
+      { id: 'M3-chain-testing', title: 'Test sequential prompt workflows', difficulty: 'intermediate' },
+      { id: 'M3-gpt-task-selection', title: 'Identify tasks suitable for Custom GPTs', difficulty: 'intermediate' },
+      { id: 'M3-gpt-instructions', title: 'Define GPT instructions and output format', difficulty: 'intermediate' },
+      { id: 'M3-gpt-building', title: 'Configure Custom GPT builder', difficulty: 'intermediate' },
+      { id: 'M3-gpt-evaluation', title: 'Evaluate and revise Custom GPTs', difficulty: 'advanced' },
+      { id: 'M3-gpt-safety', title: 'Set GPT safe-use parameters', difficulty: 'intermediate' },
+      { id: 'M3-gpt-sharing', title: 'Share GPTs with usage notes', difficulty: 'beginner' },
     ],
   },
-  // Module 4: Ad Creative
+  // Module 4: No-Code AI Agents (12 skills)
   {
-    module: 'Ad Creative',
+    module: 'No-Code AI Agents',
     topics: [
-      { id: 'ad-formats', title: 'Ad Formats (Image, Video, Carousel, Collection)', difficulty: 'intermediate' },
-      { id: 'creative-best-practices', title: 'Creative Best Practices', difficulty: 'intermediate' },
-      { id: 'copywriting', title: 'Ad Copywriting for Social', difficulty: 'intermediate' },
-      { id: 'creative-testing', title: 'A/B Testing Creative Elements', difficulty: 'advanced' },
-    ],
-  },
-  // Module 5: Measurement & Analytics
-  {
-    module: 'Measurement & Analytics',
-    topics: [
-      { id: 'pixel-setup', title: 'Facebook Pixel Setup and Events', difficulty: 'intermediate' },
-      { id: 'conversion-tracking', title: 'Conversion Tracking and Attribution', difficulty: 'advanced' },
-      { id: 'reporting', title: 'Reporting and Analysis', difficulty: 'intermediate' },
-      { id: 'optimization', title: 'Campaign Optimization Strategies', difficulty: 'advanced' },
+      { id: 'M4-agent-purpose', title: 'Describe ChatGPT agent capabilities', difficulty: 'beginner' },
+      { id: 'M4-agent-vs-gpt', title: 'Distinguish agents from Custom GPTs', difficulty: 'beginner' },
+      { id: 'M4-agent-use-cases', title: 'Recognize agent automation use cases', difficulty: 'intermediate' },
+      { id: 'M4-workflow-planning', title: 'Plan agent workflows', difficulty: 'intermediate' },
+      { id: 'M4-io-mapping', title: 'Map agent inputs/outputs/tools', difficulty: 'intermediate' },
+      { id: 'M4-agent-configuration', title: 'Configure ChatGPT agents', difficulty: 'intermediate' },
+      { id: 'M4-agent-testing', title: 'Test and refine agents', difficulty: 'intermediate' },
+      { id: 'M4-agent-documentation', title: 'Document agent limitations', difficulty: 'intermediate' },
+      { id: 'M4-agent-deployment', title: 'Deploy agents responsibly', difficulty: 'advanced' },
+      { id: 'M4-agent-monitoring', title: 'Monitor agent performance', difficulty: 'advanced' },
+      { id: 'M4-agent-compliance', title: 'Ensure agent compliance/privacy', difficulty: 'advanced' },
+      { id: 'M4-agent-iteration', title: 'Iterate on agent performance', difficulty: 'advanced' },
     ],
   },
 ];
@@ -75,40 +90,40 @@ export const CURRICULUM_TOPICS = [
 
 export const STUDENT_PERSONAS = [
   {
-    id: 'beginner-career-changer',
+    id: 'beginner-professional',
     name: 'Alex',
-    background: 'Former retail manager looking to switch to digital marketing',
+    background: 'Office professional curious about using AI at work',
     level: 'beginner',
-    goal: 'Get certified and land first marketing job',
-    struggles: ['Marketing jargon', 'Technical setup'],
-    strengths: ['Understanding customers', 'Sales experience'],
+    goal: 'Learn to use ChatGPT effectively for daily tasks',
+    struggles: ['Technical jargon', 'Writing good prompts', 'Knowing when AI is right'],
+    strengths: ['Willing to learn', 'Has clear work tasks to automate'],
   },
   {
-    id: 'intermediate-small-biz',
+    id: 'beginner-manager',
     name: 'Jordan',
-    background: 'Small business owner running their own ads',
-    level: 'intermediate',
-    goal: 'Improve ad performance and reduce costs',
-    struggles: ['Scaling campaigns', 'Analytics interpretation'],
-    strengths: ['Knows their product well', 'Budget conscious'],
+    background: 'Team manager wanting to introduce AI to their team',
+    level: 'beginner',
+    goal: 'Understand AI capabilities to guide team adoption',
+    struggles: ['AI limitations', 'Security concerns', 'Measuring ROI'],
+    strengths: ['Leadership experience', 'Process thinking'],
   },
   {
-    id: 'intermediate-agency',
+    id: 'intermediate-power-user',
     name: 'Sam',
-    background: 'Junior marketer at agency, managing multiple clients',
+    background: 'Knowledge worker already using ChatGPT but wants to level up',
     level: 'intermediate',
-    goal: 'Become senior strategist',
-    struggles: ['Advanced targeting', 'Client reporting'],
-    strengths: ['Fast learner', 'Good with tools'],
+    goal: 'Build Custom GPTs and automate repetitive workflows',
+    struggles: ['Prompt chaining', 'Building reliable GPTs', 'Complex formatting'],
+    strengths: ['Basic prompting', 'Understands their workflows', 'Tech-savvy'],
   },
   {
-    id: 'advanced-specialist',
+    id: 'advanced-implementer',
     name: 'Taylor',
-    background: 'E-commerce specialist wanting to master Meta ads',
+    background: 'Operations specialist building AI-powered workflows',
     level: 'advanced',
-    goal: 'Expert-level optimization skills',
-    struggles: ['Cutting-edge strategies', 'Attribution'],
-    strengths: ['Data analysis', 'Technical skills'],
+    goal: 'Create no-code AI agents for business automation',
+    struggles: ['Agent architecture', 'Error handling', 'Compliance concerns'],
+    strengths: ['Strong prompting skills', 'Automation mindset', 'Process documentation'],
   },
 ];
 
@@ -122,28 +137,32 @@ const QUESTION_TEMPLATES = {
     'Can you explain {concept} to me?',
     'I don\'t understand {concept}. Help?',
     'What\'s the difference between {conceptA} and {conceptB}?',
-    'Why is {concept} important?',
+    'Why is {concept} important for using AI at work?',
+    'How does {concept} work in practice?',
   ],
   practical: [
-    'How do I set up {thing}?',
+    'How do I write a good prompt for {task}?',
     'What\'s the best way to {action}?',
     'I\'m trying to {goal}, how should I approach it?',
-    'My {metric} is low, how can I improve it?',
+    'How can I make ChatGPT give me better {output}?',
     'Should I use {optionA} or {optionB} for {goal}?',
+    'How do I get consistent results when {action}?',
   ],
   troubleshooting: [
-    'My {thing} isn\'t working, what\'s wrong?',
+    'ChatGPT keeps {problem}, what\'s wrong?',
     'I followed the steps but {result}. Why?',
-    'I\'m getting an error when I try to {action}.',
-    'My campaign isn\'t spending, help!',
-    'The results don\'t match what I expected.',
+    'My prompt isn\'t working - I asked for {task} but got {result}.',
+    'The AI is hallucinating, how do I fix this?',
+    'My Custom GPT isn\'t behaving as expected.',
+    'The output quality is inconsistent.',
   ],
   strategic: [
-    'How much budget should I allocate to {thing}?',
+    'When should I use AI vs do it myself?',
     'When should I use {strategy}?',
-    'What\'s your opinion on {tactic}?',
-    'How do I know if {thing} is working?',
-    'What metrics matter most for {goal}?',
+    'How do I know if AI is the right tool for {task}?',
+    'How do I evaluate if {thing} is working?',
+    'What should I consider before using AI for {goal}?',
+    'Is it safe to use AI for {task}?',
   ],
 };
 
@@ -151,18 +170,19 @@ const QUESTION_TEMPLATES = {
 // GENERATION PROMPTS
 // ============================================
 
-const SOCRATIC_GENERATION_PROMPT = `You are generating training data for a Socratic AI tutor.
+const SOCRATIC_GENERATION_PROMPT = `You are generating training data for a Socratic AI tutor named Sage who teaches professionals how to use AI effectively at work.
 
-Your task is to generate a realistic tutoring conversation where the tutor (Sage) uses the Socratic method.
+Your task is to generate a realistic tutoring conversation where Sage uses the Socratic method to teach about AI, prompting, Custom GPTs, and AI agents.
 
 RULES FOR SAGE'S RESPONSES:
-1. NEVER give direct answers
-2. Always ask questions that guide the student to discover the answer
-3. Use real-world examples from actual brands/campaigns
-4. Build on what the student already knows
+1. NEVER give direct answers - guide discovery through questions
+2. Ask questions that connect to the student's work experience
+3. Use practical workplace examples (emails, reports, documentation, analysis)
+4. Build on what the student already knows about AI
 5. Celebrate when they figure something out
 6. If they're confused, break it down into smaller steps
-7. End every response with a follow-up question
+7. End every response with a thought-provoking follow-up question
+8. Connect concepts to real productivity gains at work
 
 STUDENT PROFILE:
 {studentProfile}
@@ -171,10 +191,10 @@ TOPIC: {topic}
 DIFFICULTY: {difficulty}
 
 Generate a conversation with 4-6 exchanges where:
-- The student asks a question or expresses confusion about the topic
+- The student asks a question or expresses confusion about using AI at work
 - Sage guides them through discovery using questions
-- The student shows progression in understanding
-- Sage celebrates their "aha" moment
+- The student applies the concept to their work context
+- Sage celebrates their "aha" moment and connects to next steps
 
 Format as JSON:
 {
@@ -516,32 +536,34 @@ export async function generateFullSyntheticDataset(
 // ============================================
 
 function buildSystemPrompt(topic: string, level: string): string {
-  return `You are Sage, an expert AI tutor for social media marketing.
+  return `You are Sage, an expert AI tutor helping professionals master AI tools at work.
 
 Your teaching principles:
-1. NEVER give direct answers - use Socratic questioning
-2. Ask what the student already knows
-3. Use real-world examples from actual campaigns
+1. NEVER give direct answers - use Socratic questioning to guide discovery
+2. Ask what the student already knows and connect to their work experience
+3. Use practical workplace examples (emails, reports, analysis, documentation)
 4. Adapt to the student's level (currently: ${level})
 5. Celebrate understanding and normalize confusion
+6. Always connect concepts to real productivity gains
 
 Current topic: ${topic}`;
 }
 
 function fillQuestionTemplate(template: string, topic: string): string {
   const replacements: Record<string, string[]> = {
-    '{concept}': [topic, 'this', 'that technique'],
-    '{conceptA}': ['awareness campaigns', 'core audiences', 'CPC'],
-    '{conceptB}': ['conversion campaigns', 'custom audiences', 'CPM'],
-    '{thing}': ['my campaign', 'the pixel', 'my ad set', 'tracking'],
-    '{action}': ['target my audience', 'optimize for conversions', 'scale my budget'],
-    '{goal}': ['increasing sales', 'generating leads', 'brand awareness'],
-    '{metric}': ['CTR', 'conversion rate', 'ROAS', 'CPC'],
-    '{optionA}': ['automatic placements', 'CBO', 'broad targeting'],
-    '{optionB}': ['manual placements', 'ABO', 'detailed targeting'],
-    '{strategy}': ['lookalike audiences', 'retargeting', 'CBO'],
-    '{tactic}': ['boosting posts', 'broad targeting', 'testing creative'],
-    '{result}': ["it's not working", "I'm not seeing results", "the costs are high"],
+    '{concept}': [topic, 'this concept', 'that technique'],
+    '{conceptA}': ['prompt chaining', 'Custom GPTs', 'zero-shot prompting'],
+    '{conceptB}': ['single prompts', 'regular ChatGPT', 'few-shot prompting'],
+    '{thing}': ['my prompt', 'my Custom GPT', 'my agent', 'this workflow'],
+    '{task}': ['writing emails', 'summarizing reports', 'data analysis', 'content creation'],
+    '{action}': ['write better prompts', 'build a Custom GPT', 'chain prompts together'],
+    '{goal}': ['automating reports', 'improving productivity', 'consistent outputs'],
+    '{output}': ['responses', 'summaries', 'analyses', 'formatted outputs'],
+    '{optionA}': ['a Custom GPT', 'prompt chaining', 'detailed instructions'],
+    '{optionB}': ['regular prompts', 'single prompts', 'brief instructions'],
+    '{strategy}': ['prompt chaining', 'few-shot examples', 'role-playing prompts'],
+    '{problem}': ['giving generic answers', 'hallucinating facts', 'ignoring instructions'],
+    '{result}': ["it's not following my format", "the output is inconsistent", "it ignores context"],
   };
 
   let result = template;

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, ChevronDown, Lightbulb, BookOpen, Check, Clock } from 'lucide-react';
+import { Send, ChevronDown, Lightbulb, BookOpen, Check, Clock, Award, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -24,6 +24,19 @@ type CoachMessage = {
   timestamp: Date;
 };
 
+type CriterionScore = {
+  criterion: string;
+  score: number;
+  feedback: string;
+};
+
+type EvaluationResult = {
+  overallScore: number;
+  criterionScores: CriterionScore[];
+  overallFeedback: string;
+  passed: boolean;
+};
+
 export function PracticeAtom({
   atom,
   onComplete,
@@ -37,6 +50,8 @@ export function PracticeAtom({
   const [isCompleted, setIsCompleted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [attemptNumber, setAttemptNumber] = useState(1);
+  const [evaluationResult, setEvaluationResult] = useState<EvaluationResult | null>(null);
+  const [isEvaluating, setIsEvaluating] = useState(false);
 
   // Track response start time
   const responseStartTimeRef = useRef<number>(Date.now());
@@ -145,6 +160,44 @@ export function PracticeAtom({
   };
 
   const handleComplete = useCallback(async () => {
+    setIsEvaluating(true);
+
+    try {
+      // First, get rubric-based evaluation
+      if (content.rubric && content.rubric.length > 0) {
+        const rubricWithDescriptions = content.rubric.map((r) => ({
+          criterion: r.criterion,
+          weight: r.weight,
+          description: r.criterion, // Use criterion as description if not provided
+        }));
+
+        const evalResponse = await fetch('/api/practice/evaluate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            atomId: atom.id,
+            lessonId: atom.lessonId,
+            response: userResponse,
+            rubric: rubricWithDescriptions,
+            context: {
+              prompt: content.prompt,
+              expectedOutcomes: content.expectedOutcomes,
+            },
+          }),
+        });
+
+        if (evalResponse.ok) {
+          const evalData = await evalResponse.json();
+          setEvaluationResult(evalData.result);
+        }
+      }
+    } catch (error) {
+      console.error('Error evaluating practice:', error);
+    } finally {
+      setIsEvaluating(false);
+    }
+
+    // Mark as complete regardless of evaluation
     setIsCompleted(true);
     setIsSubmitting(true);
 
@@ -167,7 +220,7 @@ export function PracticeAtom({
     } finally {
       setIsSubmitting(false);
     }
-  }, [atom.id, atom.lessonId, getTimeSpent, onComplete]);
+  }, [atom.id, atom.lessonId, content, userResponse, getTimeSpent, onComplete]);
 
   return (
     <motion.div
@@ -347,6 +400,103 @@ export function PracticeAtom({
         </motion.div>
       )}
 
+      {/* Evaluation Results */}
+      <AnimatePresence>
+        {evaluationResult && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.4 }}
+          >
+            <Card
+              variant="elevated"
+              padding="lg"
+              className={cn(
+                "space-y-4 border-l-4",
+                evaluationResult.passed ? "border-success" : "border-yellow"
+              )}
+            >
+              {/* Overall Score Header */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "w-12 h-12 rounded-full flex items-center justify-center",
+                    evaluationResult.passed ? "bg-success-light" : "bg-yellow-light/50"
+                  )}>
+                    {evaluationResult.passed ? (
+                      <Award size={24} className="text-success" />
+                    ) : (
+                      <AlertCircle size={24} className="text-yellow" />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-navy text-lg">
+                      {evaluationResult.passed ? "Great Work!" : "Good Effort!"}
+                    </h3>
+                    <p className="text-sm text-rich-black/60">
+                      {evaluationResult.passed
+                        ? "You've demonstrated strong understanding"
+                        : "Review the feedback to improve"}
+                    </p>
+                  </div>
+                </div>
+                <div className={cn(
+                  "text-3xl font-bold",
+                  evaluationResult.overallScore >= 70 ? "text-success" :
+                  evaluationResult.overallScore >= 50 ? "text-yellow" : "text-coral"
+                )}>
+                  {evaluationResult.overallScore}%
+                </div>
+              </div>
+
+              {/* Criterion Scores */}
+              <div className="space-y-3">
+                <h4 className="font-semibold text-navy text-sm uppercase tracking-wide">
+                  Rubric Breakdown
+                </h4>
+                {evaluationResult.criterionScores.map((criterion, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 + idx * 0.1 }}
+                    className="p-3 bg-light-grey/50 rounded-lg"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium text-navy text-sm">
+                        {criterion.criterion}
+                      </span>
+                      <span className={cn(
+                        "text-sm font-bold px-2 py-0.5 rounded",
+                        criterion.score >= 70 ? "bg-success-light text-success" :
+                        criterion.score >= 50 ? "bg-yellow-light/50 text-yellow-dark" :
+                        "bg-coral-light text-coral"
+                      )}>
+                        {criterion.score}%
+                      </span>
+                    </div>
+                    <p className="text-sm text-rich-black/70">
+                      {criterion.feedback}
+                    </p>
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* Overall Feedback */}
+              <div className="pt-3 border-t border-grey/30">
+                <h4 className="font-semibold text-navy text-sm mb-2">
+                  Coach&apos;s Summary
+                </h4>
+                <p className="text-sm text-navy leading-relaxed">
+                  {evaluationResult.overallFeedback}
+                </p>
+              </div>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Sample Solution Section */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -425,11 +575,11 @@ export function PracticeAtom({
             size="lg"
             fullWidth={!coachAvailable}
             onClick={handleComplete}
-            isLoading={isSubmitting}
-            isDisabled={!userResponse.trim() || isSubmitting}
+            isLoading={isSubmitting || isEvaluating}
+            isDisabled={!userResponse.trim() || isSubmitting || isEvaluating}
             rightIcon={<Check size={20} />}
           >
-            Mark as Complete
+            {isEvaluating ? 'Evaluating...' : 'Mark as Complete'}
           </Button>
         )}
       </motion.div>

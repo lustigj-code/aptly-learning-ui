@@ -53,6 +53,9 @@ type UnifiedState = {
   // UI state
   sidebarCollapsed: boolean;
   mobileMenuOpen: boolean;
+
+  // Session tracking (not persisted)
+  atomStartedAt: Date | null;
 };
 
 type UnifiedActions = {
@@ -277,6 +280,7 @@ export const useUnifiedStore = create<UnifiedStore>()(
         userError: null,
         sidebarCollapsed: false,
         mobileMenuOpen: false,
+        atomStartedAt: null,
 
         // ============================================
         // AUTH ACTIONS
@@ -582,19 +586,29 @@ export const useUnifiedStore = create<UnifiedStore>()(
         },
 
         completeAtom: async (atomId) => {
-          const { user, authUser } = get();
+          const { user, authUser, atomStartedAt } = get();
           if (!user) return;
           if (user.progress.atomsCompleted.includes(atomId)) return;
+
+          // Calculate time spent on this atom
+          let timeSpentMinutes = 0;
+          if (atomStartedAt) {
+            const elapsedMs = Date.now() - atomStartedAt.getTime();
+            timeSpentMinutes = Math.round(elapsedMs / 60000); // Convert ms to minutes
+            // Cap at reasonable max (60 min per atom) to avoid inflated times from idle tabs
+            timeSpentMinutes = Math.min(timeSpentMinutes, 60);
+          }
 
           const updatedProgress = {
             ...user.progress,
             atomsCompleted: [...user.progress.atomsCompleted, atomId],
+            totalTimeSpentMinutes: user.progress.totalTimeSpentMinutes + timeSpentMinutes,
           };
 
           const updatedUser = { ...user, progress: updatedProgress };
 
-          // Optimistic update
-          set({ user: updatedUser });
+          // Optimistic update + reset atom timer
+          set({ user: updatedUser, atomStartedAt: null });
 
           // Sync to Firestore
           if (authUser?.uid) {
@@ -680,8 +694,11 @@ export const useUnifiedStore = create<UnifiedStore>()(
 
           const updatedUser = { ...user, progress: updatedProgress };
 
-          // Optimistic update
-          set({ user: updatedUser });
+          // Optimistic update + start time tracking for atoms
+          set({
+            user: updatedUser,
+            atomStartedAt: atomId ? new Date() : get().atomStartedAt,
+          });
 
           // Sync to Firestore
           if (authUser?.uid) {

@@ -2,7 +2,7 @@
  * useCourseContent Hook
  *
  * Fetches course content from Firestore with React Query caching.
- * Falls back to mockData for development/offline use.
+ * Falls back to Course Registry for development/offline use.
  */
 
 'use client';
@@ -20,30 +20,20 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import {
-  COURSES,
-  COURSE_1_MODULE_1,
-  COURSE_3_MODULE_1,
-} from '@/data/mockData';
-import {
   getAllCourses,
   getModule,
   getLesson,
-  getCourseModules,
-  getModuleLessons,
   FSM_COURSE,
   FSM_MODULE_1,
 } from '@/data/courseRegistry';
+import type { Course, Module, Lesson, Atom } from '@/types';
 
 // Provide backwards-compatible functions
 const AI_WORK_COURSES: Course[] = [FSM_COURSE];
 const AI_WORK_MODULE_1 = FSM_MODULE_1;
-const AI_WORK_MODULE_2 = FSM_MODULE_1; // Fallback to same module
-const AI_WORK_MODULE_3 = FSM_MODULE_1; // Fallback to same module
-const AI_WORK_MODULE_4 = FSM_MODULE_1; // Fallback to same module
 function getAllAIWorkLessons() {
   return FSM_MODULE_1.lessons || [];
 }
-import type { Course, Module, Lesson, Atom } from '@/types';
 
 // Flag to use Firestore (set to true when content is migrated)
 const USE_FIRESTORE = process.env.NEXT_PUBLIC_USE_FIRESTORE_CONTENT === 'true';
@@ -61,10 +51,9 @@ function getFirestore(): Firestore | null {
 async function fetchCourse(courseId: string): Promise<Course | null> {
   const firestore = getFirestore();
   if (!firestore) {
-    // Check AI at Work course first
-    const aiWorkCourse = AI_WORK_COURSES.find(c => c.id === courseId);
-    if (aiWorkCourse) return aiWorkCourse;
-    return COURSES.find(c => c.id === courseId) || null;
+    // Check registry
+    const courses = getAllCourses();
+    return courses.find(c => c.id === courseId) || null;
   }
 
   try {
@@ -72,10 +61,9 @@ async function fetchCourse(courseId: string): Promise<Course | null> {
     const courseSnap = await getDoc(courseRef);
 
     if (!courseSnap.exists()) {
-      // Fallback to mockData - check AI at Work first
-      const aiWorkCourse = AI_WORK_COURSES.find(c => c.id === courseId);
-      if (aiWorkCourse) return aiWorkCourse;
-      return COURSES.find(c => c.id === courseId) || null;
+      // Fallback to registry
+      const courses = getAllCourses();
+      return courses.find(c => c.id === courseId) || null;
     }
 
     const data = courseSnap.data();
@@ -92,25 +80,16 @@ async function fetchCourse(courseId: string): Promise<Course | null> {
     };
   } catch (error) {
     console.error('Error fetching course from Firestore:', error);
-    // Fallback to mockData - check AI at Work first
-    const aiWorkCourse = AI_WORK_COURSES.find(c => c.id === courseId);
-    if (aiWorkCourse) return aiWorkCourse;
-    return COURSES.find(c => c.id === courseId) || null;
+    // Fallback to registry
+    const courses = getAllCourses();
+    return courses.find(c => c.id === courseId) || null;
   }
 }
 
 async function fetchModule(moduleId: string): Promise<Module | null> {
   const firestore = getFirestore();
   if (!firestore) {
-    // Return from mockData
-    if (moduleId === 'c1-m1') return COURSE_1_MODULE_1;
-    if (moduleId === 'c3-m1') return COURSE_3_MODULE_1;
-    // AI at Work modules
-    if (moduleId === 'ai-m1') return AI_WORK_MODULE_1;
-    if (moduleId === 'ai-m2') return AI_WORK_MODULE_2;
-    if (moduleId === 'ai-m3') return AI_WORK_MODULE_3;
-    if (moduleId === 'ai-m4') return AI_WORK_MODULE_4;
-    return null;
+    return getModule(moduleId) || null;
   }
 
   try {
@@ -118,15 +97,7 @@ async function fetchModule(moduleId: string): Promise<Module | null> {
     const moduleSnap = await getDoc(moduleRef);
 
     if (!moduleSnap.exists()) {
-      // Fallback
-      if (moduleId === 'c1-m1') return COURSE_1_MODULE_1;
-      if (moduleId === 'c3-m1') return COURSE_3_MODULE_1;
-      // AI at Work modules
-      if (moduleId === 'ai-m1') return AI_WORK_MODULE_1;
-      if (moduleId === 'ai-m2') return AI_WORK_MODULE_2;
-      if (moduleId === 'ai-m3') return AI_WORK_MODULE_3;
-      if (moduleId === 'ai-m4') return AI_WORK_MODULE_4;
-      return null;
+      return getModule(moduleId) || null;
     }
 
     const data = moduleSnap.data();
@@ -189,32 +160,14 @@ async function fetchModule(moduleId: string): Promise<Module | null> {
     };
   } catch (error) {
     console.error('Error fetching module from Firestore:', error);
-    // Fallback
-    if (moduleId === 'c1-m1') return COURSE_1_MODULE_1;
-    if (moduleId === 'c3-m1') return COURSE_3_MODULE_1;
-    // AI at Work modules
-    if (moduleId === 'ai-m1') return AI_WORK_MODULE_1;
-    if (moduleId === 'ai-m2') return AI_WORK_MODULE_2;
-    if (moduleId === 'ai-m3') return AI_WORK_MODULE_3;
-    if (moduleId === 'ai-m4') return AI_WORK_MODULE_4;
-    return null;
+    return getModule(moduleId) || null;
   }
 }
 
 async function fetchLesson(lessonId: string): Promise<Lesson | null> {
   const firestore = getFirestore();
   if (!firestore) {
-    // First check AI at Work lessons (primary course)
-    const aiWorkLessons = getAllAIWorkLessons();
-    const aiWorkLesson = aiWorkLessons.find(l => l.id === lessonId);
-    if (aiWorkLesson) return aiWorkLesson;
-
-    // Fallback to other mockData
-    const allLessons = [
-      ...COURSE_1_MODULE_1.lessons,
-      ...COURSE_3_MODULE_1.lessons,
-    ];
-    return allLessons.find(l => l.id === lessonId) || null;
+    return getLesson(lessonId) || null;
   }
 
   try {
@@ -222,17 +175,7 @@ async function fetchLesson(lessonId: string): Promise<Lesson | null> {
     const lessonSnap = await getDoc(lessonRef);
 
     if (!lessonSnap.exists()) {
-      // First check AI at Work lessons (primary course)
-      const aiWorkLessons = getAllAIWorkLessons();
-      const aiWorkLesson = aiWorkLessons.find(l => l.id === lessonId);
-      if (aiWorkLesson) return aiWorkLesson;
-
-      // Fallback to other mockData
-      const allLessons = [
-        ...COURSE_1_MODULE_1.lessons,
-        ...COURSE_3_MODULE_1.lessons,
-      ];
-      return allLessons.find(l => l.id === lessonId) || null;
+      return getLesson(lessonId) || null;
     }
 
     const data = lessonSnap.data();
@@ -270,32 +213,21 @@ async function fetchLesson(lessonId: string): Promise<Lesson | null> {
     };
   } catch (error) {
     console.error('Error fetching lesson from Firestore:', error);
-    // First check AI at Work lessons (primary course)
-    const aiWorkLessons = getAllAIWorkLessons();
-    const aiWorkLesson = aiWorkLessons.find(l => l.id === lessonId);
-    if (aiWorkLesson) return aiWorkLesson;
-
-    // Fallback to other mockData
-    const allLessons = [
-      ...COURSE_1_MODULE_1.lessons,
-      ...COURSE_3_MODULE_1.lessons,
-    ];
-    return allLessons.find(l => l.id === lessonId) || null;
+    return getLesson(lessonId) || null;
   }
 }
 
 async function fetchAllCourses(): Promise<Course[]> {
   const firestore = getFirestore();
   if (!firestore) {
-    // Return AI at Work course as the primary course, followed by other courses
-    return [...AI_WORK_COURSES, ...COURSES];
+    return getAllCourses();
   }
 
   try {
     const coursesSnap = await getDocs(collection(firestore, 'courses'));
 
     if (coursesSnap.empty) {
-      return [...AI_WORK_COURSES, ...COURSES]; // Fallback
+      return getAllCourses(); // Fallback to registry
     }
 
     return coursesSnap.docs.map((courseDoc) => {
@@ -314,7 +246,7 @@ async function fetchAllCourses(): Promise<Course[]> {
     });
   } catch (error) {
     console.error('Error fetching courses from Firestore:', error);
-    return [...AI_WORK_COURSES, ...COURSES];
+    return getAllCourses();
   }
 }
 

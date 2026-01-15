@@ -19,6 +19,7 @@ import { useCoach } from '@/hooks/useCoach'
 import { useReviewQueue } from '@/hooks/useReviewQueue'
 import { useOfflineSync } from '@/hooks/useOfflineSync'
 import { useUser } from '@/store/userProfileStore'
+import { useLearningPreference } from '@/hooks/useLearningPreference'
 import { cn } from '@/lib/utils'
 import { getCourse, getDefaultCourse, DEFAULT_COURSE_ID } from '@/data/courseRegistry'
 import type { Atom, Lesson, Module } from '@/types'
@@ -58,10 +59,10 @@ import {
   DEFAULT_TIMING_PREFERENCES,
 } from '@/lib/coach/optimalTiming'
 
-// TODO: Re-enable when API is stable
-// import { useMasteryLevels } from '@/hooks/useMasteryLevels'
-// import { areLessonPrerequisitesMet, getMissingPrerequisites } from '@/data/courseToConceptMap'
-// import { SOCIAL_MEDIA_MARKETING_GRAPH } from '@/lib/mastery'
+// Mastery gating (enabled)
+import { useMasteryLevels } from '@/hooks/useMasteryLevels'
+import { areLessonPrerequisitesMet, getMissingPrerequisites } from '@/data/courseToConceptMap'
+import { SOCIAL_MEDIA_MARKETING_GRAPH } from '@/lib/mastery/knowledgeGraph'
 
 // ============================================
 // TYPES
@@ -548,6 +549,7 @@ export function CoachLearningView({
   onLessonComplete,
 }: CoachLearningViewProps) {
   const { user } = useUser()
+  const { sessionRecommendation, prefersVideo, prefersReading } = useLearningPreference()
   const { dueCount } = useReviewQueue(user?.id || null)
   const {
     isOnline,
@@ -560,9 +562,10 @@ export function CoachLearningView({
   const effectiveCourseId = courseId || user?.progress?.currentCourseId || DEFAULT_COURSE_ID
   const effectiveModuleId = user?.progress?.currentModuleId
   const module = getModule(effectiveCourseId, effectiveModuleId)
-  // TODO: Re-enable when API is stable
-  // const { masteryLevels } = useMasteryLevels(user?.id || null)
-  // const [prerequisiteWarning, setPrerequisiteWarning] = useState<string | null>(null)
+
+  // Mastery levels for prerequisite checking (cold-start safe)
+  const { masteryLevels, isColdStart } = useMasteryLevels(user?.id || null)
+  const [prerequisiteWarning, setPrerequisiteWarning] = useState<string | null>(null)
 
   // Session state
   const [sessionState, setSessionState] = useState<SessionState>(() => {
@@ -711,15 +714,20 @@ export function CoachLearningView({
     }
   }, [user?.progress?.lessonsCompleted, module.id])
 
-  // Set initial coach tip - personalized based on insights
+  // Set initial coach tip - personalized based on insights and learning preferences
   useEffect(() => {
     if (currentAtom && currentLesson) {
-      setCoachTip(getPersonalizedCoachMessage(currentAtom.type, currentLesson.title, learningInsights))
+      // Use session recommendation on first atom, otherwise content-specific tips
+      const isFirstAtom = sessionState.currentAtomIndex === 0 && sessionState.currentLessonIndex === 0
+      const tip = isFirstAtom && sessionRecommendation?.message
+        ? sessionRecommendation.message
+        : getPersonalizedCoachMessage(currentAtom.type, currentLesson.title, learningInsights)
+      setCoachTip(tip)
       setContentComplete(false)
       // Reset pacing indicator when moving to new content
       setShowPacingIndicator(false)
     }
-  }, [currentAtom])
+  }, [currentAtom, sessionRecommendation])
 
   // Generate content reasoning when lesson changes (Phase 3-2)
   useEffect(() => {
@@ -1037,9 +1045,23 @@ export function CoachLearningView({
     const targetLesson = module.lessons[index]
     if (!targetLesson) return
 
-    // TODO: Re-enable prerequisite checking when API is stable
-    // const prereqsMet = areLessonPrerequisitesMet(targetLesson.id, masteryLevels)
-    // if (!prereqsMet) { ... }
+    // Check if prerequisites are met (mastery gating)
+    const prereqsMet = areLessonPrerequisitesMet(targetLesson.id, masteryLevels)
+    if (!prereqsMet) {
+      const missing = getMissingPrerequisites(targetLesson.id, masteryLevels)
+      const conceptNames = missing.map(id =>
+        SOCIAL_MEDIA_MARKETING_GRAPH.concepts[id]?.name || id
+      ).join(', ')
+      setPrerequisiteWarning(
+        `You need to master these concepts first: ${conceptNames}`
+      )
+      // Clear warning after 5 seconds
+      setTimeout(() => setPrerequisiteWarning(null), 5000)
+      return // Block navigation to locked lesson
+    }
+
+    // Clear any existing warning
+    setPrerequisiteWarning(null)
 
     // Get server-side completed lessons
     const serverLessonsCompleted = user?.progress?.lessonsCompleted || []
@@ -1068,7 +1090,7 @@ export function CoachLearningView({
       currentAtomIndex: 0,
     }))
     setContentComplete(false)
-  }, [module.lessons, module, user?.progress?.lessonsCompleted])
+  }, [module.lessons, module, user?.progress?.lessonsCompleted, masteryLevels])
 
   // Handle struggle intervention acceptance
   const handleStruggleIntervention = useCallback((intervention: StruggleInterventionType) => {
@@ -1196,6 +1218,18 @@ export function CoachLearningView({
               </div>
             </div>
             <div className="flex items-center gap-3 flex-shrink-0">
+              {/* Prerequisite Warning */}
+              {prerequisiteWarning && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 text-red-500 rounded-full text-xs font-medium max-w-xs">
+                  <span className="truncate">{prerequisiteWarning}</span>
+                  <button
+                    onClick={() => setPrerequisiteWarning(null)}
+                    className="hover:text-red-700"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
               {/* Offline Status Indicator */}
               {!isOnline && (
                 <div className="flex items-center gap-1.5 px-2 py-1 bg-warning/10 text-warning rounded-full text-xs font-medium">

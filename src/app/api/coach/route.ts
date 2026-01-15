@@ -2,23 +2,24 @@
  * Coach API Route
  *
  * Main API endpoint for the Socratic AI coach.
- * Handles routing to appropriate model and response generation.
+ * Routes all messages through the AgentOrchestrator which implements:
+ * - POMDP-based student state modeling
+ * - Multi-agent routing (Director → Content/Quiz/Remediation)
+ * - Cognitive load detection and intervention
+ * - RAG-grounded responses with citations
  *
- * Refactored from 1,095 lines to ~200 lines by extracting:
- * - interventionStateManager.ts (Firestore-based state)
- * - coachRouter.ts (model selection)
- * - socraticHandler.ts (Socratic mode logic)
- * - ragCoordinator.ts (RAG operations)
- * - tokenUsageTracker.ts (usage tracking)
+ * Flow: Request → Auth → Rate Limit → Orchestrator → Response
  *
- * Part of Phase 12: Socratic RAG Coach
+ * The orchestrator manages:
+ * - DirectorAgent: Intent classification, POMDP routing
+ * - ContentAgent: Lesson content delivery
+ * - QuizAgent: Assessment and feedback
+ * - RemediationAgent: Scaffolded help when struggling
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/firebase/admin';
 import { createConversation, addMessage } from '@/lib/services/coachService';
-import { buildCoachContext } from '@/lib/utils/coachContext';
 import { checkRateLimit, recordMessage, recordTokenUsage as recordRateLimitUsage } from '@/lib/utils/rateLimit';
 import {
   getOrCreateSession,
@@ -26,13 +27,12 @@ import {
   analyzeTutorResponse,
   type UserLearningState,
 } from '@/lib/training';
-import { getModelRouter, type GenerateRequest as SageRequest } from '@/lib/training/serving';
 import { parseCoachSuggestion, applyCoachModification } from '@/lib/coach/pathModifier';
-
-// New modular imports
-import { selectCoachModelAsync, logModelSelection } from '@/lib/coach/coachRouter';
-import { handleSocraticMode, getSocraticErrorResponse } from '@/lib/coach/socraticHandler';
+import { getSocraticErrorResponse } from '@/lib/coach/socraticHandler';
 import { recordTokenUsage, createTokenUsage } from '@/lib/coach/tokenUsageTracker';
+
+// Agent Orchestrator - Routes through multi-agent system with POMDP
+import { getOrchestrator } from '@/lib/agents/orchestrator';
 
 // ============================================
 // TYPES
@@ -68,16 +68,6 @@ type RequestBody = {
   lessonId?: string;
   currentAtomId?: string;
 };
-
-// ============================================
-// CONFIGURATION
-// ============================================
-
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENAI_API_KEY || '');
-const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-
-// System prompt (condensed version - full version in socraticHandler)
-const SYSTEM_PROMPT = `You are Sage, an expert AI learning coach specializing in social media marketing and the Meta Professional Certificate. Use the Socratic method - guide discovery through questions rather than direct answers. Be warm, adaptive, and focused on building genuine understanding.`;
 
 // ============================================
 // MAIN API HANDLER
@@ -119,77 +109,100 @@ export async function POST(request: NextRequest) {
     const latestUserMsg = messages[messages.length - 1];
     const latestMessageContent = latestUserMsg?.role === 'user' ? latestUserMsg.content : undefined;
 
-    // Select model based on routing logic
-    const modelSelection = await selectCoachModelAsync(userId);
-    logModelSelection(userId, modelSelection, type);
-
-    // Handle Socratic mode if selected
-    if (modelSelection.model === 'socratic' && latestMessageContent) {
-      const socraticResult = await handleSocraticMode(
-        userId,
-        latestMessageContent,
-        context,
-        messages,
-        lessonId
-      );
-
-      if (socraticResult) {
-        await saveConversation(conversationId, latestMessageContent, socraticResult.response);
-        await recordMessage(userId).catch(() => {});
-
-        return NextResponse.json({
-          message: socraticResult.response,
-          conversationId,
-          socraticMode: true,
-          interventionTier: socraticResult.interventionTier,
-          ragMetadata: {
-            isGrounded: socraticResult.isGrounded,
-            groundingScore: socraticResult.groundingScore,
-            sourceCitations: socraticResult.sourceCitations,
-            ragQueryTime: socraticResult.ragQueryTime,
-          },
-          modelInfo: { model: 'gemini-socratic', variant: 'socratic-rag-grounded' },
-        });
-      }
-      // Fall back to standard mode if Socratic failed
-      console.warn('[Coach API] Socratic mode failed, falling back to standard');
+    if (!latestMessageContent) {
+      return NextResponse.json({ message: null, conversationId });
     }
 
-    // Build context for non-Socratic modes
-    const fullContext = await buildFullContext(userId, lessonId, currentAtomId, conversationId, context, type, latestMessageContent);
+    // ================================================
+    // ROUTE THROUGH MULTI-AGENT ORCHESTRATOR
+    // This replaces direct Gemini calls with the full
+    // POMDP-driven multi-agent system (Director, Content,
+    // Quiz, Remediation agents with cognitive load detection)
+    // ================================================
 
-    // Generate response
-    const { message, inputTokens, outputTokens, modelUsed, abVariant } = await generateResponse(
-      messages,
-      fullContext,
-      modelSelection.model,
+    const orchestrator = getOrchestrator({
+      maxSteps: 10,
+      timeoutMs: 30000,
+      enableFallbacks: true,
+      enableMetrics: true,
+    });
+
+    // Map request type to activity type for orchestrator context
+    type ActivityType = 'video' | 'quiz' | 'reading' | 'practice' | 'review';
+    const activityTypeMap: Record<string, ActivityType> = {
+      chat: 'reading',
+      practice_feedback: 'practice',
+      quiz_help: 'quiz',
+      summary: 'reading',
+    };
+
+    // Build current activity context (optional, only if we have activity details)
+    const currentActivity = context?.atomType ? {
+      type: activityTypeMap[type] || 'reading' as ActivityType,
+      contentId: currentAtomId || context?.currentAtom || '',
+      startedAt: new Date(),
+      progress: 0,
+      selectedAnswer: context?.selectedAnswer,
+    } : undefined;
+
+    // Process through the orchestrator (Director → POMDP routing → Specialist agents)
+    const orchestrationResult = await orchestrator.processMessage(
+      conversationId,
       userId,
-      conversationId
+      context?.currentCourse || 'default',
+      latestMessageContent,
+      {
+        moduleId: context?.currentModule,
+        lessonId: context?.currentLesson || lessonId,
+        atomId: currentAtomId || context?.currentAtom,
+        userMessage: latestMessageContent,
+        currentActivity,
+      }
     );
+
+    // Extract the final response message from orchestration
+    const finalResponse = orchestrationResult.responses.length > 0
+      ? orchestrationResult.responses[orchestrationResult.responses.length - 1]
+      : null;
+
+    const responseMessage = finalResponse?.message || getSocraticErrorResponse();
+    const totalTokens = orchestrationResult.totalTokens;
 
     // Record usage and save conversation
     await Promise.all([
-      recordRateLimitUsage(userId, { inputTokens, outputTokens }).catch(() => {}),
+      recordRateLimitUsage(userId, { inputTokens: totalTokens, outputTokens: 0 }).catch(() => {}),
       recordMessage(userId).catch(() => {}),
-      saveConversation(conversationId, latestUserMsg.content, message),
-      recordTokenUsage(createTokenUsage(userId, modelUsed, '/api/coach', inputTokens, outputTokens, {
-        variant: abVariant,
+      saveConversation(conversationId, latestMessageContent, responseMessage),
+      recordTokenUsage(createTokenUsage(userId, 'orchestrator', '/api/coach', totalTokens, 0, {
+        variant: orchestrationResult.agentsUsed.join('→'),
         latencyMs: Date.now() - startTime,
-        success: true,
+        success: orchestrationResult.success,
       })).catch(() => {}),
     ]);
 
-    // Check for path modifications
-    const pathModified = await handlePathModification(userId, message);
+    // Check for path modifications in the response
+    const pathModified = await handlePathModification(userId, responseMessage);
 
     // Log training data (non-blocking)
-    logTrainingData(conversationId, userId, lessonId, context, currentAtomId, latestUserMsg.content, message).catch(() => {});
+    logTrainingData(conversationId, userId, lessonId, context, currentAtomId, latestMessageContent, responseMessage).catch(() => {});
 
+    // Return with orchestration metadata
     return NextResponse.json({
-      message,
+      message: responseMessage,
       conversationId,
-      tokensUsed: { input: inputTokens, output: outputTokens, total: inputTokens + outputTokens },
-      modelInfo: { model: modelUsed, variant: abVariant },
+      orchestration: {
+        success: orchestrationResult.success,
+        agentsUsed: orchestrationResult.agentsUsed,
+        totalTokens: orchestrationResult.totalTokens,
+        totalTimeMs: orchestrationResult.totalTimeMs,
+        errors: orchestrationResult.errors.length > 0 ? orchestrationResult.errors : undefined,
+      },
+      studentState: orchestrationResult.finalState?.studentState,
+      ragMetadata: finalResponse ? {
+        isGrounded: finalResponse.isGrounded,
+        groundingScore: finalResponse.groundingScore,
+        sourceCitations: finalResponse.citations,
+      } : undefined,
       pathModified,
     });
   } catch (error) {
@@ -222,113 +235,6 @@ async function authenticateUser(request: NextRequest, providedUserId?: string): 
     return sessionId || 'anonymous';
   }
   return null;
-}
-
-async function buildFullContext(
-  userId: string,
-  lessonId?: string,
-  currentAtomId?: string,
-  conversationId?: string,
-  context?: RequestBody['context'],
-  type?: string,
-  latestMessage?: string
-): Promise<string> {
-  let fullContext = SYSTEM_PROMPT;
-
-  try {
-    const coachContext = await buildCoachContext(userId, lessonId, currentAtomId, conversationId, latestMessage);
-    fullContext += `\n\n${coachContext.contextString}`;
-  } catch {
-    if (context) {
-      fullContext += `\n\nStudent: ${context.userName}\nCurrent Lesson: ${context.currentLesson}\nContent Type: ${context.atomType}`;
-      if (context.masteryLevel) fullContext += `\nMastery Level: ${context.masteryLevel}%`;
-    }
-  }
-
-  // Add type-specific instructions
-  fullContext += getTypeInstructions(type, context);
-
-  return fullContext;
-}
-
-function getTypeInstructions(type?: string, context?: RequestBody['context']): string {
-  if (type === 'practice_feedback' && context?.practiceContext) {
-    try {
-      const practiceData = JSON.parse(context.practiceContext);
-      return `\n\n=== CURRENT TASK ===\nEvaluate the student's practice response:\nPrompt: ${practiceData.prompt || 'Not specified'}\nStudent's Response: "${practiceData.userResponse || 'No response'}"\n\nProvide: Strengths, Areas for Improvement (use Socratic questions), and a follow-up challenge.`;
-    } catch { /* ignore */ }
-  }
-  if (type === 'quiz_help') {
-    return '\n\n=== CURRENT TASK ===\nHelp with quiz question. NEVER give the answer directly. Guide through elimination and reasoning.';
-  }
-  if (type === 'summary') {
-    return '\n\n=== CURRENT TASK ===\nProvide concise summary: 3-5 key takeaways, practical applications, one action item.';
-  }
-  return '';
-}
-
-async function generateResponse(
-  messages: Message[],
-  fullContext: string,
-  selectedModel: string,
-  userId: string,
-  conversationId: string | null
-): Promise<{ message: string; inputTokens: number; outputTokens: number; modelUsed: string; abVariant?: string }> {
-  const lastUserMessage = messages[messages.length - 1];
-
-  // Try Sage model if selected
-  if (selectedModel === 'sage') {
-    try {
-      const sageRouter = getModelRouter();
-      const sageMessages: SageRequest['messages'] = [
-        { role: 'system', content: fullContext },
-        ...messages.map((m) => ({ role: m.role, content: m.content })),
-      ];
-
-      const sageResponse = await sageRouter.generate({
-        messages: sageMessages,
-        maxTokens: 1024,
-        temperature: 0.8,
-        userId,
-        sessionId: conversationId || undefined,
-      });
-
-      return {
-        message: sageResponse.content,
-        inputTokens: sageResponse.tokensUsed.prompt,
-        outputTokens: sageResponse.tokensUsed.completion,
-        modelUsed: sageResponse.model,
-        abVariant: sageResponse.variant,
-      };
-    } catch (error) {
-      console.warn('[Coach API] Sage model failed, falling back to Gemini:', error);
-    }
-  }
-
-  // Default to Gemini
-  const historyMessages = messages.slice(0, -1);
-  const firstUserIndex = historyMessages.findIndex((m) => m.role === 'user');
-  const validHistory = firstUserIndex >= 0 ? historyMessages.slice(firstUserIndex) : [];
-
-  const chat = model.startChat({
-    history: validHistory.map((m) => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }],
-    })),
-    generationConfig: { maxOutputTokens: 1024, temperature: 0.8, topP: 0.95 },
-    systemInstruction: { role: 'user', parts: [{ text: fullContext }] },
-  });
-
-  const response = await chat.sendMessage(lastUserMessage.content);
-  const responseText = response.response.text() || "I'm having a moment - let me gather my thoughts. Could you rephrase that?";
-  const usageMetadata = response.response.usageMetadata;
-
-  return {
-    message: responseText,
-    inputTokens: usageMetadata?.promptTokenCount || 0,
-    outputTokens: usageMetadata?.candidatesTokenCount || 0,
-    modelUsed: 'gemini',
-  };
 }
 
 async function saveConversation(conversationId: string | null, userMessage: string, assistantMessage: string): Promise<void> {

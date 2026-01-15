@@ -24,7 +24,8 @@ import { Section } from '@/components/layout/AppLayout';
 import { SkillMap } from '@/components/mastery/SkillMap';
 import { useUser } from '@/store/userProfileStore';
 import { useProgressReport } from '@/hooks/useProgressReport';
-import { COURSES } from '@/data/mockData';
+import { getAllCourses } from '@/data/courseRegistry';
+import { SOCIAL_MEDIA_MARKETING_GRAPH } from '@/lib/mastery/knowledgeGraph';
 import { cn, formatDuration } from '@/lib/utils';
 
 export default function ProgressPage() {
@@ -55,7 +56,8 @@ export default function ProgressPage() {
   const streak = user.streak || { currentStreak: 0, longestStreak: 0, freezesAvailable: 2, streakHistory: [] };
 
   // Calculate total lessons from actual course data
-  const totalLessons = COURSES.reduce((total, course) => {
+  const courses = getAllCourses();
+  const totalLessons = courses.reduce((total, course) => {
     return total + course.modules.reduce((modTotal, mod) => modTotal + mod.lessons.length, 0);
   }, 0) || 47; // Fallback if modules not populated
   const completedPercentage = userProgress.overallPercentage || 0;
@@ -167,7 +169,7 @@ export default function ProgressPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
-              {COURSES.map((course, index) => {
+              {courses.map((course, index) => {
                 const isCompleted = (userProgress.coursesCompleted || []).includes(course.id);
                 const isCurrent = (userProgress.currentCourseId || 'course-1') === course.id;
                 const isLocked = !course.prerequisites.every(p =>
@@ -384,8 +386,8 @@ function CourseProgressRow({
           isCompleted
             ? 'bg-success text-white'
             : isCurrent
-            ? 'bg-teal text-white'
-            : 'bg-light-grey text-navy'
+              ? 'bg-teal text-white'
+              : 'bg-light-grey text-navy'
         )}
       >
         {isCompleted ? '✓' : number}
@@ -438,6 +440,10 @@ function SkillBar({ name, level, delay }: { name: string; level: number; delay: 
 }
 
 function formatSkillName(skillId: string): string {
+  // Try to find in Knowledge Graph first
+  const conceptName = SOCIAL_MEDIA_MARKETING_GRAPH.concepts[skillId]?.name;
+  if (conceptName) return conceptName;
+
   const names: Record<string, string> = {
     'social-strategy': 'Social Strategy',
     'content-creation': 'Content Creation',

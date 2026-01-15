@@ -5,6 +5,7 @@ import { useCelebration } from '@/components/celebration/CelebrationSystem';
 import { useUser, useUserProfileStore } from '@/store/userProfileStore';
 import type { Badge } from '@/types';
 import { SCORE_THRESHOLDS, XP, STREAK } from '@/config/constants';
+import { useBadgeCheck } from './useBadgeCheck';
 
 /**
  * Hook that wraps progress actions with celebration effects
@@ -14,6 +15,7 @@ import { SCORE_THRESHOLDS, XP, STREAK } from '@/config/constants';
 export function useCelebratedProgress() {
   const { celebrate, celebrateBadge, celebrateStreak, celebrateXP } = useCelebration();
   const { user, addXP, earnBadge: baseEarnBadge, checkAndUpdateStreak } = useUser();
+  const { checkBadgesAfterProgress } = useBadgeCheck();
 
   // Store methods
   const completeAtom = useUserProfileStore((state) => state.completeAtom);
@@ -61,8 +63,13 @@ export function useCelebratedProgress() {
       await completeAtom(atomId);
       await addXP(xpReward);
       celebrate(1, 'Content Complete!');
+
+      // Check for any badges earned (non-blocking)
+      if (user?.id) {
+        checkBadgesAfterProgress(user.id);
+      }
     },
-    [completeAtom, addXP, celebrate]
+    [completeAtom, addXP, celebrate, user?.id, checkBadgesAfterProgress]
   );
 
   /**
@@ -76,8 +83,13 @@ export function useCelebratedProgress() {
 
       // Update streak on lesson completion
       await checkAndUpdateStreak();
+
+      // Check for any badges earned (non-blocking)
+      if (user?.id) {
+        checkBadgesAfterProgress(user.id);
+      }
     },
-    [completeLesson, addXP, celebrate, checkAndUpdateStreak]
+    [completeLesson, addXP, celebrate, checkAndUpdateStreak, user?.id, checkBadgesAfterProgress]
   );
 
   /**
@@ -88,8 +100,13 @@ export function useCelebratedProgress() {
       await completeModule(moduleId);
       await addXP(xpReward);
       celebrate(4, 'Module Complete!');
+
+      // Check for any badges earned (non-blocking)
+      if (user?.id) {
+        checkBadgesAfterProgress(user.id);
+      }
     },
-    [completeModule, addXP, celebrate]
+    [completeModule, addXP, celebrate, user?.id, checkBadgesAfterProgress]
   );
 
   /**
@@ -100,8 +117,13 @@ export function useCelebratedProgress() {
       await completeCourse(courseId);
       await addXP(xpReward);
       celebrate(5, 'Course Complete!', `course-${courseId}-badge`);
+
+      // Check for any badges earned (non-blocking)
+      if (user?.id) {
+        checkBadgesAfterProgress(user.id);
+      }
     },
-    [completeCourse, addXP, celebrate]
+    [completeCourse, addXP, celebrate, user?.id, checkBadgesAfterProgress]
   );
 
   /**

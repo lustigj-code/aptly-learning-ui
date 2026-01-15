@@ -16,6 +16,7 @@ import { post } from '@/lib/api/client';
 import type { Atom, QuizContent, Question } from '@/types';
 import type { QuizQuestion } from '@/lib/ai/quiz-ai-integration';
 import { DifficultyIndicator } from '@/components/learning/DifficultyIndicator';
+import { useAdaptiveQuiz, type AdaptiveConfig } from '@/hooks/useAdaptiveQuiz';
 
 type QuizAtomProps = {
   atom: Atom & { type: 'quiz'; content: QuizContent };
@@ -29,6 +30,12 @@ type QuizAtomProps = {
   }) => void;
   /** Optional normalized difficulty (0-1) for adaptive difficulty display */
   difficulty?: number;
+  /** Enable adaptive quiz difficulty (adjusts questions based on performance) */
+  adaptive?: boolean;
+  /** Configuration for adaptive difficulty */
+  adaptiveConfig?: Partial<AdaptiveConfig>;
+  /** Callback when remediation is needed */
+  onRemediationNeeded?: (topic: string, concepts: string[]) => void;
 };
 
 // Skill update from BKT
@@ -79,7 +86,18 @@ function toQuizQuestion(question: Question, index: number): QuizQuestion {
   };
 }
 
-export function QuizAtom({ atom, onComplete, onStruggleDetected, difficulty }: QuizAtomProps) {
+export function QuizAtom({
+  atom,
+  onComplete,
+  onStruggleDetected,
+  difficulty,
+  adaptive = false,
+  adaptiveConfig,
+  onRemediationNeeded,
+}: QuizAtomProps) {
+  // Adaptive quiz system
+  const adaptiveQuiz = useAdaptiveQuiz(adaptiveConfig);
+
   const [state, setState] = useState<QuizState>({
     currentQuestionIndex: 0,
     answers: {},
@@ -163,6 +181,24 @@ export function QuizAtom({ atom, onComplete, onStruggleDetected, difficulty }: Q
         skillId: currentQuestion.skills?.[0],
         questionId,
       });
+    }
+
+    // Track in adaptive quiz system
+    if (adaptive) {
+      const questionId = currentQuestion.id || `q${atom.lessonId}.${state.currentQuestionIndex + 1}`;
+      const normalizedDifficulty = ((currentQuestion.difficulty || 3) - 1) / 4;
+
+      adaptiveQuiz.recordAnswer({
+        questionId,
+        correct,
+        questionDifficulty: normalizedDifficulty,
+        skills: currentQuestion.skills,
+      });
+
+      // Trigger remediation callback if needed
+      if (adaptiveQuiz.needsRemediation && onRemediationNeeded && adaptiveQuiz.remediationTopic) {
+        onRemediationNeeded(adaptiveQuiz.remediationTopic, adaptiveQuiz.struggleConcepts);
+      }
     }
 
     // Update skill mastery via BKT
@@ -515,8 +551,15 @@ export function QuizAtom({ atom, onComplete, onStruggleDetected, difficulty }: Q
               <Clock size={14} className={isActive ? 'text-teal' : 'text-grey'} />
               <span className="font-mono">{formatTimeMMSS(elapsedSeconds)}</span>
             </div>
-            {/* Use adaptive difficulty if provided, otherwise fall back to question difficulty */}
-            {difficulty !== undefined ? (
+            {/* Use adaptive difficulty if enabled, then prop, otherwise fall back to question difficulty */}
+            {adaptive ? (
+              <DifficultyIndicator
+                difficulty={adaptiveQuiz.targetDifficulty}
+                scale="0-1"
+                size="sm"
+                animate={true}
+              />
+            ) : difficulty !== undefined ? (
               <DifficultyIndicator
                 difficulty={difficulty}
                 scale="0-1"

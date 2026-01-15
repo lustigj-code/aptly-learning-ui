@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
-import { COURSES } from '@/data/mockData';
+import { getAllCourses } from '@/data/courseRegistry';
 import { getAtomsCompleted } from '@/lib/data/userProgressLayer';
 import { LRUCache } from '@/lib/cache/LRUCache';
 import type { Course } from '@/types';
@@ -167,9 +167,10 @@ export async function GET(request: NextRequest) {
       .orderBy('number', 'asc')
       .get();
 
-    // Fall back to mock data if Firestore is empty
+    // Fall back to registry data if Firestore is empty
     if (coursesSnapshot.empty) {
-      const mockCourses: CourseResponse[] = COURSES.map((course) => ({
+      const registryCourses = getAllCourses();
+      const mockCourses: CourseResponse[] = registryCourses.map((course) => ({
         id: course.id,
         number: course.number,
         title: course.title,
@@ -177,7 +178,7 @@ export async function GET(request: NextRequest) {
         objectives: course.objectives,
         estimatedHours: course.estimatedHours,
         isLocked: course.isLocked,
-        prerequisites: course.prerequisites,
+        prerequisites: course.prerequisites || [],
       }));
 
       return NextResponse.json({ courses: mockCourses }, { status: 200 });

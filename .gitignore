@@ -62,3 +62,9 @@ DEPLOYMENT_*.md
 # Local development
 .claude/
 public/videos/
+
+# Training artifacts
+training-data/
+__pycache__/
+*.pyc
+

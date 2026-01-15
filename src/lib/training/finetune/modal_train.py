@@ -30,37 +30,38 @@ import modal
 
 app = modal.App("sage-tutor-training")
 
-# Training image with all dependencies
+# Training image with all dependencies (v6 - compatible versions for Llama 3.1)
 training_image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install("git")
     .pip_install(
-        "torch>=2.1.0",
-        "transformers>=4.40.0",
-        "datasets>=2.18.0",
-        "peft>=0.10.0",
-        "trl>=0.8.0",
-        "bitsandbytes>=0.43.0",
-        "accelerate>=0.29.0",
-        "scipy>=1.12.0",
-        "wandb>=0.16.0",
-        "huggingface_hub>=0.22.0",
-        "flash-attn>=2.5.0",  # Flash attention for faster training
-        "sentencepiece>=0.2.0",
-        "protobuf>=4.25.0",
+        "packaging",
+        "numpy==1.26.4",  # Pin NumPy 1.x for torch compatibility
+        "torch==2.2.0",
+        "transformers==4.46.0",  # Supports Llama 3.1 rope_scaling
+        "huggingface_hub==0.25.0",  # Compatible with transformers 4.46
+        "datasets==2.18.0",
+        "peft==0.13.0",
+        "trl==0.11.0",  # Version compatible with transformers 4.46
+        "bitsandbytes==0.43.0",
+        "accelerate==0.34.0",  # Compatible with transformers 4.46
+        "scipy==1.12.0",
+        "sentencepiece==0.2.0",
+        "protobuf==4.25.0",
+        "rich",  # Required by trl
     )
 )
 
 # Volume for persistent storage
 training_volume = modal.Volume.from_name("sage-training-data", create_if_missing=True)
 
-# GPU configurations
+# GPU configurations (string format for Modal)
 GPU_CONFIGS = {
-    "a100-40gb": modal.gpu.A100(count=1, size="40GB"),
-    "a100-80gb": modal.gpu.A100(count=1, size="80GB"),
-    "h100": modal.gpu.H100(count=1),
-    "a10g": modal.gpu.A10G(count=1),
-    "t4": modal.gpu.T4(count=1),
+    "a100-40gb": "A100-40GB",
+    "a100-80gb": "A100-80GB",
+    "h100": "H100",
+    "a10g": "A10G",
+    "t4": "T4",
 }
 
 
@@ -131,12 +132,11 @@ TRAINING_PRESETS = {
 
 @app.function(
     image=training_image,
-    gpu=modal.gpu.A100(count=1, size="40GB"),
+    gpu="A100-40GB",
     timeout=86400,  # 24 hours
     volumes={"/data": training_volume},
     secrets=[
         modal.Secret.from_name("huggingface-secret"),
-        modal.Secret.from_name("wandb-secret", required=False),
     ],
 )
 def train_sage_model(
@@ -151,7 +151,6 @@ def train_sage_model(
     from transformers import (
         AutoModelForCausalLM,
         AutoTokenizer,
-        TrainingArguments,
         BitsAndBytesConfig,
     )
     from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, TaskType
@@ -205,7 +204,7 @@ def train_sage_model(
         device_map="auto",
         trust_remote_code=True,
         torch_dtype=torch.bfloat16,
-        attn_implementation="flash_attention_2",  # Use flash attention
+        attn_implementation="sdpa",  # Use scaled dot product attention (PyTorch native)
     )
 
     # Prepare for training
@@ -258,21 +257,24 @@ def train_sage_model(
             text = example.get("text", "")
         return {"text": text}
 
-    # Load and format data
+    # Load and format data - pre-process to avoid pyarrow type issues
     train_data = load_jsonl("/data/train.jsonl")
     logger.info(f"Loaded {len(train_data)} training examples")
 
-    train_dataset = Dataset.from_list(train_data)
-    train_dataset = train_dataset.map(format_example, remove_columns=train_dataset.column_names)
+    # Pre-process to text format to avoid pyarrow nested structure issues
+    formatted_train = [format_example(ex) for ex in train_data]
+    train_dataset = Dataset.from_list(formatted_train)
 
     eval_dataset = None
     if Path("/data/eval.jsonl").exists():
         eval_data = load_jsonl("/data/eval.jsonl")
-        eval_dataset = Dataset.from_list(eval_data)
-        eval_dataset = eval_dataset.map(format_example, remove_columns=eval_dataset.column_names)
+        formatted_eval = [format_example(ex) for ex in eval_data]
+        eval_dataset = Dataset.from_list(formatted_eval)
         logger.info(f"Loaded {len(eval_data)} eval examples")
 
-    # Training arguments
+    # Training arguments (TRL 0.7.x API)
+    from transformers import TrainingArguments
+
     training_args = TrainingArguments(
         output_dir="/data/outputs/checkpoints",
         num_train_epochs=config["num_train_epochs"],
@@ -290,9 +292,7 @@ def train_sage_model(
         save_total_limit=3,
         bf16=True,
         gradient_checkpointing=True,
-        gradient_checkpointing_kwargs={"use_reentrant": False},
-        report_to="wandb" if wandb_project and os.environ.get("WANDB_API_KEY") else "none",
-        run_name=run_name,
+        report_to="none",
         optim="paged_adamw_32bit" if bnb_config else "adamw_torch",
         lr_scheduler_type="cosine",
         seed=42,
@@ -300,7 +300,7 @@ def train_sage_model(
         dataloader_num_workers=4,
     )
 
-    # Create trainer
+    # SFTTrainer API - TRL 0.9.x
     trainer = SFTTrainer(
         model=model,
         args=training_args,
@@ -388,7 +388,7 @@ def list_volume_contents() -> list:
 
 @app.function(
     image=training_image,
-    gpu=modal.gpu.A10G(count=1),
+    gpu="A10G",
     volumes={"/data": training_volume},
     secrets=[modal.Secret.from_name("huggingface-secret")],
 )
