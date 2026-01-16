@@ -27,6 +27,26 @@ import type { ConversationHistory, ComprehensionState, AdaptiveExplanation } fro
 // TYPES
 // ============================================
 
+// Phase 2: Immediate context for real-time awareness
+export interface ImmediateContext {
+  questionId: string
+  questionText: string
+  selectedAnswer: string
+  wasCorrect: boolean
+  attemptNumber: number
+}
+
+// Phase 4: User memory summary for cross-session personalization
+export interface UserMemorySummary {
+  struggles: string[]
+  strengths: string[]
+  preferences: string[]
+  goals: string[]
+  background: string[]
+  preferredStyle?: string
+  primaryGoal?: string
+}
+
 export interface ContextStringData {
   user: UserProfile
   performance: UserPerformance
@@ -44,6 +64,10 @@ export interface ContextStringData {
   comprehensionState: ComprehensionState | null
   adaptiveExplanation: AdaptiveExplanation | null
   flowContext: string | null
+  // Phase 2: What the student just did
+  immediateContext: ImmediateContext | null
+  // Phase 4: Cross-session memory
+  userMemory: UserMemorySummary | null
 }
 
 // ============================================
@@ -66,9 +90,70 @@ export function buildContextString(data: ContextStringData): string {
     sections.push(buildRelationshipContextString(data.relationshipContext))
   }
 
+  // Phase 4: Cross-Session Memory - What we know about this student
+  if (data.userMemory) {
+    const memoryLines: string[] = []
+
+    if (data.userMemory.preferredStyle) {
+      memoryLines.push(`Preferred learning style: ${data.userMemory.preferredStyle}`)
+    }
+    if (data.userMemory.primaryGoal) {
+      memoryLines.push(`Primary goal: ${data.userMemory.primaryGoal}`)
+    }
+    if (data.userMemory.struggles.length > 0) {
+      memoryLines.push(`Known struggles: ${data.userMemory.struggles.join(', ')}`)
+    }
+    if (data.userMemory.strengths.length > 0) {
+      memoryLines.push(`Known strengths: ${data.userMemory.strengths.join(', ')}`)
+    }
+    if (data.userMemory.preferences.length > 0) {
+      memoryLines.push(`Preferences: ${data.userMemory.preferences.join(', ')}`)
+    }
+    if (data.userMemory.background.length > 0) {
+      memoryLines.push(`Background: ${data.userMemory.background.join(', ')}`)
+    }
+
+    if (memoryLines.length > 0) {
+      sections.push(`
+=== WHAT I KNOW ABOUT THIS STUDENT ===
+(From previous conversations - use this to personalize your responses)
+${memoryLines.join('\n')}
+
+Use this information to:
+- Adapt explanations to their preferred style
+- Connect to their goals and background
+- Avoid re-explaining what they already know well
+- Focus extra help on their known struggle areas`)
+    }
+  }
+
   // Emotional State Section (prioritize if detected with confidence)
   if (data.emotionalAnalysis && data.emotionalAnalysis.confidence >= 0.25) {
     sections.push(buildEmotionalContext(data.emotionalAnalysis))
+  }
+
+  // Phase 2: Immediate Context - What just happened (HIGH PRIORITY)
+  if (data.immediateContext) {
+    const { questionText, selectedAnswer, wasCorrect, attemptNumber } = data.immediateContext
+    sections.push(`
+=== JUST NOW ===
+The student JUST answered a question. This context is CRITICAL for your response:
+
+Question: "${questionText}"
+Their answer: "${selectedAnswer}"
+Result: ${wasCorrect ? 'CORRECT' : 'INCORRECT'}
+Attempt number: ${attemptNumber}
+
+${wasCorrect
+  ? `They got it right${attemptNumber > 1 ? ` on attempt #${attemptNumber}` : ''}! Acknowledge their success appropriately.`
+  : attemptNumber === 1
+    ? `This was their first attempt. Help them understand without giving away the answer.`
+    : attemptNumber >= 3
+      ? `They've struggled ${attemptNumber} times. Consider scaffolding more directly or trying a different explanation approach.`
+      : `They've tried ${attemptNumber} times. Guide them with hints that build understanding.`
+}
+
+IMPORTANT: Reference this specific question/answer in your response. Don't be generic.`)
   }
 
   // User Profile Section

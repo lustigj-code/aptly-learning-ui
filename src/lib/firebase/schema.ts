@@ -311,6 +311,54 @@ export type StruggleEvent = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
+// USER MEMORY - learners/{userId}/memory (single document)
+// Phase 4: Cross-session memory for AI coach personalization
+// ═══════════════════════════════════════════════════════════════════════════
+
+export type MemoryFactCategory = 'struggle' | 'strength' | 'preference' | 'goal' | 'background';
+
+export type MemoryFact = {
+  id: string;
+  fact: string;
+  category: MemoryFactCategory;
+  confidence: number; // 0-1, how confident we are in this fact
+  source: 'explicit' | 'inferred'; // explicit = user said it, inferred = AI deduced
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  conversationId?: string; // which conversation this was learned from
+};
+
+export type LearningStyle = 'visual' | 'step-by-step' | 'analogy' | 'example-based' | 'conceptual';
+
+export type UserMemory = {
+  // Key facts about the user
+  keyFacts: MemoryFact[];
+
+  // Learning style preferences
+  preferredStyle?: LearningStyle;
+  styleConfidence?: number; // 0-1
+
+  // Summary of struggles and strengths
+  currentStruggles: string[]; // concept names
+  currentStrengths: string[]; // concept names
+
+  // User's stated goals
+  primaryGoal?: string;
+  targetDate?: Timestamp;
+
+  // Metadata
+  lastUpdated: Timestamp;
+  totalConversationsAnalyzed: number;
+};
+
+export const DEFAULT_USER_MEMORY: Omit<UserMemory, 'lastUpdated'> = {
+  keyFacts: [],
+  currentStruggles: [],
+  currentStrengths: [],
+  totalConversationsAnalyzed: 0,
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
 // CONTENT CONCEPTS - content/concepts/{conceptId}
 // Concept graph for prerequisite mapping and adaptive pathways
 // ═══════════════════════════════════════════════════════════════════════════

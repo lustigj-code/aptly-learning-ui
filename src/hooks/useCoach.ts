@@ -2,6 +2,7 @@
 
 import { useReducer, useCallback } from 'react';
 import { useUser } from '@/store/userProfileStore';
+import type { CoachAction } from '@/types/coachActions';
 
 // ============================================
 // TYPES
@@ -12,6 +13,8 @@ type Message = {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  // Phase 3: Actions from AI
+  actions?: CoachAction[];
 };
 
 type CoachContext = {
@@ -21,6 +24,24 @@ type CoachContext = {
   currentAtom?: string;
   atomType?: string;
   atomContent?: string;
+  // Phase 2: Real-time context for immediate awareness
+  immediateContext?: {
+    questionId: string;
+    questionText: string;
+    selectedAnswer: string;
+    wasCorrect: boolean;
+    attemptNumber: number;
+  };
+};
+
+// Conversation preview for history panel
+type ConversationPreview = {
+  id: string;
+  preview: string;
+  messageCount: number;
+  updatedAt: string;
+  lessonId?: string;
+  sessionGoal?: string;
 };
 
 type MessageType = 'chat' | 'practice_feedback' | 'quiz_help' | 'summary';
@@ -36,6 +57,10 @@ interface CoachState {
   conversationId: string | null;
   conversationLoaded: boolean;
   showLoadIndicator: boolean;
+  // Phase 1: Conversation history
+  conversationHistory: ConversationPreview[];
+  historyLoading: boolean;
+  currentLessonId: string | null;
 }
 
 // ============================================
@@ -54,7 +79,11 @@ type CoachAction =
   | { type: 'CLEAR_MESSAGES' }
   | { type: 'RESET_CONVERSATION' }
   | { type: 'LOADING_START' }
-  | { type: 'LOADING_END' };
+  | { type: 'LOADING_END' }
+  // Phase 1: History actions
+  | { type: 'SET_HISTORY'; payload: ConversationPreview[] }
+  | { type: 'SET_HISTORY_LOADING'; payload: boolean }
+  | { type: 'SET_CURRENT_LESSON'; payload: string | null };
 
 // ============================================
 // REDUCER
@@ -67,6 +96,10 @@ const initialState: CoachState = {
   conversationId: null,
   conversationLoaded: false,
   showLoadIndicator: false,
+  // Phase 1: History
+  conversationHistory: [],
+  historyLoading: false,
+  currentLessonId: null,
 };
 
 function coachReducer(state: CoachState, action: CoachAction): CoachState {
@@ -119,6 +152,16 @@ function coachReducer(state: CoachState, action: CoachAction): CoachState {
     case 'LOADING_END':
       return { ...state, isLoading: false, showLoadIndicator: false };
 
+    // Phase 1: History reducers
+    case 'SET_HISTORY':
+      return { ...state, conversationHistory: action.payload };
+
+    case 'SET_HISTORY_LOADING':
+      return { ...state, historyLoading: action.payload };
+
+    case 'SET_CURRENT_LESSON':
+      return { ...state, currentLessonId: action.payload };
+
     default:
       return state;
   }
@@ -132,8 +175,17 @@ export function useCoach() {
   const { user } = useUser();
   const [state, dispatch] = useReducer(coachReducer, initialState);
 
-  const { messages, isLoading, error, conversationId, conversationLoaded, showLoadIndicator } =
-    state;
+  const {
+    messages,
+    isLoading,
+    error,
+    conversationId,
+    conversationLoaded,
+    showLoadIndicator,
+    conversationHistory,
+    historyLoading,
+    currentLessonId,
+  } = state;
 
   /**
    * Load previous conversation by ID
@@ -268,6 +320,109 @@ export function useCoach() {
     }
   }, [conversationId]);
 
+  /**
+   * Load conversation history for a lesson
+   * Phase 1: Fetch all past conversations for the history panel
+   */
+  const loadConversationHistory = useCallback(
+    async (lessonId?: string) => {
+      try {
+        dispatch({ type: 'SET_HISTORY_LOADING', payload: true });
+
+        const url = lessonId
+          ? `/api/coach/conversations?lessonId=${encodeURIComponent(lessonId)}&limit=20`
+          : '/api/coach/conversations?limit=20';
+
+        const response = await fetch(url, {
+          headers: {
+            'x-user-id': user?.id || 'anonymous',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to load conversation history');
+        }
+
+        const data = await response.json();
+        dispatch({ type: 'SET_HISTORY', payload: data.conversations || [] });
+      } catch (err) {
+        console.error('Error loading conversation history:', err);
+        // Don't set error - history is non-critical
+      } finally {
+        dispatch({ type: 'SET_HISTORY_LOADING', payload: false });
+      }
+    },
+    [user?.id]
+  );
+
+  /**
+   * Load the most recent conversation for a lesson (auto-resume)
+   * Phase 1: Called on mount to seamlessly continue where user left off
+   */
+  const loadLatestForLesson = useCallback(
+    async (lessonId: string) => {
+      try {
+        dispatch({ type: 'SET_CURRENT_LESSON', payload: lessonId });
+        dispatch({ type: 'LOADING_START' });
+
+        // Fetch conversations for this lesson
+        const response = await fetch(
+          `/api/coach/conversations?lessonId=${encodeURIComponent(lessonId)}&limit=1`,
+          {
+            headers: {
+              'x-user-id': user?.id || 'anonymous',
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch conversations');
+        }
+
+        const data = await response.json();
+        const latestConv = data.conversations?.[0];
+
+        if (latestConv && latestConv.messageCount > 0) {
+          // Load the existing conversation
+          await loadConversation(latestConv.id);
+        } else {
+          // No previous conversation - start fresh but mark as loaded
+          dispatch({ type: 'SET_CONVERSATION_LOADED', payload: true });
+          dispatch({ type: 'LOADING_END' });
+        }
+
+        // Also load full history for the panel
+        loadConversationHistory(lessonId);
+      } catch (err) {
+        console.error('Error loading latest conversation:', err);
+        // On error, just mark as loaded so user can start fresh
+        dispatch({ type: 'SET_CONVERSATION_LOADED', payload: true });
+        dispatch({ type: 'LOADING_END' });
+      }
+    },
+    [user?.id, loadConversation, loadConversationHistory]
+  );
+
+  /**
+   * Start a new conversation (for "New Chat" button)
+   * Phase 1: Clears current conversation and starts fresh
+   */
+  const startNewConversation = useCallback(
+    async (lessonId?: string) => {
+      // Reset the current conversation state
+      dispatch({ type: 'RESET_CONVERSATION' });
+
+      // If we have a lesson, track it
+      if (lessonId) {
+        dispatch({ type: 'SET_CURRENT_LESSON', payload: lessonId });
+      }
+
+      // Refresh history
+      loadConversationHistory(lessonId || currentLessonId || undefined);
+    },
+    [loadConversationHistory, currentLessonId]
+  );
+
   const sendMessage = useCallback(
     async (content: string, type: MessageType = 'chat', context?: CoachContext) => {
       if (!content.trim()) return;
@@ -352,12 +507,13 @@ export function useCoach() {
           console.log('[useCoach] Debug info:', data._debug);
         }
 
-        // Add assistant response
+        // Add assistant response (Phase 3: include actions)
         const assistantMessage: Message = {
           id: `assistant-${Date.now()}`,
           role: 'assistant',
           content: data.message,
           timestamp: new Date(),
+          actions: data.actions, // Phase 3: Actions from API
         };
 
         dispatch({ type: 'ADD_MESSAGE', payload: assistantMessage });
@@ -448,6 +604,11 @@ Ask me anything about the content, request examples, or let me quiz you on what 
     conversationId,
     conversationLoaded,
     showLoadIndicator,
+    // Phase 1: History state
+    conversationHistory,
+    historyLoading,
+    currentLessonId,
+    // Actions
     sendMessage,
     clearMessages,
     getSummary,
@@ -457,6 +618,10 @@ Ask me anything about the content, request examples, or let me quiz you on what 
     loadConversation,
     initializeConversation,
     deleteConversation,
+    // Phase 1: History actions
+    loadLatestForLesson,
+    loadConversationHistory,
+    startNewConversation,
   };
 }
 

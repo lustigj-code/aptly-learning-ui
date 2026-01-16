@@ -7,11 +7,23 @@ import {
   Loader2,
   Sparkles,
   Trash2,
+  History,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { InlineQuiz, type QuizQuestion, type Answer } from '@/components/coach/InlineQuiz';
+import { ConversationHistoryPanel } from '@/components/coach/ConversationHistoryPanel';
 import { useCoach } from '@/hooks/useCoach';
 import { cn } from '@/lib/utils';
+import { type CoachAction, getActionButtonStyle } from '@/types/coachActions';
+import {
+  ArrowRight,
+  Lightbulb,
+  Bookmark,
+  Coffee,
+  CheckCircle,
+  ExternalLink,
+} from 'lucide-react';
 
 // Extended message type to support inline quiz content
 type QuizContentBlock = {
@@ -38,8 +50,20 @@ type MainCoachChatProps = {
     atomType?: string;
     atomContent?: string;
   };
+  // Phase 1: Auto-load previous conversation for this lesson
+  lessonId?: string;
+  // Phase 2: Immediate context for what user just did
+  immediateContext?: {
+    questionId: string;
+    questionText: string;
+    selectedAnswer: string;
+    wasCorrect: boolean;
+    attemptNumber: number;
+  };
   onQuizAnswer?: (answer: Answer) => void;
   onReady?: (api: { addQuizToChat: (question: QuizQuestion, introMessage?: string) => string }) => void;
+  // Phase 3: Action handler
+  onAction?: (action: CoachAction) => void;
 };
 
 // Re-export types for external use
@@ -49,20 +73,32 @@ export function MainCoachChat({
   onMessageSent,
   easyStartSection,
   lessonContext,
+  lessonId,
+  immediateContext,
   onQuizAnswer,
   onReady,
+  onAction,
 }: MainCoachChatProps) {
   const {
     messages,
     isLoading,
     error,
+    conversationId,
+    conversationLoaded,
+    conversationHistory,
+    historyLoading,
     sendMessage,
     clearMessages,
     initializeChat,
+    loadLatestForLesson,
+    loadConversation,
+    startNewConversation,
   } = useCoach();
 
   const [input, setInput] = useState('');
   const [quizMessages, setQuizMessages] = useState<Record<string, MessageWithQuiz>>({});
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
+  const hasLoadedInitialRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -114,12 +150,39 @@ export function MainCoachChat({
     return messageId;
   }, []);
 
-  // Initialize chat with welcome message on mount
+  // Phase 1: Auto-load previous conversation for this lesson on mount
   useEffect(() => {
-    if (messages.length === 0) {
+    if (lessonId && !hasLoadedInitialRef.current) {
+      hasLoadedInitialRef.current = true;
+      loadLatestForLesson(lessonId);
+    } else if (!lessonId && messages.length === 0 && !hasLoadedInitialRef.current) {
+      // No lessonId - just show welcome message
+      hasLoadedInitialRef.current = true;
       initializeChat();
     }
-  }, [messages.length, initializeChat]);
+  }, [lessonId, loadLatestForLesson, initializeChat, messages.length]);
+
+  // Show welcome message after conversation is loaded (if empty)
+  useEffect(() => {
+    if (conversationLoaded && messages.length === 0) {
+      initializeChat();
+    }
+  }, [conversationLoaded, messages.length, initializeChat]);
+
+  // Handle selecting a conversation from history
+  const handleSelectConversation = useCallback(
+    (convId: string) => {
+      loadConversation(convId);
+      setShowHistoryPanel(false);
+    },
+    [loadConversation]
+  );
+
+  // Handle starting a new conversation
+  const handleStartNew = useCallback(() => {
+    startNewConversation(lessonId);
+    setShowHistoryPanel(false);
+  }, [startNewConversation, lessonId]);
 
   // Expose API to parent component
   useEffect(() => {
@@ -143,7 +206,11 @@ export function MainCoachChat({
     setInput('');
     onMessageSent?.();
 
-    await sendMessage(message, 'chat', lessonContext);
+    // Phase 2: Include immediate context in the message
+    await sendMessage(message, 'chat', {
+      ...lessonContext,
+      immediateContext,
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -161,7 +228,7 @@ export function MainCoachChat({
   ];
 
   return (
-    <div className="flex flex-col h-full min-h-screen">
+    <div className="flex flex-col h-full min-h-screen relative">
       {/* Header */}
       <header className="flex-shrink-0 flex items-center justify-between p-4 border-b border-grey/20 bg-gradient-to-r from-teal/10 to-purple/10">
         <div className="flex items-center gap-3">
@@ -176,16 +243,51 @@ export function MainCoachChat({
             <p className="text-sm text-rich-black/60">Your AI learning coach</p>
           </div>
         </div>
-        {messages.length > 1 && (
+        <div className="flex items-center gap-2">
+          {/* History toggle button */}
           <button
-            onClick={clearMessages}
-            className="p-2 rounded-lg text-rich-black/40 hover:text-rich-black hover:bg-light-grey transition-colors"
-            title="Clear chat"
+            onClick={() => setShowHistoryPanel(!showHistoryPanel)}
+            className={cn(
+              'p-2 rounded-lg transition-colors',
+              showHistoryPanel
+                ? 'bg-teal/10 text-teal'
+                : 'text-rich-black/40 hover:text-rich-black hover:bg-light-grey'
+            )}
+            title="Chat history"
           >
-            <Trash2 size={20} />
+            {showHistoryPanel ? <X size={20} /> : <History size={20} />}
           </button>
-        )}
+
+          {/* Clear chat button */}
+          {messages.length > 1 && (
+            <button
+              onClick={clearMessages}
+              className="p-2 rounded-lg text-rich-black/40 hover:text-rich-black hover:bg-light-grey transition-colors"
+              title="Clear chat"
+            >
+              <Trash2 size={20} />
+            </button>
+          )}
+        </div>
       </header>
+
+      {/* History Panel Overlay */}
+      {showHistoryPanel && (
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          className="absolute inset-y-0 left-0 w-72 bg-white border-r border-grey/20 shadow-lg z-10 mt-[72px]"
+        >
+          <ConversationHistoryPanel
+            conversations={conversationHistory}
+            isLoading={historyLoading}
+            currentConversationId={conversationId}
+            onSelectConversation={handleSelectConversation}
+            onStartNew={handleStartNew}
+          />
+        </motion.div>
+      )}
 
       {/* Messages */}
       <main className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -228,6 +330,18 @@ export function MainCoachChat({
                     onAnswer={(answer) => handleQuizAnswer(message.id, answer)}
                     disabled={isQuizAnswered || isLoading}
                   />
+                )}
+                {/* Phase 3: Render action buttons */}
+                {message.role === 'assistant' && message.actions && message.actions.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {message.actions.map((action, index) => (
+                      <ActionButton
+                        key={`${message.id}-action-${index}`}
+                        action={action}
+                        onClick={() => onAction?.(action)}
+                      />
+                    ))}
+                  </div>
                 )}
               </div>
             </motion.div>
@@ -327,5 +441,77 @@ export function MainCoachChat({
         </div>
       </footer>
     </div>
+  );
+}
+
+// ============================================
+// ACTION BUTTON COMPONENT (Phase 3)
+// ============================================
+
+type ActionButtonProps = {
+  action: CoachAction;
+  onClick: () => void;
+};
+
+function ActionButton({ action, onClick }: ActionButtonProps) {
+  const { variant } = getActionButtonStyle(action);
+
+  // Get icon based on action type
+  const getIcon = () => {
+    switch (action.type) {
+      case 'navigate':
+        return <ArrowRight size={14} />;
+      case 'show_hint':
+        return <Lightbulb size={14} />;
+      case 'highlight_concept':
+        return <Bookmark size={14} />;
+      case 'suggest_break':
+        return <Coffee size={14} />;
+      case 'mark_understood':
+        return <CheckCircle size={14} />;
+      case 'open_resource':
+        return <ExternalLink size={14} />;
+      default:
+        return <ArrowRight size={14} />;
+    }
+  };
+
+  // Get label from action
+  const getLabel = (): string => {
+    if ('label' in action && action.label) {
+      return action.label;
+    }
+
+    switch (action.type) {
+      case 'navigate':
+        return action.target.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase());
+      case 'show_hint':
+        return 'Show Hint';
+      case 'highlight_concept':
+        return `Review: ${action.conceptName}`;
+      case 'suggest_break':
+        return 'Take a Break';
+      case 'mark_understood':
+        return 'I understand this';
+      case 'open_resource':
+        return `View ${action.resourceType}`;
+      default:
+        return 'Action';
+    }
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all',
+        variant === 'primary' && 'bg-teal text-white hover:bg-teal/90',
+        variant === 'secondary' && 'bg-purple/10 text-purple hover:bg-purple/20',
+        variant === 'outline' && 'border border-grey/30 text-rich-black/70 hover:bg-light-grey'
+      )}
+    >
+      {getIcon()}
+      <span>{getLabel()}</span>
+    </button>
   );
 }

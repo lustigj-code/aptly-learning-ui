@@ -30,6 +30,8 @@ import {
 import { parseCoachSuggestion, applyCoachModification } from '@/lib/coach/pathModifier';
 import { getSocraticErrorResponse } from '@/lib/coach/socraticHandler';
 import { recordTokenUsage, createTokenUsage } from '@/lib/coach/tokenUsageTracker';
+// Phase 3: Action parsing
+import { parseCoachActions } from '@/types/coachActions';
 
 // Agent Orchestrator - Routes through multi-agent system with POMDP
 import { getOrchestrator } from '@/lib/agents/orchestrator';
@@ -41,6 +43,15 @@ import { getOrchestrator } from '@/lib/agents/orchestrator';
 type Message = {
   role: 'user' | 'assistant';
   content: string;
+};
+
+// Phase 2: Immediate context for real-time awareness
+type ImmediateContext = {
+  questionId: string;
+  questionText: string;
+  selectedAnswer: string;
+  wasCorrect: boolean;
+  attemptNumber: number;
 };
 
 type RequestBody = {
@@ -61,6 +72,8 @@ type RequestBody = {
     selectedAnswer?: string;
     consecutiveWrong?: number;
     conceptId?: string;
+    // Phase 2: Real-time context
+    immediateContext?: ImmediateContext;
   };
   type: 'chat' | 'practice_feedback' | 'quiz_help' | 'summary';
   conversationId?: string;
@@ -157,6 +170,8 @@ export async function POST(request: NextRequest) {
         atomId: currentAtomId || context?.currentAtom,
         userMessage: latestMessageContent,
         currentActivity,
+        // Phase 2: Pass immediate context for real-time awareness
+        immediateContext: context?.immediateContext,
       }
     );
 
@@ -165,8 +180,12 @@ export async function POST(request: NextRequest) {
       ? orchestrationResult.responses[orchestrationResult.responses.length - 1]
       : null;
 
-    const responseMessage = finalResponse?.message || getSocraticErrorResponse();
+    const rawMessage = finalResponse?.message || getSocraticErrorResponse();
     const totalTokens = orchestrationResult.totalTokens;
+
+    // Phase 3: Parse actions from the AI response
+    const { actions, cleanMessage } = parseCoachActions(rawMessage);
+    const responseMessage = cleanMessage;
 
     // Record usage and save conversation
     await Promise.all([
@@ -190,6 +209,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       message: responseMessage,
       conversationId,
+      // Phase 3: Include parsed actions for UI
+      actions: actions.length > 0 ? actions : undefined,
       orchestration: {
         success: orchestrationResult.success,
         agentsUsed: orchestrationResult.agentsUsed,
