@@ -137,6 +137,15 @@ export interface AgentContext {
 
   // Previous agent response (if chained)
   previousAgentResponse?: AgentResponse;
+
+  // Phase 2: Immediate context for real-time awareness
+  immediateContext?: {
+    questionId: string;
+    questionText: string;
+    selectedAnswer: string;
+    wasCorrect: boolean;
+    attemptNumber: number;
+  };
 }
 
 /**
