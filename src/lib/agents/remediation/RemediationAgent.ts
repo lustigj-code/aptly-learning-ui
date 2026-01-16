@@ -483,7 +483,7 @@ export class RemediationAgent extends AgentBase {
   }
 
   /**
-   * Generate direct explanation using the model router (for concept questions)
+   * Generate direct explanation using Gemini (for concept questions)
    * This bypasses Socratic questioning and provides helpful explanations
    */
   private async generateDirectExplanation(
@@ -500,9 +500,17 @@ export class RemediationAgent extends AgentBase {
     citations: Citation[];
   }> {
     try {
-      // Import model router dynamically to avoid circular deps
-      const { getModelRouter } = await import('@/lib/training/serving/modelRouter');
-      const modelRouter = getModelRouter();
+      // Use Gemini directly (GOOGLE_GENAI_API_KEY is set, but OPENAI_API_KEY is not)
+      const { GoogleGenerativeAI } = await import('@google/generative-ai');
+
+      const apiKey = process.env.GOOGLE_GENAI_API_KEY;
+      if (!apiKey) {
+        console.error('[RemediationAgent] GOOGLE_GENAI_API_KEY not set');
+        throw new Error('Gemini API key not configured');
+      }
+
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
       // Build a direct explanation prompt (not Socratic)
       const systemPrompt = `You are Sage, an AI tutor for the Aptly Learning platform specializing in social media marketing and Meta certification.
@@ -523,31 +531,30 @@ Current context:
 
 Remember: The student is asking for help understanding something. Be helpful and educational!`;
 
-      const messages = [
-        { role: 'system' as const, content: systemPrompt },
-        ...(conversationHistory || []).slice(-6).map((m) => ({
-          role: m.role as 'user' | 'assistant',
-          content: m.content,
-        })),
-        { role: 'user' as const, content: message },
+      // Build conversation for Gemini
+      const conversationParts = [
+        { text: systemPrompt },
+        ...(conversationHistory || []).slice(-6).flatMap((m) => [
+          { text: `${m.role === 'user' ? 'Student' : 'Sage'}: ${m.content}` },
+        ]),
+        { text: `Student: ${message}` },
+        { text: 'Sage:' },
       ];
 
-      const result = await modelRouter.generate({
-        messages,
-        maxTokens: 1000,
-        temperature: 0.7,
-        userId,
-      });
+      const startTime = Date.now();
+      const result = await model.generateContent(conversationParts.map(p => p.text).join('\n\n'));
+      const response = result.response;
+      const text = response.text();
+      const latencyMs = Date.now() - startTime;
 
-      console.log('[RemediationAgent] Direct explanation generated:', {
-        model: result.model,
-        responseLength: result.content.length,
-        latencyMs: result.latencyMs,
+      console.log('[RemediationAgent] Direct explanation generated with Gemini:', {
+        responseLength: text.length,
+        latencyMs,
       });
 
       return {
-        message: result.content,
-        isGrounded: false, // Direct explanations don't use RAG grounding
+        message: text,
+        isGrounded: false,
         groundingScore: 0.5,
         citations: [],
       };
