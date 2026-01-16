@@ -296,6 +296,9 @@ export async function buildCoachContext(
       comprehensionState: comprehensionStateData,
       adaptiveExplanation: adaptiveExplanationData,
       flowContext: flowContextData,
+      // Phase 2 & 4: These are passed from the API route when available
+      immediateContext: null,
+      userMemory: null,
     })
 
     return {
