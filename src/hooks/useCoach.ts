@@ -67,7 +67,7 @@ interface CoachState {
 // ACTIONS
 // ============================================
 
-type CoachAction =
+type CoachReducerAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'SET_LOAD_INDICATOR'; payload: boolean }
@@ -102,7 +102,7 @@ const initialState: CoachState = {
   currentLessonId: null,
 };
 
-function coachReducer(state: CoachState, action: CoachAction): CoachState {
+function coachReducer(state: CoachState, action: CoachReducerAction): CoachState {
   switch (action.type) {
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload };
