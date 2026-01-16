@@ -2,9 +2,8 @@
  * Model Router for Sage Tutor
  *
  * Intelligent routing between:
- * 1. Fine-tuned Sage model (Modal/vLLM)
- * 2. OpenAI GPT-4 (fallback)
- * 3. OpenAI GPT-3.5 (cost-effective fallback)
+ * 1. Fine-tuned Sage model (Modal/vLLM) - Primary
+ * 2. Google Gemini (fallback)
  *
  * Features:
  * - Automatic failover
@@ -48,7 +47,7 @@ function assignModelVariant(
 // TYPES
 // ============================================
 
-export type ModelProvider = 'sage' | 'openai-gpt4' | 'openai-gpt35';
+export type ModelProvider = 'sage' | 'gemini' | 'gemini-tuned' | 'openai-gpt4' | 'openai-gpt35';
 
 export type ModelConfig = {
   provider: ModelProvider;
@@ -123,40 +122,82 @@ export type HealthStatus = {
 // DEFAULT CONFIGURATION
 // ============================================
 
-// Modal endpoint for fine-tuned Sage model
-const SAGE_ENDPOINT = process.env.SAGE_MODEL_ENDPOINT || 'https://lustigj-code--sage-tutor-serve-generate.modal.run';
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
+// Modal endpoint for fine-tuned Sage model (optional)
+const SAGE_ENDPOINT = process.env.SAGE_MODEL_ENDPOINT || '';
+const GOOGLE_GENAI_API_KEY = process.env.GOOGLE_GENAI_API_KEY || '';
 
-export const DEFAULT_ROUTER_CONFIG: RouterConfig = {
-  primary: {
-    provider: 'sage',
-    endpoint: SAGE_ENDPOINT,
-    maxTokens: 512,
-    temperature: 0.7,
-    timeout: 90000, // Increased for Modal cold starts
-    costPer1kTokens: 0.0001, // Very cheap (self-hosted)
-  },
+// Tuned Gemini model configuration
+const USE_TUNED_GEMINI = process.env.USE_TUNED_GEMINI === 'true';
+const TUNED_GEMINI_ENDPOINT = process.env.GEMINI_TUNED_MODEL || 'projects/961528290184/locations/us-central1/models/6672424796065628160';
 
-  fallbacks: [
-    {
-      provider: 'openai-gpt4',
-      endpoint: 'https://api.openai.com/v1/chat/completions',
-      apiKey: OPENAI_API_KEY,
+// Build primary config - prefer tuned Gemini when enabled, then Modal Sage, then base Gemini
+const buildPrimaryConfig = (): ModelConfig => {
+  // If tuned Gemini is enabled, use it as primary
+  if (USE_TUNED_GEMINI) {
+    console.log('[ModelRouter] Primary: Tuned Gemini (sage-tutor-v3)');
+    return {
+      provider: 'gemini-tuned',
+      endpoint: TUNED_GEMINI_ENDPOINT,
+      apiKey: GOOGLE_GENAI_API_KEY,
       maxTokens: 512,
       temperature: 0.7,
       timeout: 60000,
-      costPer1kTokens: 0.03,
-    },
-    {
-      provider: 'openai-gpt35',
-      endpoint: 'https://api.openai.com/v1/chat/completions',
-      apiKey: OPENAI_API_KEY,
+      costPer1kTokens: 0.0001,
+    };
+  }
+
+  // If Modal Sage endpoint is configured, use it as primary
+  if (SAGE_ENDPOINT) {
+    console.log('[ModelRouter] Primary: Modal Sage');
+    return {
+      provider: 'sage',
+      endpoint: SAGE_ENDPOINT,
       maxTokens: 512,
       temperature: 0.7,
-      timeout: 30000,
-      costPer1kTokens: 0.002,
-    },
-  ],
+      timeout: 90000,
+      costPer1kTokens: 0.0001,
+    };
+  }
+
+  // Default to base Gemini
+  console.log('[ModelRouter] Primary: Base Gemini (gemini-2.0-flash-exp)');
+  return {
+    provider: 'gemini',
+    endpoint: 'gemini-2.0-flash-exp',
+    apiKey: GOOGLE_GENAI_API_KEY,
+    maxTokens: 512,
+    temperature: 0.7,
+    timeout: 60000,
+    costPer1kTokens: 0.000075,
+  };
+};
+
+// Build fallbacks array
+const buildFallbacks = (): ModelConfig[] => {
+  const fallbacks: ModelConfig[] = [];
+
+  // Always add base Gemini as a fallback when tuned Gemini is primary
+  // This ensures we have a backup even when tuned model authentication fails
+  if (USE_TUNED_GEMINI) {
+    console.log('[ModelRouter] Adding base Gemini as fallback');
+    fallbacks.push({
+      provider: 'gemini',
+      endpoint: 'gemini-2.0-flash-exp',
+      apiKey: GOOGLE_GENAI_API_KEY,
+      maxTokens: 512,
+      temperature: 0.7,
+      timeout: 60000,
+      costPer1kTokens: 0.000075,
+    });
+  }
+
+  return fallbacks;
+};
+
+export const DEFAULT_ROUTER_CONFIG: RouterConfig = {
+  primary: buildPrimaryConfig(),
+
+  fallbacks: buildFallbacks(),
 
   maxRetries: 2,
   retryDelayMs: 1000,
@@ -309,6 +350,190 @@ async function callOpenAI(
 }
 
 // ============================================
+// GEMINI CLIENT
+// ============================================
+
+async function callGemini(
+  config: ModelConfig,
+  request: GenerateRequest,
+): Promise<GenerateResponse> {
+  const startTime = Date.now();
+
+  console.log('[ModelRouter] Calling Gemini model:', {
+    model: config.endpoint,
+    messageCount: request.messages.length,
+  });
+
+  try {
+    const { GoogleGenerativeAI } = await import('@google/generative-ai');
+    const genAI = new GoogleGenerativeAI(config.apiKey || '');
+    const model = genAI.getGenerativeModel({ model: config.endpoint });
+
+    // Build the conversation with system prompt
+    // Gemini uses a different format - system goes first as user message
+    const contents = [];
+
+    // Add system prompt as first exchange
+    contents.push({
+      role: 'user',
+      parts: [{ text: SAGE_SYSTEM_PROMPT + '\n\nPlease respond as Sage from now on.' }],
+    });
+    contents.push({
+      role: 'model',
+      parts: [{ text: 'I understand. I am Sage, your AI tutor. I will guide you using the Socratic method. How can I help you today?' }],
+    });
+
+    // Add conversation history
+    for (const msg of request.messages) {
+      contents.push({
+        role: msg.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: msg.content }],
+      });
+    }
+
+    const result = await model.generateContent({
+      contents,
+      generationConfig: {
+        maxOutputTokens: request.maxTokens || config.maxTokens,
+        temperature: request.temperature || config.temperature,
+      },
+    });
+
+    const response = result.response;
+    const latencyMs = Date.now() - startTime;
+
+    console.log('[ModelRouter] Gemini model success:', {
+      latencyMs,
+      contentLength: response.text()?.length || 0,
+    });
+
+    return {
+      content: response.text(),
+      model: 'gemini',
+      latencyMs,
+      tokensUsed: { prompt: 0, completion: 0 }, // Gemini doesn't return token counts easily
+      estimatedCost: 0,
+    };
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('[ModelRouter] Gemini model failed:', {
+      error: errorMsg,
+      latencyMs: Date.now() - startTime,
+    });
+    throw error;
+  }
+}
+
+// ============================================
+// TUNED GEMINI CLIENT (Vertex AI)
+// ============================================
+
+// Tuned model from Vertex AI (sage-tutor-v3)
+const TUNED_MODEL_NAME = process.env.GEMINI_TUNED_MODEL || 'projects/961528290184/locations/us-central1/models/6672424796065628160';
+const VERTEX_AI_LOCATION = 'us-central1';
+
+async function callGeminiTuned(
+  config: ModelConfig,
+  request: GenerateRequest,
+): Promise<GenerateResponse> {
+  const startTime = Date.now();
+
+  console.log('[ModelRouter] Calling tuned Gemini model:', {
+    model: config.endpoint,
+    messageCount: request.messages.length,
+  });
+
+  try {
+    // For tuned Vertex AI models, we use the predict endpoint
+    // The model endpoint format: projects/{project}/locations/{location}/models/{model}
+    const modelPath = config.endpoint || TUNED_MODEL_NAME;
+
+    // Try to get access token: first from env, then from ADC
+    let accessToken = process.env.GOOGLE_ACCESS_TOKEN;
+
+    if (!accessToken) {
+      // Try to get token from Application Default Credentials (ADC)
+      try {
+        const { GoogleAuth } = await import('google-auth-library');
+        const auth = new GoogleAuth({
+          scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+        });
+        const client = await auth.getClient();
+        const tokenResponse = await client.getAccessToken();
+        accessToken = tokenResponse.token || undefined;
+        console.log('[ModelRouter] Got access token from ADC');
+      } catch (authError) {
+        console.log('[ModelRouter] ADC auth failed:', authError instanceof Error ? authError.message : 'unknown');
+      }
+    }
+
+    if (!accessToken) {
+      // No access token available - throw to trigger fallback to base Gemini
+      console.log('[ModelRouter] No access token available, falling back...');
+      throw new Error('No access token for tuned model');
+    }
+
+    // Use Vertex AI REST API with access token
+    // For tuned models, use the full model resource name directly
+    // Format: projects/{project}/locations/{location}/models/{model}
+    const endpoint = `https://${VERTEX_AI_LOCATION}-aiplatform.googleapis.com/v1/${modelPath}:generateContent`;
+    console.log('[ModelRouter] Tuned model endpoint:', endpoint);
+
+    // Build request body
+    const contents = request.messages.map(msg => ({
+      role: msg.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: msg.content }],
+    }));
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        contents,
+        generationConfig: {
+          maxOutputTokens: request.maxTokens || config.maxTokens,
+          temperature: request.temperature || config.temperature,
+        },
+      }),
+      signal: AbortSignal.timeout(config.timeout),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[ModelRouter] Tuned Gemini HTTP error:', response.status, errorText);
+      throw new Error(`Tuned Gemini error: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    const latencyMs = Date.now() - startTime;
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    console.log('[ModelRouter] Tuned Gemini (REST) success:', {
+      latencyMs,
+      contentLength: text.length,
+    });
+
+    return {
+      content: text,
+      model: 'gemini-tuned',
+      latencyMs,
+      tokensUsed: { prompt: 0, completion: 0 },
+      estimatedCost: 0,
+    };
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('[ModelRouter] Tuned Gemini model failed:', {
+      error: errorMsg,
+      latencyMs: Date.now() - startTime,
+    });
+    throw error;
+  }
+}
+
+// ============================================
 // MODEL ROUTER
 // ============================================
 
@@ -445,6 +670,10 @@ export class ModelRouter {
     switch (config.provider) {
       case 'sage':
         return callSageModel(config, request);
+      case 'gemini':
+        return callGemini(config, request);
+      case 'gemini-tuned':
+        return callGeminiTuned(config, request);
       case 'openai-gpt4':
       case 'openai-gpt35':
         return callOpenAI(config, request);

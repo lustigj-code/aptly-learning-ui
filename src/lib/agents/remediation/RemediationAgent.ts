@@ -23,7 +23,6 @@ import {
 } from '../types';
 import {
   handleSocraticMode,
-  getSocraticErrorResponse,
   type SocraticRequestContext,
   type SocraticMessage,
 } from '@/lib/coach/socraticHandler';
@@ -137,7 +136,7 @@ export class RemediationAgent extends AgentBase {
         { name: 'courseId', type: 'string', description: 'Course ID', required: true },
         { name: 'chunkTypes', type: 'array', description: 'Types of chunks to retrieve', required: false },
       ],
-      handler: async (params) => {
+      handler: async (_params) => {
         // Will integrate with existing RAG system
         return { chunks: [], score: 0 };
       },
@@ -500,17 +499,9 @@ export class RemediationAgent extends AgentBase {
     citations: Citation[];
   }> {
     try {
-      // Use Gemini directly (GOOGLE_GENAI_API_KEY is set, but OPENAI_API_KEY is not)
-      const { GoogleGenerativeAI } = await import('@google/generative-ai');
-
-      const apiKey = process.env.GOOGLE_GENAI_API_KEY;
-      if (!apiKey) {
-        console.error('[RemediationAgent] GOOGLE_GENAI_API_KEY not set');
-        throw new Error('Gemini API key not configured');
-      }
-
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+      // Use ModelRouter for intelligent model selection (tuned model when available)
+      const { getModelRouter } = await import('@/lib/training/serving/modelRouter');
+      const modelRouter = getModelRouter();
 
       // Build a direct explanation prompt (not Socratic)
       const systemPrompt = `You are Sage, an AI tutor for the Aptly Learning platform specializing in social media marketing and Meta certification.
@@ -531,29 +522,33 @@ Current context:
 
 Remember: The student is asking for help understanding something. Be helpful and educational!`;
 
-      // Build conversation for Gemini
-      const conversationParts = [
-        { text: systemPrompt },
-        ...(conversationHistory || []).slice(-6).flatMap((m) => [
-          { text: `${m.role === 'user' ? 'Student' : 'Sage'}: ${m.content}` },
-        ]),
-        { text: `Student: ${message}` },
-        { text: 'Sage:' },
+      // Build messages for ModelRouter
+      const messages = [
+        { role: 'system', content: systemPrompt },
+        ...(conversationHistory || []).slice(-6).map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
+        { role: 'user', content: message },
       ];
 
       const startTime = Date.now();
-      const result = await model.generateContent(conversationParts.map(p => p.text).join('\n\n'));
-      const response = result.response;
-      const text = response.text();
+      const result = await modelRouter.generate({
+        messages,
+        maxTokens: 1024,
+        temperature: 0.7,
+        userId,
+      });
       const latencyMs = Date.now() - startTime;
 
-      console.log('[RemediationAgent] Direct explanation generated with Gemini:', {
-        responseLength: text.length,
+      console.log('[RemediationAgent] Direct explanation generated:', {
+        model: result.model,
+        responseLength: result.content.length,
         latencyMs,
       });
 
       return {
-        message: text,
+        message: result.content,
         isGrounded: false,
         groundingScore: 0.5,
         citations: [],
@@ -599,7 +594,7 @@ Could you tell me a bit more about what you're trying to learn? That way I can g
    * Tier 1: Metacognitive questions
    * Guide student to think about their thinking
    */
-  private getTier1Response(message: string, helpType: HelpType, conceptId: string): string {
+  private getTier1Response(_message: string, helpType: HelpType, _conceptId: string): string {
     const metacognitiveQuestions: Record<HelpType, string[]> = {
       general_question: [
         "That's a great question to explore! What comes to mind when you think about this topic?",
@@ -641,7 +636,7 @@ Could you tell me a bit more about what you're trying to learn? That way I can g
    * Tier 2: Specific hints
    * Provide targeted hints without giving away the answer
    */
-  private getTier2Response(message: string, helpType: HelpType, conceptId: string): string {
+  private getTier2Response(_message: string, helpType: HelpType, _conceptId: string): string {
     const hints: Record<HelpType, string[]> = {
       general_question: [
         "Here's a hint: Think about how this relates to what we learned earlier. The key connection is...",
@@ -683,7 +678,7 @@ Could you tell me a bit more about what you're trying to learn? That way I can g
    * Tier 3: Worked examples
    * Provide complete example WITHOUT giving direct answer
    */
-  private getTier3Response(message: string, helpType: HelpType, conceptId: string): string {
+  private getTier3Response(_message: string, _helpType: HelpType, _conceptId: string): string {
     // Tier 3 always includes a worked example, but never the direct answer
     return `Let me walk you through a similar example step by step:
 
@@ -704,12 +699,12 @@ Remember, I won't give you the answer directly, but this example shows you exact
    * Generate a hint for a specific concept
    */
   private async generateHint(
-    conceptId: string,
+    _conceptId: string,
     tier: InterventionTier,
-    context?: string
+    _context?: string
   ): Promise<string> {
     // Will integrate with RAG for concept-specific hints
-    return `Here's a hint for ${conceptId} at tier ${tier}...`;
+    return `Here's a hint at tier ${tier}...`;
   }
 
   /**
@@ -765,7 +760,7 @@ Remember, I won't give you the answer directly, but this example shows you exact
    */
   private buildRemediationActions(
     result: RemediationResult,
-    studentState: StudentState
+    _studentState: StudentState
   ): InterventionAction[] {
     const actions: InterventionAction[] = [];
 

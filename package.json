@@ -18,7 +18,8 @@
     "firebase:rules:test": "firebase emulators:exec 'npm run test:firestore-rules'",
     "firebase:deploy": "firebase deploy",
     "docs:generate": "typedoc --out docs/generated --entryPointStrategy expand src/",
-    "ingest:content": "tsx src/scripts/ingest-content.ts"
+    "ingest:content": "tsx src/scripts/ingest-content.ts",
+    "prepare": "husky"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
@@ -46,6 +47,11 @@
     "zod": "^4.2.1",
     "zustand": "^5.0.9"
   },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix --max-warnings=0"
+    ]
+  },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
     "@tailwindcss/postcss": "^4",
@@ -59,7 +65,9 @@
     "@vitejs/plugin-react": "^5.1.2",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
+    "husky": "^9.1.7",
     "jsdom": "^27.4.0",
+    "lint-staged": "^16.2.7",
     "tailwindcss": "^4",
     "typedoc": "^0.28.15",
     "typescript": "^5",
