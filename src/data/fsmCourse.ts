@@ -24,7 +24,7 @@ const lesson1Atoms: Atom[] = [
     type: 'video',
     title: 'History of Facebook',
     content: {
-      videoUrl: '/videos/fsm/history-of-facebook.mp4',
+      videoUrl: 'https://storage.googleapis.com/aptly-study-app.firebasestorage.app/videos/fsm/history-of-facebook.mp4',
       transcript: 'In this lesson, we explore the history of Facebook, from its founding at Harvard to becoming the largest social network in the world...',
       duration: 420,
       chapters: [
@@ -188,7 +188,7 @@ const lesson2Atoms: Atom[] = [
     type: 'video',
     title: 'Find People That Care About What You Do on Instagram',
     content: {
-      videoUrl: '/videos/fsm/instagram-audience.mp4',
+      videoUrl: 'https://storage.googleapis.com/aptly-study-app.firebasestorage.app/videos/fsm/instagram-audience.mp4',
       transcript: 'Building an engaged audience on Instagram requires understanding who your ideal followers are and how to attract them...',
       duration: 600,
       chapters: [
@@ -366,7 +366,7 @@ const lesson3Atoms: Atom[] = [
     type: 'video',
     title: 'Boost Your Messaging Game With Snapchat',
     content: {
-      videoUrl: '/videos/fsm/snapchat-messaging.mp4',
+      videoUrl: 'https://storage.googleapis.com/aptly-study-app.firebasestorage.app/videos/fsm/snapchat-messaging.mp4',
       transcript: 'Snapchat offers unique opportunities for brands to connect with younger audiences through authentic, ephemeral content...',
       duration: 480,
       chapters: [
@@ -547,7 +547,7 @@ const lesson4Atoms: Atom[] = [
     type: 'video',
     title: 'Creating a Social Media Policy',
     content: {
-      videoUrl: '/videos/fsm/social-media-policy.mp4',
+      videoUrl: 'https://storage.googleapis.com/aptly-study-app.firebasestorage.app/videos/fsm/social-media-policy.mp4',
       transcript: 'A well-crafted social media policy protects your brand while empowering your team to engage effectively online...',
       duration: 540,
       chapters: [
@@ -756,7 +756,7 @@ const lesson5Atoms: Atom[] = [
     type: 'video',
     title: 'Choose Your Social Media Channels',
     content: {
-      videoUrl: '/videos/fsm/channel-selection.mp4',
+      videoUrl: 'https://storage.googleapis.com/aptly-study-app.firebasestorage.app/videos/fsm/channel-selection.mp4',
       transcript: 'Choosing the right social media channels is crucial for reaching your target audience effectively...',
       duration: 420,
       chapters: [
@@ -950,7 +950,7 @@ const lesson6Atoms: Atom[] = [
     type: 'video',
     title: 'Set a Campaign Objective',
     content: {
-      videoUrl: '/videos/fsm/campaign-objectives.mp4',
+      videoUrl: 'https://storage.googleapis.com/aptly-study-app.firebasestorage.app/videos/fsm/campaign-objectives.mp4',
       transcript: 'Setting the right campaign objective is the foundation of successful social media advertising...',
       duration: 420,
       chapters: [
@@ -1136,7 +1136,7 @@ const lesson7Atoms: Atom[] = [
     type: 'video',
     title: 'Determine Your Campaign Budget',
     content: {
-      videoUrl: '/videos/fsm/campaign-budget.mp4',
+      videoUrl: 'https://storage.googleapis.com/aptly-study-app.firebasestorage.app/videos/fsm/campaign-budget.mp4',
       transcript: 'Setting the right budget is crucial for campaign success. Too little and you won\'t get results; too much and you\'ll waste money...',
       duration: 540,
       chapters: [
