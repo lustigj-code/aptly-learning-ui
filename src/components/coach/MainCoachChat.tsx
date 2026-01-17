@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { InlineQuiz, type QuizQuestion, type Answer } from '@/components/coach/InlineQuiz';
 import { ConversationHistoryPanel } from '@/components/coach/ConversationHistoryPanel';
+import { AIFeedbackInline } from '@/components/ai/AIFeedbackWidget';
 import { useCoach } from '@/hooks/useCoach';
 import { cn } from '@/lib/utils';
 import { type CoachAction, getActionButtonStyle } from '@/types/coachActions';
@@ -341,6 +342,15 @@ export function MainCoachChat({
                         onClick={() => onAction?.(action)}
                       />
                     ))}
+                  </div>
+                )}
+                {/* RLHF: Feedback widget for AI responses */}
+                {message.role === 'assistant' && !isLoading && (
+                  <div className="mt-2 ml-1">
+                    <AIFeedbackInline
+                      responseId={message.id}
+                      conversationId={conversationId || undefined}
+                    />
                   </div>
                 )}
               </div>

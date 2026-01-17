@@ -146,6 +146,9 @@ export interface AgentContext {
     wasCorrect: boolean;
     attemptNumber: number;
   };
+
+  // Phase 4: User memory summary for personalization
+  userMemorySummary?: string | null;
 }
 
 /**

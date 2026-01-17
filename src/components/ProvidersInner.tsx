@@ -9,6 +9,7 @@ import { QueryProvider } from '@/components/providers/QueryProvider';
 import { ToastProvider } from '@/components/ui/Toast';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { PWAProvider } from '@/components/pwa';
+import { KeyboardShortcutsModal, useGlobalKeyboardShortcuts } from '@/components/accessibility/KeyboardShortcuts';
 
 type ProvidersInnerProps = {
   children: React.ReactNode;
@@ -25,6 +26,17 @@ function LoadingFallback() {
   );
 }
 
+// Keyboard navigation wrapper
+function KeyboardNavigationProvider({ children }: { children: React.ReactNode }) {
+  useGlobalKeyboardShortcuts();
+  return (
+    <>
+      {children}
+      <KeyboardShortcutsModal />
+    </>
+  );
+}
+
 export function ProvidersInner({ children }: ProvidersInnerProps) {
   return (
     <ErrorBoundary>
@@ -35,9 +47,11 @@ export function ProvidersInner({ children }: ProvidersInnerProps) {
               <ToastProvider>
                 <CelebrationProvider>
                   <PWAProvider>
-                    <AppLayout>
-                      {children}
-                    </AppLayout>
+                    <KeyboardNavigationProvider>
+                      <AppLayout>
+                        {children}
+                      </AppLayout>
+                    </KeyboardNavigationProvider>
                   </PWAProvider>
                 </CelebrationProvider>
               </ToastProvider>

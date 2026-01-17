@@ -36,6 +36,10 @@ import { parseCoachActions } from '@/types/coachActions';
 // Agent Orchestrator - Routes through multi-agent system with POMDP
 import { getOrchestrator } from '@/lib/agents/orchestrator';
 
+// Phase 4: Memory system integration
+import { getMemory, buildMemorySummary } from '@/lib/services/userMemoryService';
+import { analyzeConversation, quickExtract } from '@/lib/coach/memoryExtractor';
+
 // ============================================
 // TYPES
 // ============================================
@@ -127,6 +131,22 @@ export async function POST(request: NextRequest) {
     }
 
     // ================================================
+    // PHASE 4: FETCH USER MEMORY FOR PERSONALIZATION
+    // ================================================
+    let memorySummary: string | null = null;
+    try {
+      memorySummary = await buildMemorySummary(userId);
+      if (memorySummary) {
+        console.log('[Coach API] User memory loaded:', memorySummary.substring(0, 100));
+      }
+    } catch (memError) {
+      console.warn('[Coach API] Could not fetch user memory:', memError);
+    }
+
+    // Quick extract facts from user message in real-time (non-blocking)
+    quickExtract(userId, latestMessageContent, conversationId).catch(() => {});
+
+    // ================================================
     // ROUTE THROUGH MULTI-AGENT ORCHESTRATOR
     // This replaces direct Gemini calls with the full
     // POMDP-driven multi-agent system (Director, Content,
@@ -172,6 +192,8 @@ export async function POST(request: NextRequest) {
         currentActivity,
         // Phase 2: Pass immediate context for real-time awareness
         immediateContext: context?.immediateContext,
+        // Phase 4: Pass user memory for personalization
+        userMemorySummary: memorySummary,
       }
     );
 
@@ -204,6 +226,18 @@ export async function POST(request: NextRequest) {
 
     // Log training data (non-blocking)
     logTrainingData(conversationId, userId, lessonId, context, currentAtomId, latestMessageContent, responseMessage).catch(() => {});
+
+    // Phase 4: Analyze conversation for memory extraction periodically (non-blocking)
+    // Run after every 4+ messages to build user memory
+    if (messages.length >= 4 && messages.length % 4 === 0) {
+      const conversationMessages = messages.map(m => ({
+        role: m.role === 'user' ? 'user' as const : 'coach' as const,
+        content: m.content,
+      }));
+      // Add the latest assistant response
+      conversationMessages.push({ role: 'coach', content: responseMessage });
+      analyzeConversation(userId, conversationId, conversationMessages).catch(() => {});
+    }
 
     // Return with orchestration metadata
     return NextResponse.json({

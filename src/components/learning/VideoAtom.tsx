@@ -143,6 +143,11 @@ export function VideoAtom({ atom, onComplete, isLoading = false }: VideoAtomProp
     return null;
   };
 
+  // Check if this is a local video file (MP4, WebM, etc.)
+  const isLocalVideo = content.videoUrl.startsWith('/videos/') ||
+                       content.videoUrl.endsWith('.mp4') ||
+                       content.videoUrl.endsWith('.webm');
+
   const videoId = extractYouTubeVideoId(content.videoUrl);
   const youtubeEmbedUrl = videoId ? `https://www.youtube.com/embed/${videoId}?modestbranding=1&rel=0` : null;
 
@@ -157,7 +162,16 @@ export function VideoAtom({ atom, onComplete, isLoading = false }: VideoAtomProp
       >
         {/* Player Container */}
         <div className="aspect-video w-full bg-navy rounded-2xl overflow-hidden shadow-lg">
-          {youtubeEmbedUrl ? (
+          {isLocalVideo ? (
+            <video
+              src={content.videoUrl}
+              className="w-full h-full"
+              controls
+              preload="auto"
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+            />
+          ) : youtubeEmbedUrl ? (
             <iframe
               ref={videoRef}
               src={youtubeEmbedUrl}

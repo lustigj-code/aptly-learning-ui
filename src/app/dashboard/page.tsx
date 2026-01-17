@@ -10,6 +10,9 @@ import { AchievementBadge } from '@/components/ui/Badge';
 import { SkeletonDashboard } from '@/components/ui/Skeleton';
 import { Section } from '@/components/layout/AppLayout';
 import { ExamReadinessWidget } from '@/components/dashboard/ExamReadinessWidget';
+import { SkillRecommendations } from '@/components/dashboard/SkillRecommendations';
+import { ReviewDueCard } from '@/components/dashboard/ReviewDueCard';
+import { ReengagementAlert } from '@/components/retention/ReengagementAlert';
 import PathVisualization from '@/components/learning/PathVisualization';
 import { useUser } from '@/store/userProfileStore';
 import { useSyncStatus } from '@/store/syncStore';
@@ -123,6 +126,11 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      {/* Re-engagement Alert - Shows for at-risk users */}
+      <Section delay={0}>
+        <ReengagementAlert />
+      </Section>
+
       {/* Exam Readiness Widget - Only show when exam mode is enabled */}
       {user.preferences?.examModeEnabled && user.preferences?.certificationExamDate && (
         <Section delay={0.05}>
@@ -352,6 +360,15 @@ export default function DashboardPage() {
         />
       </Section>
 
+      {/* AI-Powered Skill Recommendations */}
+      <Section delay={0.22}>
+        <SkillRecommendations maxDisplay={4} />
+      </Section>
+
+      {/* Daily Review (Spaced Repetition) */}
+      <Section delay={0.26}>
+        <ReviewDueCard />
+      </Section>
 
       {/* Recent Achievements */}
       {recentBadges.length > 0 && (

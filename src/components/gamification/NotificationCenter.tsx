@@ -9,7 +9,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, Award, Zap, Trophy, Flame, X, ChevronRight } from 'lucide-react';
+import { Bell, Award, Zap, Trophy, Flame, X, ChevronRight, AlertTriangle, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { useUserProfileStore } from '@/store/userProfileStore';
@@ -17,13 +17,15 @@ import { formatTime } from '@/lib/utils';
 
 type Notification = {
   id: string;
-  type: 'badge' | 'level_up' | 'streak' | 'xp' | 'achievement';
+  type: 'badge' | 'level_up' | 'streak' | 'xp' | 'achievement' | 'reengagement' | 'streak_risk';
   title: string;
   message: string;
   timestamp: Date;
   read: boolean;
   icon?: string;
   data?: Record<string, any>;
+  ctaUrl?: string;
+  priority?: number;
 };
 
 type NotificationCenterProps = {
@@ -99,6 +101,10 @@ export function NotificationCenter({ isOpen, onClose }: NotificationCenterProps)
         return <Flame className="w-5 h-5 text-orange" />;
       case 'xp':
         return <Award className="w-5 h-5 text-blue" />;
+      case 'reengagement':
+        return <ArrowRight className="w-5 h-5 text-teal" />;
+      case 'streak_risk':
+        return <AlertTriangle className="w-5 h-5 text-red-500" />;
       default:
         return <Bell className="w-5 h-5 text-gray-500" />;
     }

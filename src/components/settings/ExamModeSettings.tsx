@@ -1,18 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Calendar,
   Target,
   Award,
-  Check,
-  AlertTriangle,
   Loader2,
-  X,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { ExamDatePicker } from '@/components/certification/ExamDatePicker';
 import { cn } from '@/lib/utils';
 
 type ExamModeSettingsProps = {
@@ -102,24 +99,6 @@ export function ExamModeSettings({
     }
   };
 
-  // Get status color and message
-  const getExamStatus = () => {
-    if (!selectedDate || !daysUntilExam) return null;
-
-    if (daysUntilExam < 0) {
-      return { color: 'text-error', bgColor: 'bg-error/10', message: 'Exam date has passed' };
-    }
-    if (daysUntilExam <= 7) {
-      return { color: 'text-yellow', bgColor: 'bg-yellow/10', message: `${daysUntilExam} days left - Final review time!` };
-    }
-    if (daysUntilExam <= 30) {
-      return { color: 'text-teal', bgColor: 'bg-teal/10', message: `${daysUntilExam} days until your exam` };
-    }
-    return { color: 'text-navy', bgColor: 'bg-navy/5', message: `${daysUntilExam} days until your exam` };
-  };
-
-  const examStatus = getExamStatus();
-
   return (
     <Card variant="elevated" padding="lg">
       <CardHeader>
@@ -161,53 +140,18 @@ export function ExamModeSettings({
           </button>
         </div>
 
-        {/* Exam Date Picker */}
+        {/* Exam Date Picker - Using enhanced component */}
         <div className={cn(!isEnabled && 'opacity-50 pointer-events-none')}>
           <label className="block text-sm font-medium text-navy mb-2">
-            <Calendar size={16} className="inline mr-2" />
             Certification Exam Date
           </label>
-          <div className="flex gap-3">
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => handleDateChange(e.target.value)}
-              min={new Date().toISOString().split('T')[0]}
-              className="flex-1 px-4 py-2 border-2 border-grey/30 rounded-xl focus:border-purple focus:outline-none transition-colors"
-              disabled={!isEnabled}
-            />
-            {selectedDate && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowConfirmClear(true)}
-                className="text-error hover:bg-error/10"
-              >
-                <X size={18} />
-              </Button>
-            )}
-          </div>
-
-          {/* Exam Status Badge */}
-          {examStatus && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={cn(
-                'mt-3 px-4 py-2 rounded-lg flex items-center gap-2',
-                examStatus.bgColor
-              )}
-            >
-              {daysUntilExam && daysUntilExam <= 7 && daysUntilExam >= 0 ? (
-                <AlertTriangle size={16} className={examStatus.color} />
-              ) : (
-                <Calendar size={16} className={examStatus.color} />
-              )}
-              <span className={cn('font-medium', examStatus.color)}>
-                {examStatus.message}
-              </span>
-            </motion.div>
-          )}
+          <ExamDatePicker
+            value={selectedDate ? new Date(selectedDate) : null}
+            onChange={(date) => handleDateChange(date ? date.toISOString().split('T')[0] : '')}
+            onClear={() => setShowConfirmClear(true)}
+            disabled={!isEnabled}
+            showDaysRemaining={true}
+          />
         </div>
 
         {/* Target Retention Slider */}

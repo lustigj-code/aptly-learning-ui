@@ -3,8 +3,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Send,
-  Loader2,
   X,
   CheckCircle,
   ChevronRight,
@@ -14,8 +12,6 @@ import {
   WifiOff,
   RefreshCw,
 } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
-import { useCoach } from '@/hooks/useCoach'
 import { useReviewQueue } from '@/hooks/useReviewQueue'
 import { useOfflineSync } from '@/hooks/useOfflineSync'
 import { useUser } from '@/store/userProfileStore'
@@ -27,6 +23,10 @@ import type { Atom, Lesson, Module } from '@/types'
 // Import content renderers
 import { ContentRenderer } from './ContentRenderer'
 import { SwipeableAtomView } from './SwipeableAtomView'
+
+// Import coach chat component (Phase 4 integration)
+import { MainCoachChat } from '@/components/coach/MainCoachChat'
+import type { CoachAction } from '@/types/coachActions'
 
 // Import intelligence components (Phase 3-2)
 import { WhyThisContent } from './WhyThisContent'
@@ -425,227 +425,11 @@ function SmartCoachBar({
 }
 
 // ============================================
-// CHAT OVERLAY
+// CHAT OVERLAY - Now using MainCoachChat component
+// The inline ChatOverlay was replaced with MainCoachChat
+// which provides: conversation history, action buttons,
+// immediate context, and memory integration
 // ============================================
-
-function ChatOverlay({
-  isOpen,
-  onClose,
-  lessonContext,
-  insights,
-  struggleContext,
-}: {
-  isOpen: boolean
-  onClose: () => void
-  lessonContext: { lessonId: string; atomType?: string; lessonTitle: string }
-  insights: LearningInsights
-  struggleContext?: string | null
-}) {
-  const [input, setInput] = useState('')
-  const [messages, setMessages] = useState<Array<{ role: 'user' | 'coach'; content: string }>>([])
-  const { sendMessage, isLoading } = useCoach()
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  // Generate a personalized greeting based on insights and struggle context
-  const getGreeting = () => {
-    // If there's active struggle context, use that for a more targeted greeting
-    if (struggleContext) {
-      return "I noticed you might be having a tough time with this topic. That's completely normal - some concepts take a bit more time to click. Let me help you work through this. What specific part is giving you trouble?"
-    }
-    if (insights.struggleAreas.length > 0) {
-      const areas = insights.struggleAreas.slice(0, 2).join(' and ')
-      return `Hi! I noticed you're working through some challenging content. I'm here to help you master ${areas}. What would you like to know?`
-    }
-    if (insights.totalQuizzesPassed > 0) {
-      return `Great progress so far! You've passed ${insights.totalQuizzesPassed} quiz${insights.totalQuizzesPassed > 1 ? 'zes' : ''}. How can I help you continue learning?`
-    }
-    return "Hi! I'm here to help. What would you like to know about this lesson?"
-  }
-
-  // Initialize greeting message when chat opens
-  const hasInitializedRef = useRef(false)
-
-  useEffect(() => {
-    if (isOpen) {
-      inputRef.current?.focus()
-      if (!hasInitializedRef.current && messages.length === 0) {
-        hasInitializedRef.current = true
-        // Use setTimeout to avoid synchronous setState in effect
-        setTimeout(() => {
-          setMessages([{ role: 'coach', content: getGreeting() }])
-        }, 0)
-      }
-    } else {
-      hasInitializedRef.current = false
-    }
-  }, [isOpen])
-
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return
-
-    const userMessage = input.trim()
-    setInput('')
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }])
-
-    try {
-      const response = await sendMessage(userMessage, 'chat', {
-        currentLesson: lessonContext.lessonTitle,
-        atomType: lessonContext.atomType,
-      })
-      if (response && response.content) {
-        setMessages(prev => [...prev, { role: 'coach', content: response.content }])
-      } else {
-        // Handle case where sendMessage returned null (e.g., conversation init failed)
-        console.warn('[ChatOverlay] No response from coach, adding fallback message')
-        setMessages(prev => [...prev, {
-          role: 'coach',
-          content: "I'm having trouble connecting right now. Let me try again - what would you like to know?"
-        }])
-      }
-    } catch (err) {
-      console.error('[ChatOverlay] Coach request failed:', err)
-      setMessages(prev => [...prev, {
-        role: 'coach',
-        content: "I'm having a moment - let me try again. Could you rephrase that for me?"
-      }])
-    }
-  }
-
-  if (!isOpen) return null
-
-  return (
-    <>
-      {/* Backdrop with blur */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
-        className="fixed inset-0 bg-navy/20 backdrop-blur-sm z-45"
-        onClick={onClose}
-      />
-
-      {/* Chat Panel */}
-      <motion.div
-        initial={{ y: '100%', opacity: 0, scale: 0.95 }}
-        animate={{ y: 0, opacity: 1, scale: 1 }}
-        exit={{ y: '100%', opacity: 0, scale: 0.95 }}
-        transition={{
-          type: 'spring',
-          stiffness: 300,
-          damping: 30,
-          mass: 1,
-        }}
-        className={cn(
-          'fixed inset-x-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 bottom-4 z-50',
-          'sm:w-full sm:max-w-lg',
-          'bg-white/80 backdrop-blur-xl',
-          'border border-white/60',
-          'rounded-2xl shadow-xl shadow-navy/15',
-          'max-h-[75vh] sm:max-h-[65vh] flex flex-col',
-          'overflow-hidden'
-        )}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-grey/10 bg-white/50">
-          <div className="flex items-center gap-2">
-            <motion.div
-              className="w-9 h-9 rounded-full bg-gradient-to-br from-teal to-teal-dark flex items-center justify-center shadow-md"
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 15, delay: 0.1 }}
-            >
-              <span className="text-base">🦉</span>
-            </motion.div>
-            <motion.span
-              className="font-semibold text-navy"
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.15 }}
-            >
-              Ask Sage
-            </motion.span>
-          </div>
-          <motion.button
-            onClick={onClose}
-            className="p-2 hover:bg-grey/10 rounded-xl min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <X className="w-5 h-5 text-grey" />
-          </motion.button>
-        </div>
-
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {messages.map((msg, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 10, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{
-                type: 'spring',
-                stiffness: 400,
-                damping: 25,
-                delay: i * 0.05,
-              }}
-              className={cn(
-                'max-w-[85%] px-4 py-2.5 rounded-2xl text-sm',
-                msg.role === 'user'
-                  ? 'ml-auto bg-teal text-white rounded-br-md shadow-md shadow-teal/20'
-                  : 'bg-light-grey/70 text-rich-black rounded-bl-md'
-              )}
-            >
-              {msg.content}
-            </motion.div>
-          ))}
-          {isLoading && (
-            <motion.div
-              className="flex items-center gap-2 text-grey text-sm"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-            >
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Thinking...
-            </motion.div>
-          )}
-        </div>
-
-        {/* Input */}
-        <div className="p-3 border-t border-grey/10 bg-white/50">
-          <div className="flex gap-2">
-            <input
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="Type your question..."
-              className={cn(
-                'flex-1 px-4 py-2.5 rounded-xl',
-                'bg-white/70 border border-grey/20',
-                'text-sm placeholder:text-grey/60',
-                'focus:border-teal focus:ring-2 focus:ring-teal/20 outline-none',
-                'min-h-[44px] transition-all'
-              )}
-              disabled={isLoading}
-            />
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <Button
-                onClick={handleSend}
-                disabled={!input.trim() || isLoading}
-                size="sm"
-                className="min-h-[44px] min-w-[44px] rounded-xl shadow-md shadow-teal/20"
-              >
-                <Send className="w-4 h-4" />
-              </Button>
-            </motion.div>
-          </div>
-        </div>
-      </motion.div>
-    </>
-  )
-}
 
 // ============================================
 // MAIN COMPONENT
@@ -724,6 +508,15 @@ export function CoachLearningView({
   const [showPacingIndicator, setShowPacingIndicator] = useState(false)
   const [lastResponseTimeMs, setLastResponseTimeMs] = useState(0)
   const [contentReason, setContentReason] = useState<string>('')
+
+  // Phase 4: Immediate context for quiz answers (passed to MainCoachChat)
+  const [immediateContext, setImmediateContext] = useState<{
+    questionId: string;
+    questionText: string;
+    selectedAnswer: string;
+    wasCorrect: boolean;
+    attemptNumber: number;
+  } | null>(null)
 
   // Struggle detection state
   const [struggleState, setStruggleState] = useState<StruggleState | null>(null)
@@ -1255,6 +1048,55 @@ export function CoachLearningView({
     // The StrugglePrompt handles its own visibility
   }, [])
 
+  // Phase 4: Handle coach action buttons
+  const handleCoachAction = useCallback((action: CoachAction) => {
+    switch (action.type) {
+      case 'navigate':
+        if (action.target === 'next_lesson') {
+          handleContinue()
+        } else if (action.target === 'retry_quiz') {
+          // Reset to quiz atom
+          const quizIndex = currentLesson?.atoms.findIndex(a => a.type === 'quiz')
+          if (quizIndex !== undefined && quizIndex >= 0) {
+            setSessionState(prev => ({
+              ...prev,
+              currentAtomIndex: quizIndex,
+            }))
+            setContentComplete(false)
+          }
+        } else if (action.target === 'review_content') {
+          // Go back to first content atom
+          setSessionState(prev => ({
+            ...prev,
+            currentAtomIndex: 0,
+          }))
+          setContentComplete(false)
+        }
+        break
+      case 'show_hint':
+        setCoachTip(action.content)
+        break
+      case 'suggest_break':
+        setCoachTip(`Taking a break is smart! ${action.reason}`)
+        break
+      default:
+        console.log('[CoachLearningView] Unhandled action:', action)
+    }
+  }, [handleContinue, currentLesson])
+
+  // Phase 4: Handle quiz answer to capture immediate context for AI coach
+  const handleQuizAnswer = useCallback((details: {
+    questionId: string;
+    questionText: string;
+    selectedAnswer: string;
+    wasCorrect: boolean;
+    attemptNumber: number;
+  }) => {
+    // Set immediate context for the coach when user answers a quiz
+    setImmediateContext(details)
+    console.log('[CoachLearningView] Quiz answer captured for coach context:', details)
+  }, [])
+
   // Handle content skip for mastered content (Phase 3-2)
   const handleSkipToQuiz = useCallback(() => {
     // Find the quiz atom in the current lesson
@@ -1428,6 +1270,7 @@ export function CoachLearningView({
                 onQuizFail={handleQuizFail}
                 onContinue={handleContinue}
                 isActive={!contentComplete}
+                onQuizAnswer={handleQuizAnswer}
               />
             </SwipeableAtomView>
           </div>
@@ -1462,24 +1305,70 @@ export function CoachLearningView({
         </div>
       </div>
 
-      {/* Chat Overlay */}
+      {/* Chat Overlay - Now using MainCoachChat with full features */}
       <AnimatePresence>
         {showChatOverlay && (
-          <ChatOverlay
-            isOpen={showChatOverlay}
-            onClose={() => {
-              setShowChatOverlay(false)
-              // Clear struggle context when chat closes
-              setStruggleContext(null)
-            }}
-            lessonContext={{
-              lessonId: currentLesson.id,
-              lessonTitle: currentLesson.title,
-              atomType: currentAtom.type,
-            }}
-            struggleContext={struggleContext}
-            insights={learningInsights}
-          />
+          <>
+            {/* Backdrop with blur */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 bg-navy/20 backdrop-blur-sm z-45"
+              onClick={() => {
+                setShowChatOverlay(false)
+                setStruggleContext(null)
+                setImmediateContext(null)
+              }}
+            />
+
+            {/* Chat Panel using MainCoachChat */}
+            <motion.div
+              initial={{ y: '100%', opacity: 0, scale: 0.95 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: '100%', opacity: 0, scale: 0.95 }}
+              transition={{
+                type: 'spring',
+                stiffness: 300,
+                damping: 30,
+                mass: 1,
+              }}
+              className={cn(
+                'fixed inset-x-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 bottom-4 z-50',
+                'sm:w-full sm:max-w-lg',
+                'bg-white/95 backdrop-blur-xl',
+                'border border-white/60',
+                'rounded-2xl shadow-xl shadow-navy/15',
+                'max-h-[80vh] sm:max-h-[70vh] flex flex-col',
+                'overflow-hidden'
+              )}
+            >
+              {/* Close button */}
+              <button
+                onClick={() => {
+                  setShowChatOverlay(false)
+                  setStruggleContext(null)
+                  setImmediateContext(null)
+                }}
+                className="absolute top-2 right-2 z-10 p-2 hover:bg-grey/10 rounded-xl min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors"
+              >
+                <X className="w-5 h-5 text-grey" />
+              </button>
+
+              {/* MainCoachChat with full features */}
+              <MainCoachChat
+                lessonId={currentLesson?.id}
+                immediateContext={immediateContext ?? undefined}
+                onAction={handleCoachAction}
+                lessonContext={{
+                  currentCourse: getCourse(effectiveCourseId)?.title,
+                  currentLesson: currentLesson?.title,
+                  atomType: currentAtom?.type,
+                }}
+              />
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 

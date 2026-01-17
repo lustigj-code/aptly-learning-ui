@@ -19,12 +19,23 @@ import type { Atom, VideoContent, ReadingContent, QuizContent } from '@/types'
 // TYPES
 // ============================================
 
+// Phase 4: Quiz answer details for immediate context
+export type QuizAnswerDetails = {
+  questionId: string;
+  questionText: string;
+  selectedAnswer: string;
+  wasCorrect: boolean;
+  attemptNumber: number;
+};
+
 type ContentRendererProps = {
   atom: Atom
   onComplete: (atomId: string, score?: number) => void
   onQuizFail?: (atomId: string, score: number) => void
   onContinue?: () => void
   isActive?: boolean
+  // Phase 4: Callback to capture quiz answer details for AI coach context
+  onQuizAnswer?: (details: QuizAnswerDetails) => void
 }
 
 type QuizState = {
@@ -40,7 +51,7 @@ type QuizState = {
 // MAIN COMPONENT
 // ============================================
 
-export function ContentRenderer({ atom, onComplete, onQuizFail, onContinue, isActive = true }: ContentRendererProps) {
+export function ContentRenderer({ atom, onComplete, onQuizFail, onContinue, isActive = true, onQuizAnswer }: ContentRendererProps) {
   switch (atom.type) {
     case 'video':
       return (
@@ -71,6 +82,7 @@ export function ContentRenderer({ atom, onComplete, onQuizFail, onContinue, isAc
           onQuizFail={onQuizFail}
           onContinue={onContinue}
           isActive={isActive}
+          onQuizAnswer={onQuizAnswer}
         />
       )
     default:
@@ -374,6 +386,7 @@ function QuizRenderer({
   onQuizFail,
   onContinue,
   isActive,
+  onQuizAnswer,
 }: {
   atom: Atom
   content: QuizContent
@@ -381,6 +394,8 @@ function QuizRenderer({
   onQuizFail?: (atomId: string, score: number) => void
   onContinue?: () => void
   isActive: boolean
+  // Phase 4: Callback to capture quiz answer details
+  onQuizAnswer?: (details: QuizAnswerDetails) => void
 }) {
   const [quizState, setQuizState] = useState<QuizState>({
     currentQuestion: 0,
@@ -390,6 +405,8 @@ function QuizRenderer({
     isComplete: false,
     score: 0,
   })
+  // Phase 4: Track attempt number for each question
+  const [attemptCounts, setAttemptCounts] = useState<Record<string, number>>({})
 
   const currentQ = content.questions[quizState.currentQuestion]
   const totalQuestions = content.questions.length
@@ -407,6 +424,24 @@ function QuizRenderer({
     ).length
     const newScore = Math.round((correctCount / totalQuestions) * 100)
 
+    // Phase 4: Update attempt count for this question
+    const currentAttempt = (attemptCounts[currentQ.id] || 0) + 1
+    setAttemptCounts(prev => ({
+      ...prev,
+      [currentQ.id]: currentAttempt,
+    }))
+
+    // Phase 4: Call onQuizAnswer with details for AI coach context
+    if (onQuizAnswer && currentQ.options) {
+      onQuizAnswer({
+        questionId: currentQ.id,
+        questionText: currentQ.question,
+        selectedAnswer: currentQ.options[optionIndex] || `Option ${optionIndex + 1}`,
+        wasCorrect: isCorrect,
+        attemptNumber: currentAttempt,
+      })
+    }
+
     setQuizState(prev => ({
       ...prev,
       answers: newAnswers,
@@ -414,7 +449,7 @@ function QuizRenderer({
       feedbackCorrect: isCorrect,
       score: newScore,
     }))
-  }, [currentQ, content.questions, quizState, totalQuestions])
+  }, [currentQ, content.questions, quizState, totalQuestions, attemptCounts, onQuizAnswer])
 
   const handleNext = useCallback(() => {
     const nextIndex = quizState.currentQuestion + 1
