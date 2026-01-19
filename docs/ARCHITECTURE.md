@@ -1,6 +1,6 @@
 # Aptly Learning - System Architecture
 
-> **Last Updated:** 2026-01-19 23:32 UTC
+> **Last Updated:** 2026-01-19 23:57 UTC
 > **Codebase:** 627 files | 55064 lines of TypeScript/TSX
 > **Test Coverage:** ~40%+
 
