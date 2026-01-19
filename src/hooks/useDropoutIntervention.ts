@@ -10,7 +10,7 @@
  * - Loss aversion (streak saver) is most effective motivator
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useUserProfileStore } from '@/store/userProfileStore';
 import {
   assessDropoutRisk,
@@ -47,7 +47,6 @@ export interface DropoutInterventionState {
 export function useDropoutIntervention(): DropoutInterventionState {
   const user = useUserProfileStore((state) => state.user);
   const [dismissed, setDismissed] = useState(false);
-  const [hasRecordedIntervention, setHasRecordedIntervention] = useState(false);
 
   // Check if we should throttle based on last intervention time
   const shouldThrottle = useCallback((): boolean => {
@@ -69,6 +68,9 @@ export function useDropoutIntervention(): DropoutInterventionState {
     }
   }, []);
 
+  // Capture current time as state to avoid impure function call during render
+  const [now] = useState(() => Date.now());
+
   // Calculate risk assessment using useMemo
   const risk = useMemo((): DropoutRisk | null => {
     if (!user || shouldThrottle()) {
@@ -86,7 +88,7 @@ export function useDropoutIntervention(): DropoutInterventionState {
     // Build behavioral data from user profile
     const behavioralData: BehavioralData = {
       daysSinceEnrollment: user.createdAt
-        ? Math.floor((Date.now() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+        ? Math.floor((now - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24))
         : undefined,
       retentionRate: user.progress?.overallPercentage
         ? user.progress.overallPercentage / 100
@@ -94,7 +96,7 @@ export function useDropoutIntervention(): DropoutInterventionState {
     };
 
     return assessDropoutRisk(user.id, lastActive, behavioralData);
-  }, [user, shouldThrottle]);
+  }, [user, shouldThrottle, now]);
 
   // Calculate message using useMemo
   const message = useMemo((): ReengagementMessage | null => {
@@ -127,12 +129,13 @@ export function useDropoutIntervention(): DropoutInterventionState {
   }, [risk, user]);
 
   // Record intervention once when message is shown
+  const hasRecordedRef = useRef(false);
   useEffect(() => {
-    if (message && !hasRecordedIntervention) {
+    if (message && !hasRecordedRef.current) {
+      hasRecordedRef.current = true;
       recordIntervention();
-      setHasRecordedIntervention(true);
     }
-  }, [message, hasRecordedIntervention, recordIntervention]);
+  }, [message, recordIntervention]);
 
   // Calculate derived state
   const lastActiveAt = user?.progress?.lastActiveAt;

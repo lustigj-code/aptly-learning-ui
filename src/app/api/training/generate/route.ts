@@ -61,7 +61,6 @@ export async function POST(request: NextRequest) {
     } = body;
 
     let data;
-    let filename: string;
 
     switch (type) {
       case 'conversations':

@@ -2,19 +2,16 @@
 
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Lock, Unlock, TrendingUp, BookOpen, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Lock, Unlock, TrendingUp, BookOpen, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { cn } from '@/lib/utils';
 import {
-  type ConceptMastery,
   type ConceptId,
   type Concept,
   SOCIAL_MEDIA_MARKETING_GRAPH,
   isConceptUnlocked,
-  getAllPrerequisites,
-  getLearningPath,
 } from '@/lib/mastery';
 
 // ============================================
@@ -25,7 +22,6 @@ type MasteryGateProps = {
   conceptId: ConceptId;
   masteryLevels: Record<ConceptId, number>;
   onReviewPrerequisite: (conceptId: ConceptId) => void;
-  onProceed: () => void;
   children: React.ReactNode;
 };
 
@@ -44,7 +40,6 @@ export function MasteryGate({
   conceptId,
   masteryLevels,
   onReviewPrerequisite,
-  onProceed,
   children,
 }: MasteryGateProps) {
   const [showDetails, setShowDetails] = useState(false);
@@ -250,7 +245,7 @@ export function MasteryGate({
             </div>
             <p className="text-sm text-rich-black/70">
               Start with <strong>{unmasteredPrereqs[0].concept.name}</strong> to
-              build your foundation. You're{' '}
+              build your foundation. You&apos;re{' '}
               {Math.round(
                 (unmasteredPrereqs[0].mastery / unmasteredPrereqs[0].threshold) * 100
               )}

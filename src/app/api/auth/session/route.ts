@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { createSessionCookie } from '@/lib/auth/apiAuth'
-import { checkRateLimit, rateLimitedResponse, addRateLimitHeaders } from '@/lib/security/rateLimiter'
+import { createSessionCookie, getAuthenticatedUser, revokeAllSessions } from '@/lib/auth/apiAuth'
+import { checkRateLimit, rateLimitedResponse } from '@/lib/security/rateLimiter'
 import { z } from 'zod'
 
 const sessionSchema = z.object({
@@ -45,9 +45,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Set secure HTTP-only cookie
+    // Note: maxAge is in seconds, expiresIn is in milliseconds
     const cookieStore = await cookies()
     cookieStore.set('session', result.sessionCookie, {
-      maxAge: result.expiresIn,
+      maxAge: Math.floor(result.expiresIn / 1000),
       secure: process.env.NODE_ENV === 'production', // HTTPS only in production
       httpOnly: true, // Prevent JavaScript access
       sameSite: 'lax', // CSRF protection
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
  * GET /api/auth/session
  * Get current session status (for debugging/client-side checks)
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const cookieStore = await cookies()
     const sessionCookie = cookieStore.get('session')
@@ -94,6 +95,41 @@ export async function GET(request: NextRequest) {
     console.error('Session check error:', error)
     return NextResponse.json(
       { authenticated: false },
+      { status: 200 }
+    )
+  }
+}
+
+/**
+ * DELETE /api/auth/session
+ * Logout - revokes session and clears cookie
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    // Get current user before clearing session
+    const user = await getAuthenticatedUser(request)
+
+    // Clear the session cookie regardless of auth status
+    const cookieStore = await cookies()
+    cookieStore.delete('session')
+
+    // If user was authenticated, revoke all Firebase sessions
+    if (user?.uid) {
+      await revokeAllSessions(user.uid)
+    }
+
+    return NextResponse.json(
+      { success: true, message: 'Logged out successfully' },
+      { status: 200 }
+    )
+  } catch (error) {
+    console.error('Logout error:', error)
+    // Still clear cookie even on error
+    const cookieStore = await cookies()
+    cookieStore.delete('session')
+
+    return NextResponse.json(
+      { success: true, message: 'Session cleared' },
       { status: 200 }
     )
   }

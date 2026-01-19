@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { BarChart, MetricsChart } from './MetricsChart';
+import { MetricsChart } from './MetricsChart';
 
 interface InterventionEffectivenessProps {
   dateRange: { start: Date; end: Date };
@@ -39,34 +39,33 @@ export function InterventionEffectiveness({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    async function fetchMetrics() {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/admin/analytics/interventions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            startDate: dateRange.start.toISOString(),
+            endDate: dateRange.end.toISOString(),
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch metrics');
+        }
+
+        const data = await response.json();
+        setMetrics(data);
+      } catch (err) {
+        console.error('Error fetching intervention metrics:', err);
+        setMetrics(getMockMetrics());
+      } finally {
+        setLoading(false);
+      }
+    }
     fetchMetrics();
   }, [dateRange]);
-
-  async function fetchMetrics() {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/admin/analytics/interventions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          startDate: dateRange.start.toISOString(),
-          endDate: dateRange.end.toISOString(),
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch metrics');
-      }
-
-      const data = await response.json();
-      setMetrics(data);
-    } catch (err) {
-      console.error('Error fetching intervention metrics:', err);
-      setMetrics(getMockMetrics());
-    } finally {
-      setLoading(false);
-    }
-  }
 
   if (loading) {
     return (
@@ -241,7 +240,7 @@ interface MetricCardProps {
   subtitle?: string;
 }
 
-function MetricCard({ title, value, icon, color, subtitle }: MetricCardProps) {
+function MetricCard({ title, value, color, subtitle }: MetricCardProps) {
   const colorClasses = {
     yellow: 'bg-yellow-50 border-yellow-200 text-yellow-700',
     blue: 'bg-blue-50 border-blue-200 text-blue-700',

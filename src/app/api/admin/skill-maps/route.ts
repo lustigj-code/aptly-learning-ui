@@ -8,7 +8,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/firebase/admin';
 import {
   getAllSkillMaps,
-  getSkillMap,
   updateSkillMapStatus,
   generateAndSaveSkillMap,
 } from '@/lib/skillmap';

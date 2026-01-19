@@ -16,7 +16,6 @@ import type {
   HybridModelConfig,
   TransformerState,
   BayesianState,
-  DualPathwayState,
   PathwayWeights,
   PathwayContributions,
   CrossAttentionLayerWeights,
@@ -24,7 +23,7 @@ import type {
   PredictionMetadata,
 } from './hybridModelTypes';
 import { DEFAULT_HYBRID_MODEL_CONFIG } from './hybridModelTypes';
-import { softmax, addVectors, scaleVector, vecMatmul } from './transformerPathway';
+import { softmax, addVectors, vecMatmul } from './transformerPathway';
 
 // ============================================================================
 // CROSS-ATTENTION TYPES
@@ -599,7 +598,6 @@ export class CrossAttentionFusion {
     }
 
     // Calculate correct probability (slightly different from mastery)
-    const bktMastery = bayesianState.masteryProbabilities[targetSkillId] ?? 0.1;
     const correctProbability =
       masteryProbability * 0.9 + // If mastered, high P(correct)
       (1 - masteryProbability) * 0.25; // If not, guess rate

@@ -43,6 +43,7 @@ export function CompletionOverlay({
 }: CompletionOverlayProps) {
   const [showActions, setShowActions] = useState(false);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (isOpen) {
       // Reset state when opening
@@ -61,6 +62,7 @@ export function CompletionOverlay({
       return () => clearTimeout(timer);
     }
   }, [isOpen]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Should we prompt for reviews?
   const shouldPromptReviews = reviewsDue >= 3 && !isSessionComplete;
@@ -158,7 +160,7 @@ export function CompletionOverlay({
                         <span className="font-medium">{reviewsDue} reviews due</span>
                       </div>
                       <p className="text-sm text-amber-600">
-                        Quick reviews help lock in what you've learned!
+                        Quick reviews help lock in what you&apos;ve learned!
                       </p>
                     </div>
                     <Button

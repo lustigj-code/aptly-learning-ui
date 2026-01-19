@@ -1,13 +1,16 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Bell, User, ChevronDown, Menu } from 'lucide-react';
+import { Bell, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getGreeting } from '@/lib/utils';
 import { InlineStreak } from '@/components/progress/StreakCounter';
 import { ConnectivityStatus } from '@/components/pwa/ConnectivityStatus';
+import { UserMenu } from '@/components/navigation/UserMenu';
 import { useUser } from '@/store/userProfileStore';
 import { useUIStore } from '@/store/uiStore';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { SPRING, getMotionSafeTransition, getMotionSafeInitial } from '@/lib/motion/springs';
 
 type HeaderProps = {
   showGreeting?: boolean;
@@ -25,57 +28,59 @@ export function Header({
   const { user } = useUser();
   const greeting = getGreeting();
   const toggleMobileMenu = useUIStore((state) => state.toggleMobileMenu);
+  const prefersReducedMotion = useReducedMotion();
 
   return (
     <motion.header
       className={cn(
-        'h-16 bg-white border-b border-light-grey flex items-center justify-between px-4 lg:px-6',
+        'h-16 bg-white/80 backdrop-blur-xl border-b border-light-grey/50 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-30',
         className
       )}
-      initial={{ opacity: 0, y: -10 }}
+      initial={getMotionSafeInitial({ opacity: 0, y: -10 }, prefersReducedMotion)}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
+      transition={getMotionSafeTransition(SPRING.page, prefersReducedMotion)}
     >
       {/* Left side - Hamburger + Greeting or Title */}
       <div className="flex items-center gap-3">
         {/* Mobile hamburger menu */}
         <motion.button
           onClick={toggleMobileMenu}
-          className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-light-grey transition-colors"
-          whileTap={{ scale: 0.95 }}
+          className="lg:hidden p-2 -ml-2 rounded-xl hover:bg-light-grey/80 active:bg-light-grey transition-all duration-200"
+          whileHover={!prefersReducedMotion ? { scale: 1.02 } : undefined}
+          whileTap={!prefersReducedMotion ? { scale: 0.96 } : undefined}
           aria-label="Toggle navigation menu"
         >
           <Menu size={24} className="text-navy" />
         </motion.button>
         {showGreeting && user ? (
           <motion.div
-            initial={{ opacity: 0, x: -10 }}
+            initial={getMotionSafeInitial({ opacity: 0, x: -10 }, prefersReducedMotion)}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
+            transition={getMotionSafeTransition(SPRING.gentle, prefersReducedMotion)}
           >
-            <h1 className="text-xl font-semibold text-navy">
+            <h1 className="text-xl font-semibold text-navy tracking-tight">
               {greeting}, {user.name}!
             </h1>
             {subtitle && (
-              <p className="text-sm text-rich-black/60">{subtitle}</p>
+              <p className="text-sm text-rich-black/60 mt-0.5">{subtitle}</p>
             )}
           </motion.div>
         ) : title ? (
           <motion.div
-            initial={{ opacity: 0, x: -10 }}
+            initial={getMotionSafeInitial({ opacity: 0, x: -10 }, prefersReducedMotion)}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
+            transition={getMotionSafeTransition(SPRING.gentle, prefersReducedMotion)}
           >
-            <h1 className="text-xl font-semibold text-navy">{title}</h1>
+            <h1 className="text-xl font-semibold text-navy tracking-tight">{title}</h1>
             {subtitle && (
-              <p className="text-sm text-rich-black/60">{subtitle}</p>
+              <p className="text-sm text-rich-black/60 mt-0.5">{subtitle}</p>
             )}
           </motion.div>
         ) : null}
       </div>
 
       {/* Right side - Actions */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-3">
         {/* Connectivity Status */}
         <ConnectivityStatus />
 
@@ -83,9 +88,9 @@ export function Header({
         {user && (
           <motion.div
             className="hidden sm:block"
-            initial={{ opacity: 0, scale: 0.8 }}
+            initial={getMotionSafeInitial({ opacity: 0, scale: 0.8 }, prefersReducedMotion)}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2 }}
+            transition={getMotionSafeTransition(SPRING.gentle, prefersReducedMotion)}
           >
             <InlineStreak count={user?.streak?.currentStreak ?? 0} />
           </motion.div>
@@ -93,33 +98,30 @@ export function Header({
 
         {/* Notifications */}
         <motion.button
-          className="relative p-2 rounded-full hover:bg-light-grey transition-colors"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+          className="relative p-2.5 rounded-xl hover:bg-light-grey/80 active:bg-light-grey transition-all duration-200 group"
+          whileHover={!prefersReducedMotion ? { scale: 1.05 } : undefined}
+          whileTap={!prefersReducedMotion ? { scale: 0.95 } : undefined}
+          aria-label="Notifications"
         >
-          <Bell size={20} className="text-navy" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-error rounded-full" />
+          <Bell size={20} className="text-navy transition-transform group-hover:rotate-12" />
+          <motion.span
+            className="absolute top-1.5 right-1.5 w-2 h-2 bg-error rounded-full"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.3, type: 'spring', stiffness: 500, damping: 15 }}
+          />
         </motion.button>
 
         {/* User Menu */}
-        <motion.button
-          className="flex items-center gap-2 p-2 rounded-full hover:bg-light-grey transition-colors"
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal to-muted-teal flex items-center justify-center">
-            {user?.avatar ? (
-              <img
-                src={user.avatar}
-                alt={user.name}
-                className="w-full h-full rounded-full object-cover"
-              />
-            ) : (
-              <User size={16} className="text-white" />
-            )}
-          </div>
-          <ChevronDown size={16} className="text-navy hidden sm:block" />
-        </motion.button>
+        {user && (
+          <UserMenu
+            user={{
+              name: user.name,
+              email: user.email,
+              avatar: user.avatar,
+            }}
+          />
+        )}
       </div>
     </motion.header>
   );
@@ -132,22 +134,36 @@ type BreadcrumbProps = {
 };
 
 export function Breadcrumb({ items, className }: BreadcrumbProps) {
+  const prefersReducedMotion = useReducedMotion();
   return (
-    <nav className={cn('flex items-center gap-2 text-sm', className)}>
+    <nav
+      className={cn('flex items-center gap-2 text-sm', className)}
+      aria-label="Breadcrumb"
+    >
       {items.map((item, index) => (
-        <div key={index} className="flex items-center gap-2">
-          {index > 0 && <span className="text-grey">/</span>}
+        <motion.div
+          key={index}
+          className="flex items-center gap-2"
+          initial={{ opacity: 0, x: -5 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: index * 0.05, duration: 0.2 }}
+        >
+          {index > 0 && (
+            <span className="text-grey/50" aria-hidden="true">/</span>
+          )}
           {item.href ? (
-            <a
+            <motion.a
               href={item.href}
-              className="text-teal hover:text-teal-dark transition-colors"
+              className="text-teal hover:text-teal-dark transition-colors font-medium"
+              whileHover={!prefersReducedMotion ? { x: 2 } : undefined}
+              transition={{ duration: 0.15 }}
             >
               {item.label}
-            </a>
+            </motion.a>
           ) : (
-            <span className="text-rich-black/60">{item.label}</span>
+            <span className="text-rich-black/60 font-medium">{item.label}</span>
           )}
-        </div>
+        </motion.div>
       ))}
     </nav>
   );

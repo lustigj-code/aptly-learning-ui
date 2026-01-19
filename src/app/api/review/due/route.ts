@@ -19,6 +19,10 @@ import {
   getCurrentModelForUser,
 } from '@/lib/ml/predictionFallback';
 import { DEFAULT_COLD_START_CONFIG } from '@/lib/ml/coldStart';
+import {
+  parseReviewParams,
+  MAX_PAGINATION_LIMIT,
+} from '@/lib/validation/apiParams';
 
 // Urgency level thresholds
 const URGENCY_HIGH_THRESHOLD = 0.7;
@@ -61,11 +65,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get optional params
+    // Get and validate optional params with bounds
     const url = new URL(request.url);
-    const limit = parseInt(url.searchParams.get('limit') || '10', 10);
-    const includeForecast = url.searchParams.get('forecast') === 'true';
-    const maxMinutes = parseInt(url.searchParams.get('maxMinutes') || '20', 10);
+    const { limit, maxMinutes, forecast: includeForecast } = parseReviewParams(url.searchParams);
 
     // Query review items that are due (dueDate <= now)
     const now = new Date();
@@ -74,10 +76,12 @@ export async function GET(request: NextRequest) {
       .doc(userId)
       .collection('items');
 
+    // Bound the Firestore query limit to prevent DoS
+    const firestoreLimit = Math.min(limit * 2, MAX_PAGINATION_LIMIT);
     const dueItemsSnap = await reviewItemsRef
       .where('dueDate', '<=', now)
       .orderBy('dueDate', 'asc')
-      .limit(limit * 2) // Get more for smart filtering
+      .limit(firestoreLimit)
       .get();
 
     // Build concept names map
@@ -245,8 +249,8 @@ export async function GET(request: NextRequest) {
     let forecast: ReviewForecast[] | null = null;
     if (includeForecast) {
       try {
-        // Get all mastery records for forecast
-        const allItemsSnap = await reviewItemsRef.limit(100).get();
+        // Get mastery records for forecast (bounded)
+        const allItemsSnap = await reviewItemsRef.limit(MAX_PAGINATION_LIMIT).get();
         const masteryRecords: ConceptMastery[] = allItemsSnap.docs.map(d => {
           const data = d.data();
           return {

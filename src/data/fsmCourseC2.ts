@@ -73,39 +73,33 @@ Course Overview`,
   {
     id: 'fsm-c2-m1-l0-a2',
     lessonId: 'fsm-c2-m1-l0',
-    type: 'video',
+    type: 'reading',
     title: 'Social Media Management Course Overview',
     content: {
-      videoUrl: '', // TODO: Add video URL when available
-      transcript: `-Program: Facebook Social Media Marketing Professional Certificate 
+      body: `-Program: Facebook Social Media Marketing Professional Certificate
 
-Course 2: Social Media Content Management  
-Module 1: Social Media Branding 
+Course 2: Social Media Content Management
+Module 1: Social Media Branding
 Lesson 0: {descriptive lesson title}
 
 Course Objectives:
 
-Understand how and why to create content for your social media platforms 
+Understand how and why to create content for your social media platforms
 
-Create your brand, tone, and voice for your social media presence 
+Create your brand, tone, and voice for your social media presence
 
 Manage content calendar for my social media presence
 
-Evaluate the performance of my content on social media and iterate on the performance 
+Evaluate the performance of my content on social media and iterate on the performance
 
 Demonstrate...`,
-      duration: 420,
-      chapters: [
-        { time: 0, title: 'Introduction' },
-        { time: 120, title: 'Main Content' },
-        { time: 300, title: 'Summary' },
-      ],
-      keyTakeaways: [
+      highlights: [
         '-Program: Facebook Social Media Marketing Professional Certificate',
         'Course 2: Social Media Content Management',
         'Module 1: Social Media Branding',
         'Lesson 0: {descriptive lesson title}',
       ],
+      relatedResources: [],
     },
     estimatedMinutes: 7,
     isRequired: true,
@@ -295,37 +289,31 @@ const m1l1Atoms: Atom[] = [
   {
     id: 'fsm-c2-m1-l1-a0',
     lessonId: 'fsm-c2-m1-l1',
-    type: 'video',
+    type: 'reading',
     title: 'Establishing Your Presence Overview',
     content: {
-      videoUrl: '', // TODO: Add video URL when available
-      transcript: `Program: Facebook Social Media Marketing Professional Certificate 
+      body: `Program: Facebook Social Media Marketing Professional Certificate
 
-Course 2: Social Media Content Management  
-Module 1: Social Media Branding 
-Lesson 1: Establishing Your Social Media Presence 
+Course 2: Social Media Content Management
+Module 1: Social Media Branding
+Lesson 1: Establishing Your Social Media Presence
 
 Course Objectives:
 
-Understand how and why to create content for your social media platforms 
+Understand how and why to create content for your social media platforms
 
-Create your brand, tone, and voice for your social media presence 
+Create your brand, tone, and voice for your social media presence
 
 Manage content calendar for my social media presence
 
 Evaluate the performance of my content on social media and iterate on the performance ...`,
-      duration: 420,
-      chapters: [
-        { time: 0, title: 'Introduction' },
-        { time: 120, title: 'Main Content' },
-        { time: 300, title: 'Summary' },
-      ],
-      keyTakeaways: [
+      highlights: [
         'Program: Facebook Social Media Marketing Professional Certificate',
         'Course 2: Social Media Content Management',
         'Module 1: Social Media Branding',
         'Lesson 1: Establishing Your Social Media Presence',
       ],
+      relatedResources: [],
     },
     estimatedMinutes: 7,
     isRequired: true,
@@ -392,37 +380,31 @@ Account Set-up`,
   {
     id: 'fsm-c2-m1-l1-a1',
     lessonId: 'fsm-c2-m1-l1',
-    type: 'video',
+    type: 'reading',
     title: 'Steps to Set up a Social Media Presence',
     content: {
-      videoUrl: '', // TODO: Add video URL when available
-      transcript: `Program: Facebook Social Media Marketing Professional Certificate 
+      body: `Program: Facebook Social Media Marketing Professional Certificate
 
-Course 2: Social Media Content Management  
-Module 1: Social Media Branding 
-Lesson 1: Establishing Your Social Media Presence 
+Course 2: Social Media Content Management
+Module 1: Social Media Branding
+Lesson 1: Establishing Your Social Media Presence
 
 Course Objectives:
 
-Understand how and why to create content for your social media platforms 
+Understand how and why to create content for your social media platforms
 
-Create your brand, tone, and voice for your social media presence 
+Create your brand, tone, and voice for your social media presence
 
 Manage content calendar for my social media presence
 
 Evaluate the performance of my content on social media and iterate on the performance ...`,
-      duration: 420,
-      chapters: [
-        { time: 0, title: 'Introduction' },
-        { time: 120, title: 'Main Content' },
-        { time: 300, title: 'Summary' },
-      ],
-      keyTakeaways: [
+      highlights: [
         'Program: Facebook Social Media Marketing Professional Certificate',
         'Course 2: Social Media Content Management',
         'Module 1: Social Media Branding',
         'Lesson 1: Establishing Your Social Media Presence',
       ],
+      relatedResources: [],
     },
     estimatedMinutes: 7,
     isRequired: true,
@@ -431,37 +413,31 @@ Evaluate the performance of my content on social media and iterate on the perfor
   {
     id: 'fsm-c2-m1-l1-a2',
     lessonId: 'fsm-c2-m1-l1',
-    type: 'video',
+    type: 'reading',
     title: 'Establishing a Presence on Facebook',
     content: {
-      videoUrl: '', // TODO: Add video URL when available
-      transcript: `Program: Facebook Social Media Marketing Professional Certificate 
+      body: `Program: Facebook Social Media Marketing Professional Certificate
 
-Course 2: Social Media Content Management  
-Module 1: Social Media Branding 
-Lesson 1: Establishing Your Social Media Presence 
+Course 2: Social Media Content Management
+Module 1: Social Media Branding
+Lesson 1: Establishing Your Social Media Presence
 
 Course Objectives:
 
-Understand how and why to create content for your social media platforms 
+Understand how and why to create content for your social media platforms
 
-Create your brand, tone, and voice for your social media presence 
+Create your brand, tone, and voice for your social media presence
 
 Manage content calendar for my social media presence
 
 Evaluate the performance of my content on social media and iterate on the performance ...`,
-      duration: 420,
-      chapters: [
-        { time: 0, title: 'Introduction' },
-        { time: 120, title: 'Main Content' },
-        { time: 300, title: 'Summary' },
-      ],
-      keyTakeaways: [
+      highlights: [
         'Program: Facebook Social Media Marketing Professional Certificate',
         'Course 2: Social Media Content Management',
         'Module 1: Social Media Branding',
         'Lesson 1: Establishing Your Social Media Presence',
       ],
+      relatedResources: [],
     },
     estimatedMinutes: 7,
     isRequired: true,
@@ -839,39 +815,33 @@ Epic Framework`,
   {
     id: 'fsm-c2-m1-l2-a3',
     lessonId: 'fsm-c2-m1-l2',
-    type: 'video',
+    type: 'reading',
     title: 'The EPIC Brand Framework',
     content: {
-      videoUrl: '', // TODO: Add video URL when available
-      transcript: `Program: Facebook Social Media Marketing Professional Certificate 
+      body: `Program: Facebook Social Media Marketing Professional Certificate
 
-Course 2: Social Media Content Management  
-Module 1: Social Media Branding 
-Lesson 2: Create Your Brand, Tone, and Voice 
+Course 2: Social Media Content Management
+Module 1: Social Media Branding
+Lesson 2: Create Your Brand, Tone, and Voice
 
 Course Objectives:
 
-Understand how and why to create content for your social media platforms 
+Understand how and why to create content for your social media platforms
 
-Create your brand, tone, and voice for your social media presence 
+Create your brand, tone, and voice for your social media presence
 
 Manage content calendar for my social media presence
 
-Evaluate the performance of my content on social media and iterate on the performance 
+Evaluate the performance of my content on social media and iterate on the performance
 
 Dem...`,
-      duration: 420,
-      chapters: [
-        { time: 0, title: 'Introduction' },
-        { time: 120, title: 'Main Content' },
-        { time: 300, title: 'Summary' },
-      ],
-      keyTakeaways: [
+      highlights: [
         'Program: Facebook Social Media Marketing Professional Certificate',
         'Course 2: Social Media Content Management',
         'Module 1: Social Media Branding',
         'Lesson 2: Create Your Brand, Tone, and Voice',
       ],
+      relatedResources: [],
     },
     estimatedMinutes: 7,
     isRequired: true,
@@ -952,39 +922,33 @@ Dem...`,
   {
     id: 'fsm-c2-m1-l2-a5',
     lessonId: 'fsm-c2-m1-l2',
-    type: 'video',
+    type: 'reading',
     title: 'Brand_ Connection',
     content: {
-      videoUrl: '', // TODO: Add video URL when available
-      transcript: `Program: Facebook Social Media Marketing Professional Certificate 
+      body: `Program: Facebook Social Media Marketing Professional Certificate
 
-Course 2: Social Media Content Management  
-Module 1: Social Media Branding 
-Lesson 2: Create Your Brand, Tone, and Voice 
+Course 2: Social Media Content Management
+Module 1: Social Media Branding
+Lesson 2: Create Your Brand, Tone, and Voice
 
 Course Objectives:
 
-Understand how and why to create content for your social media platforms 
+Understand how and why to create content for your social media platforms
 
-Create your brand, tone, and voice for your social media presence 
+Create your brand, tone, and voice for your social media presence
 
 Manage content calendar for my social media presence
 
-Evaluate the performance of my content on social media and iterate on the performance 
+Evaluate the performance of my content on social media and iterate on the performance
 
 Dem...`,
-      duration: 420,
-      chapters: [
-        { time: 0, title: 'Introduction' },
-        { time: 120, title: 'Main Content' },
-        { time: 300, title: 'Summary' },
-      ],
-      keyTakeaways: [
+      highlights: [
         'Program: Facebook Social Media Marketing Professional Certificate',
         'Course 2: Social Media Content Management',
         'Module 1: Social Media Branding',
         'Lesson 2: Create Your Brand, Tone, and Voice',
       ],
+      relatedResources: [],
     },
     estimatedMinutes: 7,
     isRequired: true,

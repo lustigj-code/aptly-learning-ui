@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 // ============================================
 // TYPES
@@ -44,6 +45,7 @@ export function MasteryTrajectory({
   showTrend = true,
   className,
 }: MasteryTrajectoryProps) {
+  const prefersReducedMotion = useReducedMotion();
   const { values, trend, trendPercent } = useMemo(() => {
     // Normalize input to array of numbers
     const normalized: number[] = history.map((item) =>
@@ -79,9 +81,6 @@ export function MasteryTrajectory({
   if (values.length === 0) {
     return null;
   }
-
-  const barWidth = 100 / Math.max(values.length, 1);
-  const gap = 2; // Gap in percentage
 
   const trendConfig = {
     up: {
@@ -124,18 +123,35 @@ export function MasteryTrajectory({
             <motion.div
               key={index}
               className={cn(
-                'flex-1 rounded-sm transition-colors',
+                'flex-1 rounded-t transition-colors relative overflow-hidden',
                 barColor,
-                isLatest && 'ring-1 ring-navy/20'
+                isLatest && 'ring-2 ring-navy/30 ring-offset-1'
               )}
-              initial={{ height: 0 }}
-              animate={{ height: barHeight }}
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: barHeight, opacity: 1 }}
               transition={{
-                duration: 0.4,
-                delay: index * 0.05,
-                ease: 'easeOut',
+                height: {
+                  type: 'spring',
+                  stiffness: 300,
+                  damping: 20,
+                  delay: index * 0.04,
+                },
+                opacity: {
+                  duration: 0.2,
+                  delay: index * 0.04,
+                },
               }}
-            />
+              whileHover={!prefersReducedMotion ? {
+                scale: 1.05,
+                transition: { type: 'spring', stiffness: 400, damping: 15 },
+              } : undefined}
+            >
+              {/* Glossy overlay */}
+              <div
+                className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent"
+                style={{ pointerEvents: 'none' }}
+              />
+            </motion.div>
           );
         })}
       </div>
@@ -186,11 +202,27 @@ export function CompactTrajectory({ history, className }: CompactTrajectoryProps
         return (
           <motion.div
             key={index}
-            className={cn('w-1 rounded-sm', color)}
-            initial={{ height: 0 }}
-            animate={{ height }}
-            transition={{ duration: 0.3, delay: index * 0.03 }}
-          />
+            className={cn('w-1.5 rounded-t relative overflow-hidden', color)}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height, opacity: 1 }}
+            transition={{
+              height: {
+                type: 'spring',
+                stiffness: 400,
+                damping: 20,
+                delay: index * 0.03,
+              },
+              opacity: {
+                duration: 0.2,
+                delay: index * 0.03,
+              },
+            }}
+          >
+            <div
+              className="absolute inset-0 bg-gradient-to-b from-white/40 to-transparent"
+              style={{ pointerEvents: 'none' }}
+            />
+          </motion.div>
         );
       })}
     </div>

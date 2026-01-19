@@ -9,7 +9,7 @@
  * - Frequent coach requests
  */
 
-import { type SkillState, type SkillMap, type BKTParameters } from '@/lib/mastery/bkt';
+import { type SkillState, type SkillMap } from '@/lib/mastery/bkt';
 import { AI_AT_WORK_SKILL_MAP, getSkillName, getPrerequisites } from '@/data/skillMap';
 import type { CoachContextData } from '@/lib/utils/coachContext';
 
@@ -159,7 +159,7 @@ export function detectStruggle(
  */
 export function recommendIntervention(
   signals: StruggleSignals,
-  userContext?: CoachContextData
+  _userContext?: CoachContextData
 ): Intervention {
   const { skillId, severity, signals: s } = signals;
 
@@ -260,7 +260,7 @@ export function recommendIntervention(
 export function findRootCause(
   skillId: string,
   skillStates: Record<string, SkillState>,
-  skillMap: SkillMap
+  _skillMap: SkillMap
 ): string | null {
   const prereqs = getPrerequisites(skillId);
 
@@ -750,7 +750,7 @@ export function selectInterventionStrategy(
   zone: InterventionZone,
   currentTier: 1 | 2 | 3,
   behavioralSignals: BehavioralSignals,
-  recentAccuracy: number
+  _recentAccuracy: number
 ): InterventionStrategy {
   // Fast-track to Tier 3 on critical behavioral signals
   if (behavioralSignals.rapidGuessing) {
@@ -826,7 +826,7 @@ export function selectInterventionStrategy(
  * Research shows 34% questioning ratio is optimal (not 100% Socratic).
  * Source: LearnLM/Google DeepMind tutoring research
  */
-export function shouldAskQuestion(interactionCount: number): boolean {
+export function shouldAskQuestion(_interactionCount: number): boolean {
   // 34% of the time, ask a question; 66% give direct guidance
   return Math.random() < 0.34;
 }

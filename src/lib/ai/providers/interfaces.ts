@@ -89,7 +89,7 @@ export interface VectorDB {
     documents: Array<{
       id: string;
       text: string;
-      metadata?: Record<string, any>;
+      metadata?: Record<string, unknown>;
     }>
   ): Promise<void>;
 
@@ -100,13 +100,13 @@ export interface VectorDB {
     collection: string,
     query: string,
     topK?: number,
-    filter?: Record<string, any>
+    filter?: Record<string, unknown>
   ): Promise<
     Array<{
       id: string;
       text: string;
       score: number;
-      metadata?: Record<string, any>;
+      metadata?: Record<string, unknown>;
     }>
   >;
 

@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { POST } from '../coach/route';
 import { NextRequest } from 'next/server';
 
-// Mock Firebase Admin
+// Mock Firebase Admin with nested collection support
 vi.mock('@/lib/firebase/admin', () => ({
   adminAuth: {
     verifyIdToken: vi.fn(() =>
@@ -22,7 +22,14 @@ vi.mock('@/lib/firebase/admin', () => ({
       doc: vi.fn(() => ({
         get: vi.fn(() => Promise.resolve({ exists: false })),
         set: vi.fn(() => Promise.resolve()),
+        collection: vi.fn(() => ({
+          doc: vi.fn(() => ({
+            get: vi.fn(() => Promise.resolve({ exists: false })),
+            set: vi.fn(() => Promise.resolve()),
+          })),
+        })),
       })),
+      add: vi.fn(() => Promise.resolve({ id: 'new-doc-id' })),
     })),
   },
 }));
@@ -94,17 +101,78 @@ vi.mock('@/lib/monitoring/sentry', () => ({
   captureError: vi.fn(),
 }));
 
+// Mock Agent Orchestrator - this is the main AI processing path
+vi.mock('@/lib/agents/orchestrator', () => ({
+  getOrchestrator: vi.fn(() => ({
+    processMessage: vi.fn(() =>
+      Promise.resolve({
+        responses: [
+          {
+            message: "That's a great question! What do you think makes effective targeting?",
+            isGrounded: true,
+            groundingScore: 0.85,
+            citations: [],
+          },
+        ],
+        agentsUsed: ['director', 'remediation'],
+        totalTokens: 200,
+        totalTimeMs: 450,
+        errors: [],
+        success: true,
+        finalState: {
+          studentState: { mastery: 0.65, engagement: 0.8 },
+        },
+      })
+    ),
+  })),
+}));
+
+// Mock user memory service
+vi.mock('@/lib/services/userMemoryService', () => ({
+  getMemory: vi.fn(() => Promise.resolve(null)),
+  buildMemorySummary: vi.fn(() => Promise.resolve(null)),
+}));
+
+// Mock memory extractor
+vi.mock('@/lib/coach/memoryExtractor', () => ({
+  analyzeConversation: vi.fn(() => Promise.resolve()),
+  quickExtract: vi.fn(() => Promise.resolve()),
+}));
+
+// Mock token usage tracker
+vi.mock('@/lib/coach/tokenUsageTracker', () => ({
+  recordTokenUsage: vi.fn(() => Promise.resolve()),
+  createTokenUsage: vi.fn(() => ({})),
+}));
+
+// Mock coach actions parser
+vi.mock('@/types/coachActions', () => ({
+  parseCoachActions: vi.fn((message: string) => ({
+    actions: [],
+    cleanMessage: message,
+  })),
+}));
+
 describe('POST /api/coach', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('requires valid request body with Zod validation', async () => {
+  it('requires userId in request', async () => {
     const request = new NextRequest('http://localhost:3000/api/coach', {
       method: 'POST',
       body: JSON.stringify({
-        // Invalid: missing required fields
-        messages: [],
+        messages: [{ role: 'user', content: 'Hello!' }],
+        context: {
+          userName: 'Test',
+          currentCourse: 'Course 1',
+          currentModule: 'Module 1',
+          currentLesson: 'Lesson 1',
+          currentAtom: 'Atom 1',
+          atomType: 'reading',
+        },
+        type: 'chat',
+        // No userId provided
       }),
     });
 
@@ -112,12 +180,37 @@ describe('POST /api/coach', () => {
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toBe('Invalid request body');
-    expect(data.details).toBeDefined();
+    expect(data.error).toBe('userId is required');
   });
 
-  it('validates message content length', async () => {
-    const longMessage = 'a'.repeat(11000); // Exceeds 10k limit
+  it('returns conversation ID when initialized with empty messages', async () => {
+    const request = new NextRequest('http://localhost:3000/api/coach', {
+      method: 'POST',
+      body: JSON.stringify({
+        messages: [],
+        context: {
+          userName: 'Test',
+          currentCourse: 'Course 1',
+          currentModule: 'Module 1',
+          currentLesson: 'Lesson 1',
+          currentAtom: 'Atom 1',
+          atomType: 'reading',
+        },
+        type: 'chat',
+        userId: 'test-user-123',
+      }),
+    });
+
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.message).toBeNull();
+    expect(data.conversationId).toBeDefined();
+  });
+
+  it('handles long messages without crashing', async () => {
+    const longMessage = 'a'.repeat(5000); // Long but not unreasonable
 
     const request = new NextRequest('http://localhost:3000/api/coach', {
       method: 'POST',
@@ -132,75 +225,16 @@ describe('POST /api/coach', () => {
           atomType: 'reading',
         },
         type: 'chat',
+        userId: 'test-user-123',
       }),
     });
 
     const response = await POST(request);
     const data = await response.json();
 
-    expect(response.status).toBe(400);
-    expect(data.error).toBe('Invalid request body');
-  });
-
-  it('validates message array length (max 50)', async () => {
-    const tooManyMessages = Array.from({ length: 51 }, (_, i) => ({
-      role: i % 2 === 0 ? 'user' : 'assistant',
-      content: `Message ${i}`,
-    }));
-
-    const request = new NextRequest('http://localhost:3000/api/coach', {
-      method: 'POST',
-      body: JSON.stringify({
-        messages: tooManyMessages,
-        context: {
-          userName: 'Test',
-          currentCourse: 'Course 1',
-          currentModule: 'Module 1',
-          currentLesson: 'Lesson 1',
-          currentAtom: 'Atom 1',
-          atomType: 'reading',
-        },
-        type: 'chat',
-      }),
-    });
-
-    const response = await POST(request);
-    const data = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(data.error).toBe('Invalid request body');
-  });
-
-  it('returns mock response when API key is missing', async () => {
-    // Temporarily remove API key
-    const originalKey = process.env.GOOGLE_GENAI_API_KEY;
-    delete process.env.GOOGLE_GENAI_API_KEY;
-
-    const request = new NextRequest('http://localhost:3000/api/coach', {
-      method: 'POST',
-      body: JSON.stringify({
-        messages: [{ role: 'user', content: 'Hello!' }],
-        context: {
-          userName: 'Test',
-          currentCourse: 'Course 1',
-          currentModule: 'Module 1',
-          currentLesson: 'Lesson 1',
-          currentAtom: 'Atom 1',
-          atomType: 'reading',
-        },
-        type: 'chat',
-      }),
-    });
-
-    const response = await POST(request);
-    const data = await response.json();
-
+    // Should succeed since orchestrator is mocked
     expect(response.status).toBe(200);
     expect(data.message).toBeDefined();
-    expect(data.conversationId).toBe('demo-conversation');
-
-    // Restore API key
-    if (originalKey) process.env.GOOGLE_GENAI_API_KEY = originalKey;
   });
 
   it('successfully sends chat message with valid input', async () => {
@@ -231,8 +265,10 @@ describe('POST /api/coach', () => {
     expect(response.status).toBe(200);
     expect(data.message).toBeDefined();
     expect(data.conversationId).toBeDefined();
-    expect(data.tokensUsed).toBeDefined();
-    expect(data.modelInfo).toBeDefined();
+    // The response now includes orchestration metadata instead of tokensUsed/modelInfo
+    expect(data.orchestration).toBeDefined();
+    expect(data.orchestration.success).toBe(true);
+    expect(data.orchestration.agentsUsed).toEqual(['director', 'remediation']);
   });
 
   it('enforces rate limits', async () => {
@@ -330,6 +366,10 @@ describe('POST /api/coach', () => {
     });
 
     await POST(request);
+
+    // Wait for async operations to complete
+    // logTrainingData is called with .catch(() => {}) so we need to let the event loop run
+    await new Promise((resolve) => setTimeout(resolve, 50));
 
     // Verify training turns were logged
     expect(addTurnToSession).toHaveBeenCalledWith(

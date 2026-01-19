@@ -14,7 +14,6 @@ import {
   AgentConfig,
   AgentRequest,
   AgentResponse,
-  AgentState,
   StudentState,
   ContentAction,
 } from '../types';
@@ -102,7 +101,7 @@ export class ContentAgent extends AgentBase {
         { name: 'conceptId', type: 'string', description: 'Concept ID to query', required: false },
         { name: 'query', type: 'string', description: 'Search query', required: false },
       ],
-      handler: async (params) => {
+      handler: async (_params) => {
         // Will integrate with KnowledgeGraphService
         return { concepts: [], edges: [] };
       },
@@ -117,7 +116,7 @@ export class ContentAgent extends AgentBase {
         { name: 'conceptId', type: 'string', description: 'Concept to check', required: true },
         { name: 'masteryLevels', type: 'object', description: 'User mastery levels', required: true },
       ],
-      handler: async (params) => {
+      handler: async (_params) => {
         // Will integrate with graphTraversal
         return {
           met: true,
@@ -135,7 +134,7 @@ export class ContentAgent extends AgentBase {
         { name: 'userId', type: 'string', description: 'User ID', required: true },
         { name: 'courseId', type: 'string', description: 'Course ID', required: true },
       ],
-      handler: async (params) => {
+      handler: async (_params) => {
         // Will integrate with FSRS module
         return { dueReviews: [], overdueReviews: [] };
       },
@@ -435,9 +434,9 @@ export class ContentAgent extends AgentBase {
    * Build user-facing message about content
    */
   private buildContentMessage(
-    action: string,
+    _action: string,
     recommendations: ContentRecommendation[],
-    studentState: StudentState
+    _studentState: StudentState
   ): string {
     if (recommendations.length === 0) {
       return "I'm preparing your next learning activity. One moment...";

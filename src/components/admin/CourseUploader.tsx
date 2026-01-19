@@ -46,6 +46,17 @@ export function CourseUploader({ onUploadComplete }: CourseUploaderProps) {
   const [result, setResult] = useState<UploadResult | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const handleFileSelect = useCallback((file: File) => {
+    if (!file.name.endsWith('.zip')) {
+      setResult({ success: false, error: 'Please upload a .zip file' })
+      setStatus('error')
+      return
+    }
+    setSelectedFile(file)
+    setResult(null)
+    setStatus('idle')
+  }, [])
+
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
@@ -65,18 +76,7 @@ export function CourseUploader({ onUploadComplete }: CourseUploaderProps) {
     if (files?.[0]) {
       handleFileSelect(files[0])
     }
-  }, [])
-
-  const handleFileSelect = (file: File) => {
-    if (!file.name.endsWith('.zip')) {
-      setResult({ success: false, error: 'Please upload a .zip file' })
-      setStatus('error')
-      return
-    }
-    setSelectedFile(file)
-    setResult(null)
-    setStatus('idle')
-  }
+  }, [handleFileSelect])
 
   const handleUpload = async () => {
     if (!selectedFile) return

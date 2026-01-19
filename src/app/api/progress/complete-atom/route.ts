@@ -329,7 +329,8 @@ async function triggerBadgeCriteriaCheck(userId: string): Promise<void> {
 
     // Award badges (in production, would validate in userAchievements collection)
     if (badgesToCheck.length > 0) {
-      console.log(`Badge check triggered for user ${userId}:`, badgesToCheck);
+      // Log badge check without exposing user ID
+      console.log(`[Badge] Checking ${badgesToCheck.length} potential badges`);
     }
   } catch (error) {
     console.error('Badge criteria check error:', error);
@@ -404,19 +405,54 @@ async function updateFSRSMastery(
         'lesson_complete'
       );
 
-      // Save updated mastery to Firestore
+      // Validate computed values before writing to Firestore
+      const masteryLevel = updatedMastery.masteryLevel;
+      const fsrsState = updatedMastery.fsrsState;
+
+      // Ensure mastery level is valid (0-100 range)
+      if (typeof masteryLevel !== 'number' || isNaN(masteryLevel) || masteryLevel < 0 || masteryLevel > 100) {
+        console.error(`Invalid masteryLevel for concept ${conceptId}: ${masteryLevel}`);
+        continue;
+      }
+
+      // Ensure FSRS state has valid stability (must be > 0)
+      if (!fsrsState || typeof fsrsState.stability !== 'number' || fsrsState.stability <= 0) {
+        console.error(`Invalid FSRS stability for concept ${conceptId}: ${fsrsState?.stability}`);
+        // Fix invalid stability before writing
+        if (fsrsState) {
+          fsrsState.stability = 0.1; // Minimum safe value
+        }
+      }
+
+      // Ensure dates are valid Date objects
+      const nextReviewAt = updatedMastery.nextReviewAt instanceof Date && !isNaN(updatedMastery.nextReviewAt.getTime())
+        ? updatedMastery.nextReviewAt
+        : new Date();
+      const lastReviewedAt = updatedMastery.lastReviewedAt instanceof Date && !isNaN(updatedMastery.lastReviewedAt.getTime())
+        ? updatedMastery.lastReviewedAt
+        : new Date();
+
+      // Save validated mastery to Firestore
       await reviewRef.set({
         conceptId,
         userId,
-        masteryLevel: updatedMastery.masteryLevel,
-        lastReviewedAt: updatedMastery.lastReviewedAt,
-        lastQuizScore: updatedMastery.lastQuizScore,
-        reviewCount: updatedMastery.reviewCount,
-        correctStreak: updatedMastery.correctStreak,
-        incorrectStreak: updatedMastery.incorrectStreak,
-        fsrsState: updatedMastery.fsrsState,
-        nextReviewAt: updatedMastery.nextReviewAt,
-        dueDate: updatedMastery.nextReviewAt,
+        masteryLevel: Math.max(0, Math.min(100, masteryLevel)), // Clamp to valid range
+        lastReviewedAt,
+        lastQuizScore: Math.max(0, Math.min(100, updatedMastery.lastQuizScore || 0)),
+        reviewCount: Math.max(0, updatedMastery.reviewCount || 0),
+        correctStreak: Math.max(0, updatedMastery.correctStreak || 0),
+        incorrectStreak: Math.max(0, updatedMastery.incorrectStreak || 0),
+        fsrsState: {
+          stability: Math.max(0.1, fsrsState.stability), // Ensure minimum stability
+          difficulty: Math.max(0, Math.min(10, fsrsState.difficulty || 0)),
+          elapsedDays: Math.max(0, fsrsState.elapsedDays || 0),
+          scheduledDays: Math.max(0, fsrsState.scheduledDays || 0),
+          reps: Math.max(0, fsrsState.reps || 0),
+          lapses: Math.max(0, fsrsState.lapses || 0),
+          state: fsrsState.state || 'new',
+        },
+        nextReviewAt,
+        dueDate: nextReviewAt,
         updatedAt: serverTimestamp(),
       }, { merge: true });
 

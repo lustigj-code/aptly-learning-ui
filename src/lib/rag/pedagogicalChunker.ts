@@ -17,7 +17,7 @@ import type {
   VideoContent,
   PracticeContent,
 } from '@/types';
-import type { PedagogicalChunk, ChunkType, MisconceptionDefinition } from './types';
+import type { PedagogicalChunk, ChunkType } from './types';
 
 // ============================================
 // CONFIGURATION
@@ -139,7 +139,7 @@ function generateMisconceptionExplanation(
   questionText: string,
   wrongAnswer: string,
   correctExplanation: string,
-  correctAnswer: string
+  _correctAnswer: string
 ): string {
   // Structure for Socratic retrieval
   return `Question: "${questionText}"

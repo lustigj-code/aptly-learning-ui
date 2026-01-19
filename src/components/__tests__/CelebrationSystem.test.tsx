@@ -40,11 +40,18 @@ describe('CelebrationSystem', () => {
     });
 
     it('provides celebration methods', () => {
-      let celebrationMethods: ReturnType<typeof useCelebration> | null = null;
-
+      // Test that the hook provides the expected methods by rendering
+      // a component that displays which methods are defined
       const TestComponent = () => {
-        celebrationMethods = useCelebration();
-        return <div>Test</div>;
+        const methods = useCelebration();
+        return (
+          <div>
+            <span data-testid="celebrate">{methods.celebrate ? 'yes' : 'no'}</span>
+            <span data-testid="celebrateBadge">{methods.celebrateBadge ? 'yes' : 'no'}</span>
+            <span data-testid="celebrateStreak">{methods.celebrateStreak ? 'yes' : 'no'}</span>
+            <span data-testid="celebrateXP">{methods.celebrateXP ? 'yes' : 'no'}</span>
+          </div>
+        );
       };
 
       render(
@@ -53,11 +60,10 @@ describe('CelebrationSystem', () => {
         </CelebrationProvider>
       );
 
-      expect(celebrationMethods).not.toBeNull();
-      expect(celebrationMethods!.celebrate).toBeDefined();
-      expect(celebrationMethods!.celebrateBadge).toBeDefined();
-      expect(celebrationMethods!.celebrateStreak).toBeDefined();
-      expect(celebrationMethods!.celebrateXP).toBeDefined();
+      expect(screen.getByTestId('celebrate')).toHaveTextContent('yes');
+      expect(screen.getByTestId('celebrateBadge')).toHaveTextContent('yes');
+      expect(screen.getByTestId('celebrateStreak')).toHaveTextContent('yes');
+      expect(screen.getByTestId('celebrateXP')).toHaveTextContent('yes');
     });
 
     it('triggers XP celebration', async () => {
@@ -104,9 +110,9 @@ describe('CelebrationSystem', () => {
       const button = screen.getByRole('button');
       await userEvent.click(button);
 
-      // Tier 3 celebrations show an overlay
+      // Tier 3 celebrations show an overlay - use getByRole to find the heading
       await waitFor(() => {
-        expect(screen.getByText(/Lesson Complete|Continue Learning/i)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /Lesson Complete/i })).toBeInTheDocument();
       });
     });
 
@@ -139,9 +145,9 @@ describe('CelebrationSystem', () => {
       const button = screen.getByRole('button');
       await userEvent.click(button);
 
-      // Badge celebration shows badge earned message
+      // Badge celebration shows badge earned message - use getByRole to find heading
       await waitFor(() => {
-        expect(screen.getByText(/Badge Earned/i)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /Badge Earned/i })).toBeInTheDocument();
         expect(screen.getByText('First Steps')).toBeInTheDocument();
       });
     });

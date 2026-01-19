@@ -90,7 +90,7 @@ function generateChunkId(
 /**
  * Split text into paragraphs
  */
-function splitIntoParagraphs(text: string): string[] {
+function _splitIntoParagraphs(text: string): string[] {
   return text
     .split(/\n\n+/)
     .map((p) => p.trim())

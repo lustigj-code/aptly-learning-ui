@@ -539,10 +539,10 @@ export function transformToTrainingSequences(
       const questionDifficulty = interaction.questionDifficulty ?? 0.5;
 
       // Calculate time gap from previous interaction
-      let timeGapFromLastAttempt: number | undefined;
-      if (i > 0) {
-        timeGapFromLastAttempt = (interaction.timestamp - sorted[i - 1].timestamp) / 1000;
-      }
+      // Note: timeGapFromLastAttempt reserved for future use
+      // if (i > 0) {
+      //   const timeGapFromLastAttempt = (interaction.timestamp - sorted[i - 1].timestamp) / 1000;
+      // }
 
       trainingInteractions.push({
         userId,

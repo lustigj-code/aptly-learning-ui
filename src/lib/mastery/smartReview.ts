@@ -218,8 +218,6 @@ export function createReviewBatch(
   const selectedItems = sortedItems.slice(0, maxItems);
 
   // Calculate expected retention gain
-  // (sum of priority scores represents how much we're improving)
-  const totalPriority = selectedItems.reduce((sum, item) => sum + item.priority, 0);
   const avgRetrievability =
     selectedItems.length > 0
       ? selectedItems.reduce((sum, item) => sum + item.retrievability, 0) / selectedItems.length
@@ -310,7 +308,6 @@ export function findOptimalReviewTime(
   );
 
   // Calculate confidence based on sample size and consistency
-  const maxCount = Math.max(...hourlyAverages.map((h) => h.count));
   const countConfidence = Math.min(1, bestHour.count / 10); // More samples = higher confidence
   const performanceConfidence = bestHour.avg / 100; // Higher avg score = higher confidence
   const confidence = (countConfidence + performanceConfidence) / 2;

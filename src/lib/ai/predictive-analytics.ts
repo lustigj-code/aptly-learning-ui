@@ -127,7 +127,7 @@ export function predictStruggle(
 function generateRecommendations(
   riskFactors: string[],
   features: UserLearningFeatures,
-  upcomingConcept: any
+  _upcomingConcept: Record<string, unknown>
 ): string[] {
   const recommendations: string[] = [];
 
@@ -167,7 +167,7 @@ function generateRecommendations(
  */
 export function determineAdaptiveScaffolding(
   prediction: StrugglePrediction,
-  userProgress: UserLearningFeatures
+  _userProgress: UserLearningFeatures
 ): {
   shouldScaffold: boolean;
   scaffoldingType: 'examples' | 'prerequisites' | 'simplified' | 'none';

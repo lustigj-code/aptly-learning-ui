@@ -48,7 +48,7 @@ export interface AuthState {
 // ============================================
 
 export const useAuthStore = create<AuthState>()(
-  subscribeWithSelector((set, get) => ({
+  subscribeWithSelector((set, _get) => ({
     // Initial state
     firebaseUser: null,
     authUser: null,
@@ -63,7 +63,26 @@ export const useAuthStore = create<AuthState>()(
         return () => {};
       }
 
+      let hasResolved = false;
+
+      // Timeout fallback - if auth doesn't resolve in 5 seconds, assume not authenticated
+      const timeout = setTimeout(() => {
+        if (!hasResolved) {
+          hasResolved = true;
+          set({
+            firebaseUser: null,
+            authUser: null,
+            isAuthenticated: false,
+            isAuthLoading: false,
+            authError: null,
+          });
+        }
+      }, 5000);
+
       const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+        hasResolved = true;
+        clearTimeout(timeout);
+
         if (firebaseUser) {
           const authUser: AuthUser = {
             uid: firebaseUser.uid,
@@ -91,7 +110,10 @@ export const useAuthStore = create<AuthState>()(
         }
       });
 
-      return unsubscribe;
+      return () => {
+        clearTimeout(timeout);
+        unsubscribe();
+      };
     },
 
     setFirebaseUser: (user) =>

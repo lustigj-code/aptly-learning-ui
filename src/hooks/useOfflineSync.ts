@@ -9,6 +9,7 @@ import {
   syncQueuedProgress,
   type QueuedProgress,
 } from '@/lib/pwa';
+import { useAuthStore } from '@/store/authStore';
 
 /**
  * Progress data structure for offline queue
@@ -60,24 +61,6 @@ export interface OfflineSyncActions {
 }
 
 /**
- * Default sync function that sends progress to the API
- */
-async function defaultSyncFn(data: QueuedProgress['data']): Promise<boolean> {
-  try {
-    const response = await fetch('/api/progress/sync', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-/**
  * Hook for managing offline progress sync
  *
  * Provides:
@@ -96,13 +79,37 @@ export function useOfflineSync(
   const [pendingCount, setPendingCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncResult, setLastSyncResult] = useState<SyncResult | null>(null);
+  const firebaseUser = useAuthStore((state) => state.firebaseUser);
 
-  const syncFnRef = useRef(customSyncFn || defaultSyncFn);
+  // Authenticated sync function that uses Bearer token
+  const authenticatedSyncFn = useCallback(async (data: QueuedProgress['data']): Promise<boolean> => {
+    if (!firebaseUser) {
+      console.warn('[OfflineSync] No authenticated user, cannot sync');
+      return false;
+    }
+
+    try {
+      const token = await firebaseUser.getIdToken();
+      const response = await fetch('/api/progress/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+      });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }, [firebaseUser]);
+
+  const syncFnRef = useRef(customSyncFn || authenticatedSyncFn);
 
   // Update sync function ref if it changes
   useEffect(() => {
-    syncFnRef.current = customSyncFn || defaultSyncFn;
-  }, [customSyncFn]);
+    syncFnRef.current = customSyncFn || authenticatedSyncFn;
+  }, [customSyncFn, authenticatedSyncFn]);
 
   // Refresh pending count from IndexedDB
   const refreshPendingCount = useCallback(async () => {

@@ -71,7 +71,7 @@ export function useCelebratedProgress() {
         checkBadgesAfterProgress(user.id);
       }
     },
-    [completeAtom, addXP, celebrate, user?.id, checkBadgesAfterProgress]
+    [completeAtom, addXP, celebrate, user, checkBadgesAfterProgress]
   );
 
   /**
@@ -91,7 +91,7 @@ export function useCelebratedProgress() {
         checkBadgesAfterProgress(user.id);
       }
     },
-    [completeLesson, addXP, celebrate, checkAndUpdateStreak, user?.id, checkBadgesAfterProgress]
+    [completeLesson, addXP, celebrate, checkAndUpdateStreak, user, checkBadgesAfterProgress]
   );
 
   /**
@@ -108,7 +108,7 @@ export function useCelebratedProgress() {
         checkBadgesAfterProgress(user.id);
       }
     },
-    [completeModule, addXP, celebrate, user?.id, checkBadgesAfterProgress]
+    [completeModule, addXP, celebrate, user, checkBadgesAfterProgress]
   );
 
   /**
@@ -125,7 +125,7 @@ export function useCelebratedProgress() {
         checkBadgesAfterProgress(user.id);
       }
     },
-    [completeCourse, addXP, celebrate, user?.id, checkBadgesAfterProgress]
+    [completeCourse, addXP, celebrate, user, checkBadgesAfterProgress]
   );
 
   /**

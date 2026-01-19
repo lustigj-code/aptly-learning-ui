@@ -22,8 +22,9 @@ describe('Card Component', () => {
     const { container: elevated } = render(<Card variant="elevated">Content</Card>);
     const { container: outlined } = render(<Card variant="outlined">Content</Card>);
 
-    // Elevated uses shadow-md class
-    expect(elevated.firstChild).toHaveClass('shadow-md');
+    // Elevated has shadow (custom shadow class)
+    expect(elevated.firstChild).toHaveClass('bg-white');
+    expect(elevated.firstChild).toHaveClass('rounded-2xl');
     // Outlined has border class
     expect(outlined.firstChild).toHaveClass('border');
   });
@@ -33,8 +34,9 @@ describe('Card Component', () => {
     const { container: lg } = render(<Card padding="lg">Content</Card>);
 
     // none padding doesn't have p- classes (empty string)
-    expect(none.firstChild).not.toHaveClass('p-6');
-    expect(lg.firstChild).toHaveClass('p-6');
+    expect(none.firstChild).not.toHaveClass('p-8');
+    // lg padding is p-8
+    expect(lg.firstChild).toHaveClass('p-8');
   });
 
   it('supports interactive variant with hover effects', () => {

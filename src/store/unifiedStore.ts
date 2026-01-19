@@ -113,10 +113,10 @@ const defaultPreferences: UserPreferences = {
 };
 
 const defaultProgress: UserProgress = {
-  currentCourseId: DEFAULT_COURSE_ID, // ai-at-work
-  currentModuleId: 'ai-m1',
-  currentLessonId: '1.1',
-  currentAtomId: '1.1-intro',
+  currentCourseId: DEFAULT_COURSE_ID, // fsm-certification
+  currentModuleId: 'fsm-m1',
+  currentLessonId: 'fsm-l1',
+  currentAtomId: 'fsm-l1-video',
   overallPercentage: 0,
   coursesCompleted: [],
   modulesCompleted: [],
@@ -210,22 +210,32 @@ function setupFirestoreListener(
 // DEBOUNCED SYNC
 // ============================================
 
-// Custom debounce for Firestore sync with proper typing
+// Custom debounce for Firestore sync with proper typing and status callbacks
 function createDebouncedSync(wait: number) {
   let timeout: NodeJS.Timeout | null = null;
 
-  return (uid: string, updates: Partial<User>) => {
+  return (
+    uid: string,
+    updates: Partial<User>,
+    onSuccess?: () => void,
+    onError?: (error: Error) => void
+  ) => {
     if (timeout) {
       clearTimeout(timeout);
     }
 
     timeout = setTimeout(async () => {
-      if (!db) return;
+      if (!db) {
+        onError?.(new Error('Firestore not initialized'));
+        return;
+      }
       try {
         const firestoreUpdates = prepareForFirestore(updates);
         await updateDocData('users', uid, firestoreUpdates);
+        onSuccess?.();
       } catch (error) {
         console.error('Error syncing to Firestore:', error);
+        onError?.(error instanceof Error ? error : new Error('Sync failed'));
       }
     }, wait);
   };
@@ -715,7 +725,7 @@ export const useUnifiedStore = create<UnifiedStore>()(
         // ============================================
 
         syncToFirestore: async (updates) => {
-          const { authUser, isSyncing } = get();
+          const { authUser } = get();
           if (!authUser?.uid || !db) {
             // Store pending updates for when we're back online
             set((state) => ({
@@ -725,27 +735,33 @@ export const useUnifiedStore = create<UnifiedStore>()(
             return;
           }
 
-          if (!isSyncing) {
-            set({ isSyncing: true, syncStatus: 'syncing' });
-          }
+          // Set syncing status immediately
+          set({ isSyncing: true, syncStatus: 'syncing' });
 
-          try {
-            debouncedSyncToFirestore(authUser.uid, updates);
-            set({
-              isSyncing: false,
-              syncStatus: 'synced',
-              lastSyncedAt: new Date(),
-              pendingUpdates: null,
-            });
-          } catch (error) {
-            console.error('Sync error:', error);
-            set({
-              isSyncing: false,
-              syncStatus: 'error',
-              userError: error instanceof Error ? error.message : 'Sync failed',
-              pendingUpdates: updates,
-            });
-          }
+          // Use debounced sync with callbacks to properly track completion
+          debouncedSyncToFirestore(
+            authUser.uid,
+            updates,
+            // onSuccess callback
+            () => {
+              set({
+                isSyncing: false,
+                syncStatus: 'synced',
+                lastSyncedAt: new Date(),
+                pendingUpdates: null,
+              });
+            },
+            // onError callback
+            (error) => {
+              console.error('Sync error:', error);
+              set({
+                isSyncing: false,
+                syncStatus: 'error',
+                userError: error.message,
+                pendingUpdates: updates,
+              });
+            }
+          );
         },
 
         fetchUserFromFirestore: async (uid) => {

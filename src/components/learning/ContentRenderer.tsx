@@ -1,19 +1,17 @@
 'use client'
 
-import React, { useState, useCallback, useRef } from 'react'
+import React, { useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import {
-  Play,
-  Pause,
   CheckCircle,
   XCircle,
   ChevronRight,
   BookOpen,
   RefreshCw,
 } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
 import ReactMarkdown from 'react-markdown'
 import type { Atom, VideoContent, ReadingContent, QuizContent } from '@/types'
+import { VideoPlayer } from './VideoPlayer'
 
 // ============================================
 // TYPES
@@ -114,28 +112,12 @@ function VideoRenderer({
   onContinue?: () => void
   isActive: boolean
 }) {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [progress, setProgress] = useState(0)
   const [hasCompleted, setHasCompleted] = useState(false)
-  const [videoLoading, setVideoLoading] = useState(true)
-  const [videoError, setVideoError] = useState(false)
 
-  const togglePlay = () => {
-    if (videoRef.current && !videoError) {
-      if (isPlaying) {
-        videoRef.current.pause()
-      } else {
-        videoRef.current.play()
-      }
-      setIsPlaying(!isPlaying)
-    }
-  }
-
-  const handleTimeUpdate = () => {
-    if (videoRef.current) {
-      const pct = (videoRef.current.currentTime / videoRef.current.duration) * 100
-      setProgress(pct)
+  const handleVideoComplete = () => {
+    if (!hasCompleted) {
+      onComplete(atom.id)
+      setHasCompleted(true)
     }
   }
 
@@ -145,17 +127,6 @@ function VideoRenderer({
       setHasCompleted(true)
     }
     onContinue?.()
-  }
-
-  const handleVideoError = () => {
-    console.error('[Video] Failed to load:', content.videoUrl)
-    setVideoError(true)
-    setVideoLoading(false)
-  }
-
-  const handleVideoLoaded = () => {
-    console.log('[Video] Successfully loaded:', content.videoUrl)
-    setVideoLoading(false)
   }
 
   // Check if videoUrl exists
@@ -196,61 +167,14 @@ function VideoRenderer({
       animate={{ opacity: 1 }}
       className="h-full flex flex-col"
     >
-      {/* Video - Takes most of the space */}
+      {/* Enhanced Video Player */}
       <div className="flex-1 flex flex-col min-h-0">
-        <div className="relative rounded-lg overflow-hidden bg-black flex-1">
-          {/* Loading spinner */}
-          {videoLoading && !videoError && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black z-10">
-              <div className="flex flex-col items-center">
-                <RefreshCw className="w-10 h-10 text-white/70 animate-spin" />
-                <p className="text-white/70 text-sm mt-3">Loading video...</p>
-              </div>
-            </div>
-          )}
-
-          {/* Error state */}
-          {videoError && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-light-grey/10 z-10">
-              <XCircle className="w-16 h-16 text-red-400/70 mb-4" />
-              <p className="text-navy font-medium">Video could not be loaded</p>
-              <p className="text-grey text-sm mt-1 text-center px-4">
-                The video file may be missing or unavailable.
-              </p>
-              <p className="text-grey/60 text-xs mt-2 font-mono">
-                {content.videoUrl}
-              </p>
-            </div>
-          )}
-
-          <video
-            key={content.videoUrl}
-            ref={videoRef}
-            src={content.videoUrl}
-            className={`w-full h-full object-contain ${videoError ? 'hidden' : ''}`}
-            onTimeUpdate={handleTimeUpdate}
-            onPlay={() => setIsPlaying(true)}
-            onPause={() => setIsPlaying(false)}
-            onEnded={() => setIsPlaying(false)}
-            onError={handleVideoError}
-            onLoadedData={handleVideoLoaded}
-            onCanPlay={handleVideoLoaded}
-            controls
-            preload="auto"
-          />
-
-          {/* Play overlay */}
-          {!isPlaying && progress === 0 && !videoLoading && !videoError && (
-            <button
-              onClick={togglePlay}
-              className="absolute inset-0 flex items-center justify-center bg-black/30 hover:bg-black/40 transition-colors"
-            >
-              <div className="w-20 h-20 bg-white/90 rounded-full flex items-center justify-center shadow-lg">
-                <Play className="w-9 h-9 text-navy ml-1" />
-              </div>
-            </button>
-          )}
-        </div>
+        <VideoPlayer
+          videoUrl={content.videoUrl}
+          title={atom.title}
+          duration={content.duration}
+          onComplete={handleVideoComplete}
+        />
       </div>
 
       {/* Bottom bar with title and continue */}
@@ -264,7 +188,7 @@ function VideoRenderer({
             onClick={handleContinue}
             className="px-6 py-3 bg-teal text-white font-medium rounded-lg hover:bg-teal-dark transition-colors flex items-center gap-2"
           >
-            {videoError ? 'Skip' : 'Continue'}
+            Continue
             <ChevronRight className="w-5 h-5" />
           </button>
         )}
@@ -523,8 +447,6 @@ function QuizRenderer({
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
-              console.log('[Quiz] Continue button clicked!')
-              alert('Continue clicked!') // Temporary debug
               handleContinueAfterQuiz()
             }}
             className="px-6 py-3 bg-teal text-white font-medium rounded-lg hover:bg-teal-dark transition-colors flex items-center gap-2 relative z-20 cursor-pointer"

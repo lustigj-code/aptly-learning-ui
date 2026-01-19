@@ -263,7 +263,7 @@ export function detectEmotionalState(signals: EmotionalSignals): EmotionalAnalys
  */
 function getResponseStrategy(
   state: EmotionalState,
-  signals: EmotionalSignals
+  _signals: EmotionalSignals
 ): { responseStrategy: string; toneGuidance: string[]; suggestedOpeners: string[] } {
   switch (state) {
     case 'frustrated':

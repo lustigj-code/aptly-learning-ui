@@ -13,9 +13,7 @@ import {
   type TurnMetadata,
   type UserLearningState,
   type LearningOutcome,
-  type SessionQualityMetrics,
   calculateQualityMetrics,
-  calculateOutcomeScore,
   createEmptyTurnMetadata,
 } from './schema';
 

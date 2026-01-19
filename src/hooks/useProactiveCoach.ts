@@ -38,6 +38,26 @@ type ProactiveCoachOptions = {
   onInterventionAccept?: (intervention: Intervention) => void; // New: Callback when intervention accepted
 };
 
+// Helper function to get action text for intervention (defined outside hook for stability)
+function getInterventionAction(intervention: Intervention): string {
+  switch (intervention.type) {
+    case 'alternative_explanation':
+      return 'Show different explanation';
+    case 'prerequisite_review':
+      return 'Review basics first';
+    case 'simpler_practice':
+      return 'Try easier questions';
+    case 'coach_session':
+      return 'Talk to Sage';
+    case 'break_suggestion':
+      return 'Take a break';
+    case 'skip_for_now':
+      return 'Skip for now';
+    default:
+      return 'Get help';
+  }
+}
+
 export function useProactiveCoach({
   atomId,
   atomType,
@@ -55,7 +75,21 @@ export function useProactiveCoach({
   const lastAtomIdRef = useRef(atomId);
   const attemptHistoryRef = useRef<AttemptHistory[]>([]);
 
+  // Define callbacks before effects that use them
+  const showPrompt = useCallback((newPrompt: Omit<ProactivePrompt, 'isVisible'>) => {
+    setPrompt({ ...newPrompt, isVisible: true });
+  }, []);
+
+  const dismissPrompt = useCallback(() => {
+    setPrompt(prev => prev ? { ...prev, isVisible: false } : null);
+    onPromptDismiss?.();
+
+    // Clear after animation
+    setTimeout(() => setPrompt(null), 300);
+  }, [onPromptDismiss]);
+
   // Reset state when atom changes
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (lastAtomIdRef.current !== atomId) {
       setWrongAnswerCount(0);
@@ -74,7 +108,8 @@ export function useProactiveCoach({
         setHasShownWelcome(true);
       }
     }
-  }, [atomId, atomType, hasShownWelcome]);
+  }, [atomId, atomType, hasShownWelcome, showPrompt]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Track time on content (for reading and video atoms)
   useEffect(() => {
@@ -98,19 +133,7 @@ export function useProactiveCoach({
         clearInterval(timerRef.current);
       }
     };
-  }, [atomType, prompt]);
-
-  const showPrompt = useCallback((newPrompt: Omit<ProactivePrompt, 'isVisible'>) => {
-    setPrompt({ ...newPrompt, isVisible: true });
-  }, []);
-
-  const dismissPrompt = useCallback(() => {
-    setPrompt(prev => prev ? { ...prev, isVisible: false } : null);
-    onPromptDismiss?.();
-
-    // Clear after animation
-    setTimeout(() => setPrompt(null), 300);
-  }, [onPromptDismiss]);
+  }, [atomType, prompt, showPrompt]);
 
   // Called when user gets a wrong answer in quiz
   const recordWrongAnswer = useCallback((timeSpentSeconds: number = 30) => {
@@ -166,26 +189,6 @@ export function useProactiveCoach({
     }
     dismissPrompt();
   }, [prompt, onInterventionAccept, dismissPrompt]);
-
-  // Get action text for intervention
-  const getInterventionAction = (intervention: Intervention): string => {
-    switch (intervention.type) {
-      case 'alternative_explanation':
-        return 'Show different explanation';
-      case 'prerequisite_review':
-        return 'Review basics first';
-      case 'simpler_practice':
-        return 'Try easier questions';
-      case 'coach_session':
-        return 'Talk to Sage';
-      case 'break_suggestion':
-        return 'Take a break';
-      case 'skip_for_now':
-        return 'Skip for now';
-      default:
-        return 'Get help';
-    }
-  };
 
   // Called when user completes a difficult section
   const recordCompletion = useCallback((wasDifficult: boolean = false) => {
@@ -251,6 +254,17 @@ export function useProactiveCoach({
     return options[Math.floor(Math.random() * options.length)];
   };
 
+  // Track attempt history in state for render access
+  const [attemptHistory, setAttemptHistory] = useState<AttemptHistory[]>([]);
+
+  // Sync ref to state when it changes (after answer recordings)
+  // Note: This effect synchronizes ref state to React state, which is a valid pattern
+   
+  useEffect(() => {
+    setAttemptHistory([...attemptHistoryRef.current]);
+  }, [currentStruggle]); // Update when struggle changes (after each answer)
+   
+
   return {
     prompt,
     showPrompt,
@@ -262,7 +276,7 @@ export function useProactiveCoach({
     getPromptMessage,
     // New exports for struggle detection
     currentStruggle,
-    attemptHistory: attemptHistoryRef.current,
+    attemptHistory,
   };
 }
 

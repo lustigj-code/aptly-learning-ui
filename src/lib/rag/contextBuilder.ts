@@ -13,10 +13,10 @@
  * Part of Phase 12.3: RAG Retrieval Integration
  */
 
-import type { RetrievedChunk, FormattedRAGContext } from './types';
+import type { RetrievedChunk } from './types';
 import type { SkillState } from '../mastery/bkt';
 import type { StruggleSignals, InterventionZone } from '../adaptive/struggleDetection';
-import { formatRAGContext, formatContextForPrompt } from './contextFormatter';
+import { formatRAGContext } from './contextFormatter';
 
 // ============================================
 // TYPES

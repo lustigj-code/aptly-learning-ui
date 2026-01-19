@@ -12,7 +12,7 @@ describe('FSRS Algorithm', () => {
       const state = createInitialFSRSState();
 
       expect(state).toEqual({
-        stability: 0,
+        stability: 0.1, // Must be > 0 to avoid division by zero in retrievability calc
         difficulty: 0,
         elapsedDays: 0,
         scheduledDays: 0,

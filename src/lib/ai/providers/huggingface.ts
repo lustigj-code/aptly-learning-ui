@@ -189,13 +189,13 @@ export class ReplicateProvider implements AIProvider {
   // Same interface, different implementation
   // Just change env var: AI_PROVIDER=replicate
 
-  async generate(messages: AIMessage[], options?: GenerateOptions): Promise<GenerateResult> {
+  async generate(_messages: AIMessage[], _options?: GenerateOptions): Promise<GenerateResult> {
     // TODO: Implement when upgrading to paid
     // Uses Replicate's API for unlimited requests
     throw new Error('Replicate provider not yet implemented - set AI_PROVIDER=huggingface');
   }
 
-  async embed(text: string): Promise<EmbeddingResult> {
+  async embed(_text: string): Promise<EmbeddingResult> {
     throw new Error('Not implemented');
   }
 

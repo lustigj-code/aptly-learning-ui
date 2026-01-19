@@ -21,6 +21,7 @@ export const COLORS = {
   tealLight: 'var(--teal-light)',
   yellow: 'var(--yellow)',
   yellowDark: 'var(--yellow-dark)',
+  yellowLight: 'var(--yellow-light)',
   purple: 'var(--purple)',
   mutedTeal: 'var(--muted-teal)',
   lightTeal: 'var(--light-teal)',
@@ -33,6 +34,7 @@ export const COLORS = {
 
   // Semantic
   success: 'var(--success)',
+  successDark: 'var(--success-dark)',
   successLight: 'var(--success-light)',
   error: 'var(--error)',
   errorLight: 'var(--error-light)',
@@ -48,7 +50,8 @@ export const COLORS_RAW = {
   tealDark: '#1a8a91',
   tealLight: '#2bc4cd',
   yellow: '#FFDE00',
-  yellowDark: '#e6c800',
+  yellowDark: '#b89700',  // WCAG AA compliant for text on white (4.5:1)
+  yellowLight: '#fef3cd',
   purple: '#3B336E',
   mutedTeal: '#69BCC1',
   lightTeal: '#DEF2F2',
@@ -59,6 +62,7 @@ export const COLORS_RAW = {
   richBlack: '#333333',
 
   success: '#88B644',
+  successDark: '#6b9036',  // WCAG AA compliant for text on white (4.5:1)
   successLight: '#e8f5d4',
   error: '#E84133',
   errorLight: '#fde8e6',
@@ -81,38 +85,6 @@ export const TRANSITIONS = {
   instant: '100ms',
   standard: '200ms',
   elaborate: '400ms',
-} as const;
-
-// ===========================================
-// FRAMER MOTION SPRINGS
-// ===========================================
-// Standardized spring configurations
-export const SPRING = {
-  // Gentle - for cards, overlays
-  gentle: {
-    type: 'spring' as const,
-    stiffness: 300,
-    damping: 20,
-  },
-  // Snappy - for buttons, toggles
-  snappy: {
-    type: 'spring' as const,
-    stiffness: 400,
-    damping: 17,
-  },
-  // Bouncy - for celebrations, XP animations
-  bouncy: {
-    type: 'spring' as const,
-    stiffness: 500,
-    damping: 15,
-  },
-  // Progress - for progress bars
-  progress: {
-    type: 'spring' as const,
-    stiffness: 100,
-    damping: 20,
-    mass: 1,
-  },
 } as const;
 
 // ===========================================
@@ -270,3 +242,9 @@ export const PROGRESS_COLORS: Record<ProgressBarColorName, string> = {
   gradient: COLORS_RAW.teal,
   purple: COLORS_RAW.purple,
 } as const;
+
+// ===========================================
+// RE-EXPORTS
+// ===========================================
+// Re-export motion springs for convenience
+export { SPRING, EASING, CARD_VARIANTS } from './motion/springs';

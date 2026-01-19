@@ -11,7 +11,6 @@ import {
   Inbox,
   Rocket,
   Sparkles,
-  Heart,
   MessageCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -190,7 +189,7 @@ export function EmptyState({
   const finalDescription = description || preset?.description || '';
   const finalIcon = icon || preset?.icon || <Sparkles className="w-full h-full" />;
   const finalActionLabel = actionLabel || preset?.actionLabel;
-  const finalCharacterMood = characterMood || preset?.characterMood || 'idle';
+  const _finalCharacterMood = characterMood || preset?.characterMood || 'idle';
 
   const sizeConfig = sizes[size];
 

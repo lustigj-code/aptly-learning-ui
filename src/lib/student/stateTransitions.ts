@@ -339,7 +339,7 @@ export function applyAllTransitions(
 ): FactoredBelief {
   let mastery = applyMasteryTransition(belief.mastery, action);
   let attention = applyAttentionTransition(belief.attention, action);
-  let confusion = applyConfusionTransition(belief.confusion, action);
+  const confusion = applyConfusionTransition(belief.confusion, action);
   let motivation = applyMotivationTransition(belief.motivation, action);
 
   // Apply context-based transitions

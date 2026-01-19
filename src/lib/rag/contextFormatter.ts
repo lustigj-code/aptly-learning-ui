@@ -7,14 +7,14 @@
  * Part of Phase 12: Socratic RAG Coach
  */
 
-import type { PedagogicalChunk, FormattedRAGContext } from './types';
+import type { FormattedRAGContext } from './types';
 
 // ============================================
 // CONFIGURATION
 // ============================================
 
 const DEFAULT_MAX_LENGTH = 2000; // Max characters for context injection
-const MISCONCEPTION_PRIORITY = 2; // Misconceptions get 2x the character budget
+const _MISCONCEPTION_PRIORITY = 2; // Misconceptions get 2x the character budget
 
 // ============================================
 // MAIN FORMATTING FUNCTIONS

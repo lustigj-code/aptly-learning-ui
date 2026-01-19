@@ -19,7 +19,8 @@ import {
   shouldUseVerticalList,
   type LayoutResult,
 } from '@/lib/mastery/mapLayout';
-import { SPRING, COLORS_RAW } from '@/lib/design-tokens';
+import { SPRING } from '@/lib/motion/springs';
+import { COLORS_RAW } from '@/lib/design-tokens';
 
 /**
  * Enhanced Mastery Map Component

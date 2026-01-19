@@ -12,9 +12,8 @@ import type {
   ParsedCourseContent,
   DynamicSkillMap,
   ExtractedSkill,
-  SkillExtractionResult,
 } from './types';
-import { extractedSkillToSkill, getBKTParamsForDifficulty } from './types';
+import { extractedSkillToSkill } from './types';
 import type { Skill } from '@/lib/mastery/bkt';
 
 // ============================================
@@ -408,11 +407,11 @@ export function mergeSkillMaps(
 function serializeCourseContent(content: ParsedCourseContent): string {
   const lines: string[] = [];
 
-  for (const module of content.modules) {
-    lines.push(`\n## Module ${module.number}: ${module.title}`);
-    lines.push(`Objectives: ${module.objectives.join(', ')}`);
+  for (const mod of content.modules) {
+    lines.push(`\n## Module ${mod.number}: ${mod.title}`);
+    lines.push(`Objectives: ${mod.objectives.join(', ')}`);
 
-    for (const lesson of module.lessons) {
+    for (const lesson of mod.lessons) {
       lines.push(`\n### Lesson: ${lesson.title} (ID: ${lesson.id})`);
       lines.push(`Objectives: ${lesson.objectives.join(', ')}`);
 

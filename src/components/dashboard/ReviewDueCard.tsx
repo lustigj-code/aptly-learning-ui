@@ -10,7 +10,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Brain, Calendar, ChevronRight, Clock, TrendingUp, Sparkles } from 'lucide-react';
+import { Brain, ChevronRight, Clock, TrendingUp, Sparkles } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { CircularProgress } from '@/components/ui/ProgressBar';
@@ -52,13 +52,13 @@ export function ReviewDueCard() {
 
         // Calculate stats from items
         const dueCount = items.length;
-        const overdueCount = items.filter((item: any) => {
+        const overdueCount = items.filter((item: { dueDate?: string }) => {
           if (!item.dueDate) return false;
           return new Date(item.dueDate) < now;
         }).length;
 
         const avgMastery = items.length > 0
-          ? items.reduce((sum: number, item: any) => sum + (item.masteryLevel || 0), 0) / items.length
+          ? items.reduce((sum: number, item: { masteryLevel?: number }) => sum + (item.masteryLevel || 0), 0) / items.length
           : 0;
 
         // Estimate ~30 seconds per review

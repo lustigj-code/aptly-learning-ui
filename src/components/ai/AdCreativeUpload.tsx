@@ -12,6 +12,7 @@ import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, ImageIcon, X, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import type { AdCreativeAnalysis } from '@/lib/ai/multi-modal-analysis';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 type CampaignContext = {
   objective: string;
@@ -26,6 +27,7 @@ type Props = {
 };
 
 export function AdCreativeUpload({ onAnalysisComplete, campaignContext = {} }: Props) {
+  const prefersReducedMotion = useReducedMotion();
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -204,6 +206,7 @@ export function AdCreativeUpload({ onAnalysisComplete, campaignContext = {} }: P
         >
           {/* Preview */}
           <div className="relative rounded-xl overflow-hidden border border-gray-200">
+            {/* eslint-disable-next-line @next/next/no-img-element -- data URL from user upload */}
             <img
               src={preview}
               alt="Ad creative preview"
@@ -285,8 +288,8 @@ export function AdCreativeUpload({ onAnalysisComplete, campaignContext = {} }: P
               onClick={handleAnalyze}
               disabled={isAnalyzing}
               className="mt-4 w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
+              whileHover={!prefersReducedMotion ? { scale: 1.01 } : undefined}
+              whileTap={!prefersReducedMotion ? { scale: 0.99 } : undefined}
             >
               {isAnalyzing ? (
                 <>
@@ -379,7 +382,7 @@ export function AdCreativeUpload({ onAnalysisComplete, campaignContext = {} }: P
               <ul className="space-y-2">
                 {analysis.socraticQuestions.map((q, i) => (
                   <li key={i} className="text-sm text-blue-700 italic">
-                    "{q}"
+                    &quot;{q}&quot;
                   </li>
                 ))}
               </ul>

@@ -297,29 +297,31 @@ describe('createSessionCookie', () => {
     expect(result.expiresIn).toBeDefined();
   });
 
-  it('should use default 5-day expiry', async () => {
+  it('should use default 24-hour expiry', async () => {
     mockVerifyIdToken.mockResolvedValue({ uid: 'user-123' });
     mockCreateSessionCookie.mockResolvedValue('session-cookie');
 
     await createSessionCookie('id-token');
 
-    // 5 days in seconds = 60 * 60 * 24 * 5 = 432000
+    // 24 hours in milliseconds = 24 * 60 * 60 * 1000 = 86400000
     expect(mockCreateSessionCookie).toHaveBeenCalledWith(
       'id-token',
-      { expiresIn: 60 * 60 * 24 * 5 }
+      { expiresIn: 24 * 60 * 60 * 1000 }
     );
   });
 
-  it('should use custom expiry when provided', async () => {
+  it('should use custom expiry when provided (clamped to min 5 minutes)', async () => {
     mockVerifyIdToken.mockResolvedValue({ uid: 'user-123' });
     mockCreateSessionCookie.mockResolvedValue('session-cookie');
 
-    const customExpiry = 3600; // 1 hour
+    // Value below minimum (5 min in ms) gets clamped to minimum
+    const customExpiry = 3600; // 3.6 seconds - below minimum
     await createSessionCookie('id-token', customExpiry);
 
+    // Clamped to minimum of 5 minutes (300000 ms)
     expect(mockCreateSessionCookie).toHaveBeenCalledWith(
       'id-token',
-      { expiresIn: customExpiry }
+      { expiresIn: 5 * 60 * 1000 }
     );
   });
 

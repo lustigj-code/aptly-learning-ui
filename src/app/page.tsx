@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useUser } from '@/store/userProfileStore';
@@ -10,8 +10,21 @@ export default function HomePage() {
   const router = useRouter();
   const { user, isLoading } = useUser();
   const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+
+  // Timeout to prevent perpetual loading - redirect to login after 5 seconds
+  useEffect(() => {
+    const timeout = setTimeout(() => setLoadingTimeout(true), 5000);
+    return () => clearTimeout(timeout);
+  }, []);
 
   useEffect(() => {
+    // If loading timed out, redirect to login
+    if (loadingTimeout && (isAuthLoading || isLoading)) {
+      router.push('/login');
+      return;
+    }
+
     // Wait for auth to load
     if (isAuthLoading || isLoading) return;
 
@@ -28,7 +41,7 @@ export default function HomePage() {
     }, 1500);
 
     return () => clearTimeout(timer);
-  }, [user, isAuthenticated, isAuthLoading, isLoading, router]);
+  }, [user, isAuthenticated, isAuthLoading, isLoading, router, loadingTimeout]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-navy via-purple to-teal flex items-center justify-center">

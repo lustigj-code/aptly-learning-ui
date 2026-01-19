@@ -9,7 +9,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Brain, Calendar, TrendingUp, ChevronRight, RefreshCw } from 'lucide-react';
+import { Brain, Calendar, TrendingUp, ChevronRight } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { ProgressBar } from '@/components/ui/ProgressBar';
@@ -50,7 +50,7 @@ export function ReviewTab() {
       if (response.success && response.data?.items) {
         // Transform API items to ConceptMastery format for ReviewQueue component
         const masteryRecords: ConceptMastery[] = response.data.items.map((item: ReviewItem) => {
-          const concept = SOCIAL_MEDIA_MARKETING_GRAPH.concepts[item.conceptId];
+          const _concept = SOCIAL_MEDIA_MARKETING_GRAPH.concepts[item.conceptId];
           return {
             conceptId: item.conceptId,
             userId: user.id,
@@ -153,7 +153,7 @@ export function ReviewTab() {
           <TrendingUp className="w-16 h-16 text-green mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-navy mb-2">All Caught Up!</h3>
           <p className="text-gray-600 mb-4">
-            You don't have any reviews due today. Great work staying on top of your learning!
+            You don&apos;t have any reviews due today. Great work staying on top of your learning!
           </p>
           <p className="text-sm text-gray-500">
             Complete more lessons to build your review queue and strengthen long-term retention.
@@ -203,7 +203,7 @@ export function ReviewTab() {
               <li className="flex items-start gap-2">
                 <span className="text-teal mt-1">•</span>
                 <span>
-                  Reviews are timed for when you're <strong>about to forget</strong> - maximizing learning
+                  Reviews are timed for when you&apos;re <strong>about to forget</strong> - maximizing learning
                   efficiency
                 </span>
               </li>

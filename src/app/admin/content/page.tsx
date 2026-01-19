@@ -90,7 +90,7 @@ export default function AdminContentPage() {
       if (result.success) {
         fetchData()
       }
-    } catch (error) {
+    } catch (_error) {
       setSeedResult({ success: false, message: 'Failed to seed content' })
     } finally {
       setIsSeeding(false)

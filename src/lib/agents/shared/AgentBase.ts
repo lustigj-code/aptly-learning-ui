@@ -95,7 +95,7 @@ export abstract class AgentBase {
    * Build the system prompt for this agent
    * Can be overridden to customize prompt building
    */
-  protected buildSystemPrompt(context: AgentContext): string {
+  protected buildSystemPrompt(_context: AgentContext): string {
     return this.config.systemPrompt;
   }
 
@@ -109,7 +109,7 @@ export abstract class AgentBase {
    * Parse actions from the model response
    * Override in subclasses for agent-specific action parsing
    */
-  protected parseActions(response: string): AgentAction[] {
+  protected parseActions(_response: string): AgentAction[] {
     return [];
   }
 

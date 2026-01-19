@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { formatDistanceToNow, format, differenceInDays } from 'date-fns';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -116,4 +117,18 @@ export function getRelativeTimeString(date: Date): string {
   if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`;
 
   return date.toLocaleDateString();
+}
+
+/**
+ * Format a date with smart logic:
+ * - Recent dates (< 7 days): "2 days ago"
+ * - Older dates: "Jan 15, 2026"
+ */
+export function formatDate(date: Date | string | number): string {
+  const dateObj = typeof date === 'string' || typeof date === 'number' ? new Date(date) : date;
+  const daysAgo = differenceInDays(new Date(), dateObj);
+
+  return daysAgo < 7
+    ? formatDistanceToNow(dateObj, { addSuffix: true })
+    : format(dateObj, 'MMM d, yyyy');
 }

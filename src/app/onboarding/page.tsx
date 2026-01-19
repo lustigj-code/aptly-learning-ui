@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -99,6 +100,7 @@ const timeCommitments: { minutes: number; pace: LearningPace; label: string }[] 
 export default function OnboardingPage() {
   const router = useRouter();
   const setUser = useUserProfileStore((state) => state.setUser);
+  const prefersReducedMotion = useReducedMotion();
 
   const [currentStep, setCurrentStep] = useState<OnboardingStep>('welcome');
   const [name, setName] = useState('');
@@ -340,10 +342,12 @@ export default function OnboardingPage() {
 
                 <Input
                   inputSize="lg"
+                  label="Name"
                   placeholder="Your name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="mb-6"
+                  required
                 />
 
                 <Button
@@ -401,8 +405,8 @@ export default function OnboardingPage() {
                             ? colors.selected
                             : 'border-grey bg-white hover:border-muted-teal'
                         )}
-                        whileHover={{ scale: 1.01 }}
-                        whileTap={{ scale: 0.99 }}
+                        whileHover={!prefersReducedMotion ? { scale: 1.01 } : undefined}
+                        whileTap={!prefersReducedMotion ? { scale: 0.99 } : undefined}
                       >
                         <div
                           className={cn(

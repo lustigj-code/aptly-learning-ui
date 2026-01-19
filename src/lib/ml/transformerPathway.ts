@@ -408,7 +408,7 @@ export function combineMasks(
   causalMask: number[][],
   paddingMask: number[]
 ): number[][] {
-  return causalMask.map((row, i) =>
+  return causalMask.map((row) =>
     row.map((v, j) => v + paddingMask[j])
   );
 }
@@ -435,7 +435,7 @@ export interface ITransformerPathway {
   /**
    * Get prediction for next response
    */
-  predictNext(state: TransformerState, skillId: string): Promise<number>;
+  predictNext(state: TransformerState, skillId?: string): Promise<number>;
 
   /**
    * Update state with new interaction
@@ -518,7 +518,7 @@ export class SimpleTransformerPathway implements ITransformerPathway {
     );
 
     // Create causal mask if not provided
-    const attentionMask =
+    const _attentionMask =
       mask || new Array(seqLen).fill(0).map((_, i) => (i < seqLen ? 0 : -Infinity));
 
     // Simplified: just return the input embeddings as the encoding
@@ -542,7 +542,7 @@ export class SimpleTransformerPathway implements ITransformerPathway {
   /**
    * Get prediction for next response
    */
-  async predictNext(state: TransformerState, _skillId: string): Promise<number> {
+  async predictNext(state: TransformerState): Promise<number> {
     // Simple prediction based on sequence encoding
     // Full implementation would use prediction head
     const encoding = state.sequenceEncoding;

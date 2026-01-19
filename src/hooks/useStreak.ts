@@ -45,7 +45,7 @@ type UseStreakReturn = {
 export function useStreak(): UseStreakReturn {
   const { authUser: user } = useAuth();
   const { streak, isLoading, checkAndUpdateStreak } = useProgress();
-  const useFreeze = useUserProfileStore((state) => state.useStreakFreeze);
+  const streakFreezeAction = useUserProfileStore((state) => state.useStreakFreeze);
 
   // Track if we've already triggered a notification this session
   const hasTriggeredNotification = useRef(false);
@@ -105,10 +105,10 @@ export function useStreak(): UseStreakReturn {
     }
   }, [user?.uid, streak, isLoading, hasActivityToday, isAtRisk, hoursUntilMidnight]);
 
-  // Memoized useFreeze wrapper
-  const useFreezeCallback = useCallback(async () => {
-    return useFreeze();
-  }, [useFreeze]);
+  // Wrapper for the store's streak freeze function
+  const freezeCallback = useCallback(async () => {
+    return streakFreezeAction();
+  }, [streakFreezeAction]);
 
   return {
     streak: streak as StreakData | null,
@@ -117,7 +117,7 @@ export function useStreak(): UseStreakReturn {
     isAtRisk,
     hoursUntilMidnight,
     checkAndUpdateStreak,
-    useFreeze: useFreezeCallback,
+    useFreeze: freezeCallback,
   };
 }
 

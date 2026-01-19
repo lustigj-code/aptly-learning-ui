@@ -4,51 +4,22 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  getUser,
-  createUser,
-  updateUserProfile,
-} from '../userService';
 
-// Create mock functions
-const mockUpdate = vi.fn(() => Promise.resolve());
-const mockSet = vi.fn(() => Promise.resolve());
-const mockGet = vi.fn(() =>
-  Promise.resolve({
-    exists: true,
-    id: 'test-user-123',
-    data: () => ({
-      email: 'test@example.com',
-      name: 'Test User',
-      role: 'student',
-      onboardingCompleted: true,
-      preferences: {
-        learningPace: 'moderate',
-        dailyGoalMinutes: 30,
-      },
-      progress: {
-        lastActiveAt: { toDate: () => new Date() },
-      },
-      createdAt: { toDate: () => new Date() },
-      badges: [],
-    }),
-  })
-);
+// Create mock functions at module scope for hoisting
+const mockGet = vi.fn();
+const mockSet = vi.fn();
+const mockUpdate = vi.fn();
 
-const mockDoc = vi.fn(() => ({
-  get: mockGet,
-  set: mockSet,
-  update: mockUpdate,
-}));
-
-const mockCollection = vi.fn(() => ({
-  doc: mockDoc,
-}));
-
-// Mock Firebase Admin
+// Mock Firebase Admin before imports
 vi.mock('@/lib/firebase/admin', () => ({
   adminDb: {
-    collection: mockCollection,
+    collection: vi.fn(() => ({
+      doc: vi.fn(() => ({
+        get: mockGet,
+        set: mockSet,
+        update: mockUpdate,
+      })),
+    })),
   },
 }));
 
@@ -56,9 +27,38 @@ vi.mock('@/lib/monitoring/sentry', () => ({
   captureError: vi.fn(),
 }));
 
+// Import after mocks
+import {
+  getUser,
+  createUser,
+  updateUserProfile,
+} from '../userService';
+
 describe('User Service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default mock implementations
+    mockGet.mockResolvedValue({
+      exists: true,
+      id: 'test-user-123',
+      data: () => ({
+        email: 'test@example.com',
+        name: 'Test User',
+        role: 'student',
+        onboardingCompleted: true,
+        preferences: {
+          learningPace: 'moderate',
+          dailyGoalMinutes: 30,
+        },
+        progress: {
+          lastActiveAt: { toDate: () => new Date() },
+        },
+        createdAt: { toDate: () => new Date() },
+        badges: [],
+      }),
+    });
+    mockSet.mockResolvedValue(undefined);
+    mockUpdate.mockResolvedValue(undefined);
   });
 
   describe('getUser', () => {
@@ -71,16 +71,9 @@ describe('User Service', () => {
     });
 
     it('returns null when user not found', async () => {
-      const { adminDb } = await import('@/lib/firebase/admin');
-      vi.mocked(adminDb.collection).mockReturnValue({
-        doc: vi.fn(() => ({
-          get: vi.fn(() =>
-            Promise.resolve({
-              exists: false,
-            })
-          ),
-        })),
-      } as any);
+      mockGet.mockResolvedValueOnce({
+        exists: false,
+      });
 
       const profile = await getUser('nonexistent-user');
 
@@ -88,7 +81,7 @@ describe('User Service', () => {
     });
 
     it('throws error with invalid UID', async () => {
-      await expect(getUser('')).rejects.toThrow('Invalid UID');
+      await expect(getUser('')).rejects.toThrow('Invalid uid');
     });
   });
 

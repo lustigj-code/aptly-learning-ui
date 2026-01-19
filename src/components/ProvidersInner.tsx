@@ -10,6 +10,7 @@ import { ToastProvider } from '@/components/ui/Toast';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { PWAProvider } from '@/components/pwa';
 import { KeyboardShortcutsModal, useGlobalKeyboardShortcuts } from '@/components/accessibility/KeyboardShortcuts';
+import { CookieConsent } from '@/components/ui/CookieConsent';
 
 type ProvidersInnerProps = {
   children: React.ReactNode;
@@ -33,6 +34,7 @@ function KeyboardNavigationProvider({ children }: { children: React.ReactNode })
     <>
       {children}
       <KeyboardShortcutsModal />
+      <CookieConsent />
     </>
   );
 }

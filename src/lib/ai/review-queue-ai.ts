@@ -54,7 +54,7 @@ How should these be bundled for optimal review?`,
 
     // Parse bundles (simplified - would use structured output)
     return parseBundles(result.content, dueReviews);
-  } catch (error) {
+  } catch (_error) {
     // Fallback: simple bundling by category
     return fallbackBundling(dueReviews);
   }

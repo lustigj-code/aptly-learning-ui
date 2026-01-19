@@ -8,7 +8,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, Upload, Link2, FileText, Loader2, AlertCircle } from 'lucide-react';
+import { CheckCircle, Upload, Link2, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import type { Atom, ProjectContent } from '@/types';
 import { AdCreativeUpload } from '@/components/ai/AdCreativeUpload';
@@ -20,7 +20,7 @@ type ProjectAtomProps = {
   coachAvailable?: boolean;
 };
 
-export function ProjectAtom({ atom, onComplete, coachAvailable = true }: ProjectAtomProps) {
+export function ProjectAtom({ atom, onComplete, coachAvailable: _coachAvailable = true }: ProjectAtomProps) {
   const { content } = atom;
   const [submission, setSubmission] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,7 +66,7 @@ export function ProjectAtom({ atom, onComplete, coachAvailable = true }: Project
       }
 
       onComplete(xpEarned);
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to submit project. Please try again.');
     } finally {
       setIsSubmitting(false);

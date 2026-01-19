@@ -38,7 +38,7 @@ interface LinearLessonViewProps {
  * through lesson atoms.
  */
 export function LinearLessonView({
-  lesson,
+  lesson: _lesson,
   atoms,
   onAtomComplete,
   onLessonComplete,

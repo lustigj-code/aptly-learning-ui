@@ -8,10 +8,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Keyboard, X } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Keyboard } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 
 type KeyboardShortcut = {
@@ -64,14 +61,14 @@ export function KeyboardShortcutsModal() {
 
   return (
     <>
-      {/* Floating hint button */}
+      {/* Floating hint button - Apple-style elegant design */}
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 p-3 bg-teal text-white rounded-full shadow-lg hover:bg-teal-dark transition-colors z-40"
-        aria-label="Show keyboard shortcuts"
+        className="fixed bottom-6 right-6 p-3 bg-teal text-white rounded-full shadow-lg hover:bg-teal-dark hover:scale-105 active:scale-95 transition-all duration-200 z-40 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-teal/50 focus-visible:ring-offset-2 group"
+        aria-label="Show keyboard shortcuts (Press ? key)"
         title="Press ? for keyboard shortcuts"
       >
-        <Keyboard className="w-5 h-5" />
+        <Keyboard className="w-5 h-5 group-hover:rotate-12 transition-transform duration-200" />
       </button>
 
       {/* Shortcuts Modal */}
@@ -79,16 +76,17 @@ export function KeyboardShortcutsModal() {
         <div className="space-y-6">
           {/* Navigation Shortcuts */}
           <div>
-            <h3 className="text-sm font-semibold text-navy mb-3">Navigation</h3>
+            <h3 className="text-sm font-semibold text-navy mb-3 uppercase tracking-wider">Navigation</h3>
             <div className="space-y-2">
               {groupedShortcuts.navigation.map((shortcut, index) => (
-                <div key={index} className="flex items-center justify-between py-2 border-b border-gray-200 last:border-0">
-                  <span className="text-sm text-gray-700">{shortcut.description}</span>
-                  <div className="flex items-center gap-1">
+                <div key={index} className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-light-teal/30 transition-colors duration-150 border-b border-grey/20 last:border-0">
+                  <span className="text-sm text-navy font-medium">{shortcut.description}</span>
+                  <div className="flex items-center gap-1.5">
                     {shortcut.keys.map((key, keyIndex) => (
                       <kbd
                         key={keyIndex}
-                        className="px-2 py-1 text-xs font-mono bg-gray-100 border border-gray-300 rounded"
+                        className="px-3 py-1.5 text-xs font-mono font-semibold bg-gradient-to-b from-white to-light-grey border border-grey/40 rounded-lg shadow-sm text-navy min-w-[32px] text-center"
+                        aria-label={`Key: ${key}`}
                       >
                         {key}
                       </kbd>
@@ -101,16 +99,17 @@ export function KeyboardShortcutsModal() {
 
           {/* Learning Shortcuts */}
           <div>
-            <h3 className="text-sm font-semibold text-navy mb-3">Learning</h3>
+            <h3 className="text-sm font-semibold text-navy mb-3 uppercase tracking-wider">Learning</h3>
             <div className="space-y-2">
               {groupedShortcuts.learning.map((shortcut, index) => (
-                <div key={index} className="flex items-center justify-between py-2 border-b border-gray-200 last:border-0">
-                  <span className="text-sm text-gray-700">{shortcut.description}</span>
-                  <div className="flex items-center gap-1">
+                <div key={index} className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-light-teal/30 transition-colors duration-150 border-b border-grey/20 last:border-0">
+                  <span className="text-sm text-navy font-medium">{shortcut.description}</span>
+                  <div className="flex items-center gap-1.5">
                     {shortcut.keys.map((key, keyIndex) => (
                       <kbd
                         key={keyIndex}
-                        className="px-2 py-1 text-xs font-mono bg-gray-100 border border-gray-300 rounded"
+                        className="px-3 py-1.5 text-xs font-mono font-semibold bg-gradient-to-b from-white to-light-grey border border-grey/40 rounded-lg shadow-sm text-navy min-w-[32px] text-center"
+                        aria-label={`Key: ${key}`}
                       >
                         {key}
                       </kbd>
@@ -123,16 +122,17 @@ export function KeyboardShortcutsModal() {
 
           {/* General Shortcuts */}
           <div>
-            <h3 className="text-sm font-semibold text-navy mb-3">General</h3>
+            <h3 className="text-sm font-semibold text-navy mb-3 uppercase tracking-wider">General</h3>
             <div className="space-y-2">
               {groupedShortcuts.general.map((shortcut, index) => (
-                <div key={index} className="flex items-center justify-between py-2 border-b border-gray-200 last:border-0">
-                  <span className="text-sm text-gray-700">{shortcut.description}</span>
-                  <div className="flex items-center gap-1">
+                <div key={index} className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-light-teal/30 transition-colors duration-150 border-b border-grey/20 last:border-0">
+                  <span className="text-sm text-navy font-medium">{shortcut.description}</span>
+                  <div className="flex items-center gap-1.5">
                     {shortcut.keys.map((key, keyIndex) => (
                       <kbd
                         key={keyIndex}
-                        className="px-2 py-1 text-xs font-mono bg-gray-100 border border-gray-300 rounded"
+                        className="px-3 py-1.5 text-xs font-mono font-semibold bg-gradient-to-b from-white to-light-grey border border-grey/40 rounded-lg shadow-sm text-navy min-w-[32px] text-center"
+                        aria-label={`Key: ${key}`}
                       >
                         {key}
                       </kbd>
@@ -144,9 +144,10 @@ export function KeyboardShortcutsModal() {
           </div>
         </div>
 
-        <div className="mt-6 p-4 bg-light-blue/10 rounded-lg">
-          <p className="text-sm text-gray-700">
-            <strong>Tip:</strong> Press <kbd className="px-2 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs font-mono">?</kbd> anytime to see this list.
+        <div className="mt-6 p-4 bg-light-teal/20 rounded-xl border border-teal/20">
+          <p className="text-sm text-navy font-medium flex items-center gap-2">
+            <span className="text-teal">💡</span>
+            <span><strong>Tip:</strong> Press <kbd className="px-3 py-1 bg-gradient-to-b from-white to-light-grey border border-grey/40 rounded-lg shadow-sm text-xs font-mono font-semibold text-navy mx-1">?</kbd> anytime to see this list.</span>
           </p>
         </div>
       </Modal>

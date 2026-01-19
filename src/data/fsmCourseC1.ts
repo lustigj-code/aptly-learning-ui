@@ -15,39 +15,33 @@ const m1l0Atoms: Atom[] = [
   {
     id: 'fsm-c1-m1-l0-a1',
     lessonId: 'fsm-c1-m1-l0',
-    type: 'video',
+    type: 'reading',
     title: 'Introduction to the Facebook Social Media Marketing Professional Certificate',
     content: {
-      videoUrl: '', // TODO: Add video URL when available
-      transcript: `-Program: Facebook Social Media Marketing Professional Certificate 
+      body: `-Program: Facebook Social Media Marketing Professional Certificate
 
-Course 1: Introduction to Social Media 
+Course 1: Introduction to Social Media
 Module 1: The Social Media Landscape
 Lesson 0: Introduction to the program
 
 Course Objectives:
 
-Understand the holistic channels of social media 
+Understand the holistic channels of social media
 
-Understand how to become certified as a Digital Marketing Associate 
+Understand how to become certified as a Digital Marketing Associate
 
 Understand how to set goals, success metrics, and a target audience for your marketing efforts
 
-Choose a social media channels that are right for you 
+Choose a social media channels that are right for you
 
 Establish and manage y...`,
-      duration: 420,
-      chapters: [
-        { time: 0, title: 'Introduction' },
-        { time: 120, title: 'Main Content' },
-        { time: 300, title: 'Summary' },
-      ],
-      keyTakeaways: [
+      highlights: [
         '-Program: Facebook Social Media Marketing Professional Certificate',
         'Course 1: Introduction to Social Media',
         'Module 1: The Social Media Landscape',
         'Lesson 0: Introduction to the program',
       ],
+      relatedResources: [],
     },
     estimatedMinutes: 7,
     isRequired: true,
@@ -56,39 +50,33 @@ Establish and manage y...`,
   {
     id: 'fsm-c1-m1-l0-a2',
     lessonId: 'fsm-c1-m1-l0',
-    type: 'video',
+    type: 'reading',
     title: 'Introduction to Social Media Marketing Overview',
     content: {
-      videoUrl: '', // TODO: Add video URL when available
-      transcript: `-Program: Facebook Social Media Marketing Professional Certificate 
+      body: `-Program: Facebook Social Media Marketing Professional Certificate
 
-Course 1: Introduction to Social Media 
+Course 1: Introduction to Social Media
 Module 1: The Social Media Landscape
 Lesson 0: Introduction to the program
 
 Course Objectives:
 
-Understand the holistic channels of social media 
+Understand the holistic channels of social media
 
-Understand how to become certified as a Digital Marketing Associate 
+Understand how to become certified as a Digital Marketing Associate
 
 Understand how to set goals, success metrics, and a target audience for your marketing efforts
 
-Choose a social media channels that are right for you 
+Choose a social media channels that are right for you
 
 Establish and manage y...`,
-      duration: 420,
-      chapters: [
-        { time: 0, title: 'Introduction' },
-        { time: 120, title: 'Main Content' },
-        { time: 300, title: 'Summary' },
-      ],
-      keyTakeaways: [
+      highlights: [
         '-Program: Facebook Social Media Marketing Professional Certificate',
         'Course 1: Introduction to Social Media',
         'Module 1: The Social Media Landscape',
         'Lesson 0: Introduction to the program',
       ],
+      relatedResources: [],
     },
     estimatedMinutes: 7,
     isRequired: true,
@@ -97,39 +85,33 @@ Establish and manage y...`,
   {
     id: 'fsm-c1-m1-l0-a3',
     lessonId: 'fsm-c1-m1-l0',
-    type: 'video',
+    type: 'reading',
     title: 'Introduction to Anke Audenaert',
     content: {
-      videoUrl: '', // TODO: Add video URL when available
-      transcript: `-Program: Facebook Social Media Marketing Professional Certificate 
+      body: `-Program: Facebook Social Media Marketing Professional Certificate
 
-Course 2: Social Media Content Management  
-Module 1: Social Media Branding 
+Course 2: Social Media Content Management
+Module 1: Social Media Branding
 Lesson 0: {descriptive lesson title}
 
 Course Objectives:
 
-Understand how and why to create content for your social media platforms 
+Understand how and why to create content for your social media platforms
 
-Create your brand, tone, and voice for your social media presence 
+Create your brand, tone, and voice for your social media presence
 
 Manage content calendar for my social media presence
 
-Evaluate the performance of my content on social media and iterate on the performence 
+Evaluate the performance of my content on social media and iterate on the performence
 
 Demonstrate...`,
-      duration: 420,
-      chapters: [
-        { time: 0, title: 'Introduction' },
-        { time: 120, title: 'Main Content' },
-        { time: 300, title: 'Summary' },
-      ],
-      keyTakeaways: [
+      highlights: [
         '-Program: Facebook Social Media Marketing Professional Certificate',
         'Course 2: Social Media Content Management',
         'Module 1: Social Media Branding',
         'Lesson 0: {descriptive lesson title}',
       ],
+      relatedResources: [],
     },
     estimatedMinutes: 7,
     isRequired: true,
@@ -138,39 +120,33 @@ Demonstrate...`,
   {
     id: 'fsm-c1-m1-l0-a4',
     lessonId: 'fsm-c1-m1-l0',
-    type: 'video',
+    type: 'reading',
     title: 'Careers in Digital Marketing',
     content: {
-      videoUrl: '', // TODO: Add video URL when available
-      transcript: `-Program: Facebook Social Media Marketing Professional Certificate 
+      body: `-Program: Facebook Social Media Marketing Professional Certificate
 
-Course 1: Introduction to Social Media 
+Course 1: Introduction to Social Media
 Module 1: The Social Media Landscape
 Lesson 0: Introduction to the program
 
 Course Objectives:
 
-Understand the holistic channels of social media 
+Understand the holistic channels of social media
 
-Understand how to become certified as a Digital Marketing Associate 
+Understand how to become certified as a Digital Marketing Associate
 
 Understand how to set goals, success metrics, and a target audience for your marketing efforts
 
-Choose a social media channels that are right for you 
+Choose a social media channels that are right for you
 
 Establish and manage y...`,
-      duration: 420,
-      chapters: [
-        { time: 0, title: 'Introduction' },
-        { time: 120, title: 'Main Content' },
-        { time: 300, title: 'Summary' },
-      ],
-      keyTakeaways: [
+      highlights: [
         '-Program: Facebook Social Media Marketing Professional Certificate',
         'Course 1: Introduction to Social Media',
         'Module 1: The Social Media Landscape',
         'Lesson 0: Introduction to the program',
       ],
+      relatedResources: [],
     },
     estimatedMinutes: 7,
     isRequired: true,
@@ -418,39 +394,33 @@ Social Media Landscape Overview
   {
     id: 'fsm-c1-m1-l1-a1',
     lessonId: 'fsm-c1-m1-l1',
-    type: 'video',
+    type: 'reading',
     title: 'The Social Media Landscape Overview',
     content: {
-      videoUrl: '', // TODO: Add video URL when available
-      transcript: `-Program: Facebook Social Media Marketing Professional Certificate 
+      body: `-Program: Facebook Social Media Marketing Professional Certificate
 
-Course 1: Introduction to Social Media 
+Course 1: Introduction to Social Media
 Module 1: The Social Media Landscape
-Lesson 1: Introduction to Marketing 
+Lesson 1: Introduction to Marketing
 
 Course Objectives:
 
-Understand the holistic channels of social media 
+Understand the holistic channels of social media
 
-Understand how to become certified as a Digital Marketing Associate 
+Understand how to become certified as a Digital Marketing Associate
 
 Understand how to set goals, success metrics, and a target audience for your marketing efforts
 
-Choose social media channels that are right for you 
+Choose social media channels that are right for you
 
 Establish and manage your...`,
-      duration: 420,
-      chapters: [
-        { time: 0, title: 'Introduction' },
-        { time: 120, title: 'Main Content' },
-        { time: 300, title: 'Summary' },
-      ],
-      keyTakeaways: [
+      highlights: [
         '-Program: Facebook Social Media Marketing Professional Certificate',
         'Course 1: Introduction to Social Media',
         'Module 1: The Social Media Landscape',
         'Lesson 1: Introduction to Marketing',
       ],
+      relatedResources: [],
     },
     estimatedMinutes: 7,
     isRequired: true,
@@ -599,39 +569,33 @@ Headshot/ slide
   {
     id: 'fsm-c1-m1-l1-a3',
     lessonId: 'fsm-c1-m1-l1',
-    type: 'video',
+    type: 'reading',
     title: 'Introduction to Digital Marketing',
     content: {
-      videoUrl: '', // TODO: Add video URL when available
-      transcript: `tiProgram: Facebook Social Media Marketing Professional Certificate 
+      body: `tiProgram: Facebook Social Media Marketing Professional Certificate
 
-Course 1: Introduction to Social Media 
+Course 1: Introduction to Social Media
 Module 1: The Social Media Landscape
-Lesson 1: Introduction to Marketing 
+Lesson 1: Introduction to Marketing
 
 Course Objectives:
 
-Understand the holistic channels of social media 
+Understand the holistic channels of social media
 
-Understand how to become certified as a Digital Marketing Associate 
+Understand how to become certified as a Digital Marketing Associate
 
 Understand how to set goals, success metrics, and a target audience for your marketing efforts
 
-Choose social media channels that are right for you 
+Choose social media channels that are right for you
 
 Establish and manage you...`,
-      duration: 420,
-      chapters: [
-        { time: 0, title: 'Introduction' },
-        { time: 120, title: 'Main Content' },
-        { time: 300, title: 'Summary' },
-      ],
-      keyTakeaways: [
+      highlights: [
         'tiProgram: Facebook Social Media Marketing Professional Certificate',
         'Course 1: Introduction to Social Media',
         'Module 1: The Social Media Landscape',
         'Lesson 1: Introduction to Marketing',
       ],
+      relatedResources: [],
     },
     estimatedMinutes: 7,
     isRequired: true,

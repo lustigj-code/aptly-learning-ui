@@ -79,7 +79,7 @@ Generate a Level ${level} Socratic hint.`,
       level,
       isSocratic: result.content.includes('?'),
     };
-  } catch (error) {
+  } catch (_error) {
     // Fallback to generic hint if AI fails
     return {
       hint: 'Think about what information would help you eliminate the wrong answers. What do you already know about this topic?',
@@ -130,7 +130,7 @@ Generate a conversational response that ${isCorrect ? 'celebrates and deepens' :
   try {
     const result = await orchestrator.generateWithRAG(messages, 'meta_blueprint');
     return result.content;
-  } catch (error) {
+  } catch (_error) {
     // Fallback to static explanation
     return isCorrect
       ? `That's right! ${question.explanation}`
@@ -192,7 +192,7 @@ What should the student do next? Be specific and encouraging.`,
       suggestion: result.content,
       action,
     };
-  } catch (error) {
+  } catch (_error) {
     // Fallback suggestion
     const fallbacks = {
       advanced: "Excellent work! You're ready for more advanced scenarios.",

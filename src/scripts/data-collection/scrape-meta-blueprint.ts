@@ -126,7 +126,7 @@ async function scrapeMetaBlueprint() {
 /**
  * Extract concept data from a lesson page
  */
-async function extractConceptData(page: any, url: string): Promise<BlueprintConcept | null> {
+async function extractConceptData(page: unknown, url: string): Promise<BlueprintConcept | null> {
   try {
     const data = await page.evaluate(() => {
       const title = document.querySelector('h1')?.textContent?.trim() || '';

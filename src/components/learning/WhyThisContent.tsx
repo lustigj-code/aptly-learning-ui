@@ -38,7 +38,7 @@ export interface WhyThisContentProps {
 export function WhyThisContent({
   reason,
   skillName,
-  skillId,
+  skillId: _skillId,
   prerequisites = [],
   currentMastery,
   targetMastery = 85,

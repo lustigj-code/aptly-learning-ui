@@ -7,7 +7,6 @@
  * - Advanced versions: faster pace, deeper concepts
  */
 
-import type { SkillState } from '@/lib/mastery/bkt';
 import type { StruggleSignals } from '@/lib/adaptive/struggleDetection';
 
 // ============================================

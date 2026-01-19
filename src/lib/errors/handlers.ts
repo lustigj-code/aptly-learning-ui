@@ -41,6 +41,19 @@ export function createApiError(
 }
 
 /**
+ * Check if an object is a structured ApiError
+ */
+function isApiError(error: unknown): error is ApiError {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    'message' in error &&
+    typeof (error as ApiError).message === 'string'
+  );
+}
+
+/**
  * Wrap an unknown error into a structured ApiError
  * @param operation - Description of the operation that failed
  * @param error - The caught error (can be any type)
@@ -50,6 +63,14 @@ export function wrapServiceError(
   operation: string,
   error: unknown
 ): ApiError {
+  // Handle ApiError objects (from createApiError/validateString/etc)
+  if (isApiError(error)) {
+    return {
+      ...error,
+      message: `Failed to ${operation}: ${error.message}`,
+    };
+  }
+
   const message = error instanceof Error ? error.message : 'Unknown error';
   const stack = error instanceof Error ? error.stack : undefined;
 

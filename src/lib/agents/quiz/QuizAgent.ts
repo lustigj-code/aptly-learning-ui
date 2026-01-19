@@ -160,7 +160,7 @@ export class QuizAgent extends AgentBase {
         { name: 'userId', type: 'string', description: 'User ID', required: true },
         { name: 'skillId', type: 'string', description: 'Skill ID', required: true },
       ],
-      handler: async (params) => {
+      handler: async (_params) => {
         // Will integrate with BKT service
         return { pMastery: 0.5, attempts: 0, correctCount: 0 };
       },
@@ -172,7 +172,7 @@ export class QuizAgent extends AgentBase {
    */
   async process(request: AgentRequest): Promise<AgentResponse> {
     const startTime = Date.now();
-    const { state, context } = request;
+    const { context } = request;
 
     try {
       // Determine if this is an answer or a request for a new question
@@ -346,7 +346,7 @@ export class QuizAgent extends AgentBase {
   private async generateQuestion(
     skillId: string,
     difficulty: number,
-    avoidQuestionIds?: string[]
+    _avoidQuestionIds?: string[]
   ): Promise<QuizQuestion> {
     // TODO: Integrate with question bank or LLM generation
     // For now, return placeholder
@@ -389,7 +389,8 @@ export class QuizAgent extends AgentBase {
     const currentMastery = studentState.masteryLevels[skillId] || 0.5;
 
     // Simulate correctness based on mastery + some randomness
-    const predictedCorrect = currentMastery > 0.5;
+    // Note: predictedCorrect would be used for adaptive difficulty
+    const _predictedCorrect = currentMastery > 0.5;
     const isCorrect = answer === 'B'; // Placeholder - always B is correct
 
     // Calculate BKT update
@@ -519,7 +520,7 @@ export class QuizAgent extends AgentBase {
    */
   private buildFeedbackMessage(
     evaluation: AnswerEvaluation,
-    studentState: StudentState
+    _studentState: StudentState
   ): string {
     let message = evaluation.feedback;
 

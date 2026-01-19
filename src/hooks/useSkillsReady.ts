@@ -8,6 +8,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useAuthStore } from '@/store/authStore';
 
 export interface SkillRecommendation {
   id: string;
@@ -57,13 +58,25 @@ export function useSkillsReady(): UseSkillsReadyResult {
   const [data, setData] = useState<SkillsReadyData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const firebaseUser = useAuthStore((state) => state.firebaseUser);
 
   const fetchSkills = useCallback(async () => {
+    if (!firebaseUser) {
+      setIsLoading(false);
+      setData(null);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await fetch('/api/skills/ready');
+      const token = await firebaseUser.getIdToken();
+      const response = await fetch('/api/skills/ready', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (!response.ok) {
         if (response.status === 401) {
@@ -87,7 +100,7 @@ export function useSkillsReady(): UseSkillsReadyResult {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [firebaseUser]);
 
   useEffect(() => {
     fetchSkills();

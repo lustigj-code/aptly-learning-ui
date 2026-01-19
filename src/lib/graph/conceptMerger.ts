@@ -9,7 +9,6 @@ import {
   Concept,
   ConceptId,
   ExtractedConcept,
-  MergeResult,
 } from './types';
 import { getAllConcepts } from './KnowledgeGraphService';
 
@@ -176,8 +175,9 @@ function calculateSetOverlap<T>(setA: Set<T>, setB: Set<T>): number {
 
 /**
  * N-gram based similarity (for handling typos and word order)
+ * @internal - reserved for future use
  */
-function nGramSimilarity(a: string, b: string, n: number = 2): number {
+function _nGramSimilarity(a: string, b: string, n: number = 2): number {
   const ngramsA = getNGrams(a, n);
   const ngramsB = getNGrams(b, n);
   return calculateSetOverlap(ngramsA, ngramsB);

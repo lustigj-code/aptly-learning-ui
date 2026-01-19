@@ -155,6 +155,7 @@ Balance guidance with independence.`;
 /**
  * Get specific scaffolding technique for context
  */
+ 
 function getScaffoldTechnique(level: number, _context: ScaffoldingContext): string {
   const techniques = SCAFFOLDING_TECHNIQUES[level as keyof typeof SCAFFOLDING_TECHNIQUES];
   return `# TECHNIQUE FOR THIS STEP

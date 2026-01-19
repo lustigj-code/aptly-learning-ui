@@ -65,17 +65,22 @@ export function useAdaptiveContent(sessionItem: SessionItem | null): UseAdaptive
   });
 
   // Load content when session item changes
+  // Note: This effect synchronizes state based on prop changes, which is valid
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!sessionItem) {
-      setContent(prev => ({
-        ...prev,
+      setContent({
+        contentType: 'lesson',
+        lesson: null,
+        module: null,
+        atoms: [],
+        currentAtomIndex: 0,
+        skillId: '',
         isLoading: false,
         error: 'No session item provided',
-      }));
+      });
       return;
     }
-
-    setContent(prev => ({ ...prev, isLoading: true, error: null }));
 
     const parsed = parseSequencerItemId(sessionItem.itemId);
 
@@ -84,11 +89,11 @@ export function useAdaptiveContent(sessionItem: SessionItem | null): UseAdaptive
       const lesson = getLessonById(parsed.lessonId);
 
       if (lesson) {
-        const module = getModuleByLessonId(parsed.lessonId);
+        const fetchedModule = getModuleByLessonId(parsed.lessonId);
         setContent({
           contentType: 'lesson',
           lesson,
-          module: module || null,
+          module: fetchedModule || null,
           atoms: lesson.atoms || [],
           currentAtomIndex: 0,
           skillId: sessionItem.skillId,
@@ -96,11 +101,16 @@ export function useAdaptiveContent(sessionItem: SessionItem | null): UseAdaptive
           error: null,
         });
       } else {
-        setContent(prev => ({
-          ...prev,
+        setContent({
+          contentType: 'lesson',
+          lesson: null,
+          module: null,
+          atoms: [],
+          currentAtomIndex: 0,
+          skillId: sessionItem.skillId,
           isLoading: false,
           error: `Lesson ${parsed.lessonId} not found`,
-        }));
+        });
       }
     } else if (parsed.type === 'quiz') {
       // For quiz items, load the lesson that contains the quiz
@@ -144,7 +154,8 @@ export function useAdaptiveContent(sessionItem: SessionItem | null): UseAdaptive
         error: null,
       });
     }
-  }, [sessionItem?.itemId, sessionItem?.skillId]);
+  }, [sessionItem]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Navigation functions
   const setCurrentAtomIndex = useCallback((index: number) => {

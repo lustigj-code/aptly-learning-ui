@@ -30,7 +30,6 @@ import type {
   TransformerState,
   BayesianState,
   DualPathwayState,
-  TrainingData,
   TrainingResult,
   EvaluationMetrics,
   PathwayWeights,
@@ -39,10 +38,9 @@ import type {
 } from './hybridModelTypes';
 import {
   DEFAULT_HYBRID_MODEL_CONFIG,
-  bktPriorsToBKTParameters,
 } from './hybridModelTypes';
 
-import { prepareInferenceData, calculateSkillDifficulties, createPositionalEncoding } from './dataPreparation';
+import { calculateSkillDifficulties } from './dataPreparation';
 import {
   createTransformerPathway,
   ITransformerPathway,
@@ -116,7 +114,7 @@ export class HybridLearnerModel {
     // Initialize transformer embeddings
     const skillIds = skills.map((s) => s.id);
     if ('initializeEmbeddings' in this.transformerPathway) {
-      (this.transformerPathway as any).initializeEmbeddings(skillIds, questions);
+      (this.transformerPathway as { initializeEmbeddings: (s: string[], q: string[]) => void }).initializeEmbeddings(skillIds, questions);
     }
 
     // Load pretrained weights if provided
@@ -469,7 +467,7 @@ export class HybridLearnerModel {
    * Note: This is an interface definition. Actual training
    * happens server-side or in a separate ML pipeline.
    */
-  async train(_data: TrainingData): Promise<TrainingResult> {
+  async train(/* _data: TrainingData */): Promise<TrainingResult> {
     // Training would be implemented server-side with TensorFlow/PyTorch
     return {
       success: false,
@@ -494,7 +492,7 @@ export class HybridLearnerModel {
   /**
    * Evaluate model on test data
    */
-  async evaluate(_testData: TrainingData['test']): Promise<EvaluationMetrics> {
+  async evaluate(/* _testData: TrainingData['test'] */): Promise<EvaluationMetrics> {
     // Evaluation would be implemented server-side
     return {
       auc: 0,

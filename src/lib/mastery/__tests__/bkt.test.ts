@@ -2,7 +2,7 @@
  * BKT (Bayesian Knowledge Tracing) Unit Tests
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   updateMastery,
   predictCorrect,
@@ -21,7 +21,6 @@ import {
   HARD_BKT_PARAMS,
   DEFAULT_MASTERY_THRESHOLD,
   type SkillState,
-  type BKTParameters,
   type SkillMap,
 } from '../bkt';
 
@@ -406,21 +405,21 @@ describe('getMasteryLevel', () => {
 // ============================================
 
 describe('validateBKTParams', () => {
-  it('should return true for valid params', () => {
-    expect(validateBKTParams(DEFAULT_BKT_PARAMS)).toBe(true);
-    expect(validateBKTParams(EASY_BKT_PARAMS)).toBe(true);
-    expect(validateBKTParams(HARD_BKT_PARAMS)).toBe(true);
+  it('should return valid:true for valid params', () => {
+    expect(validateBKTParams(DEFAULT_BKT_PARAMS).valid).toBe(true);
+    expect(validateBKTParams(EASY_BKT_PARAMS).valid).toBe(true);
+    expect(validateBKTParams(HARD_BKT_PARAMS).valid).toBe(true);
   });
 
-  it('should return false for invalid params', () => {
+  it('should return valid:false for invalid params', () => {
     // Negative values
-    expect(validateBKTParams({ pL0: -0.1, pT: 0.3, pG: 0.25, pS: 0.1 })).toBe(false);
+    expect(validateBKTParams({ pL0: -0.1, pT: 0.3, pG: 0.25, pS: 0.1 }).valid).toBe(false);
 
     // Values > 1
-    expect(validateBKTParams({ pL0: 0.1, pT: 1.5, pG: 0.25, pS: 0.1 })).toBe(false);
+    expect(validateBKTParams({ pL0: 0.1, pT: 1.5, pG: 0.25, pS: 0.1 }).valid).toBe(false);
 
     // pG + pS > 1
-    expect(validateBKTParams({ pL0: 0.1, pT: 0.3, pG: 0.6, pS: 0.5 })).toBe(false);
+    expect(validateBKTParams({ pL0: 0.1, pT: 0.3, pG: 0.6, pS: 0.5 }).valid).toBe(false);
   });
 });
 
@@ -430,7 +429,7 @@ describe('validateBKTParams', () => {
 
 describe('Default BKT Parameters', () => {
   it('DEFAULT_BKT_PARAMS should be valid', () => {
-    expect(validateBKTParams(DEFAULT_BKT_PARAMS)).toBe(true);
+    expect(validateBKTParams(DEFAULT_BKT_PARAMS).valid).toBe(true);
   });
 
   it('EASY_BKT_PARAMS should have higher pL0 and pT', () => {

@@ -29,7 +29,7 @@ interface SessionOverviewProps {
   onStart: () => void;
 }
 
-interface SessionItemCardProps {
+interface _SessionItemCardProps {
   item: SessionItem;
   index: number;
   isActive: boolean;
@@ -194,7 +194,7 @@ export function PretestOffer({
         </div>
         <div>
           <h3 className="font-semibold text-navy">Already know this?</h3>
-          <p className="text-sm text-grey">Test out of "{lessonTitle}"</p>
+          <p className="text-sm text-grey">Test out of &quot;{lessonTitle}&quot;</p>
         </div>
       </div>
 
@@ -228,7 +228,7 @@ export function PretestOffer({
 
 export function AdaptiveReasoningBanner({
   reason,
-  skillName,
+  skillName: _skillName,
   type,
 }: {
   reason: string;
@@ -295,9 +295,9 @@ export function SkipSuccessMessage({
       </div>
       <h2 className="text-xl font-semibold text-navy mb-2">You already know this!</h2>
       <p className="text-grey mb-6">
-        Great job on "{skillName}" - you've demonstrated mastery.
+        Great job on &quot;{skillName}&quot; - you&apos;ve demonstrated mastery.
         <br />
-        Let's move to something new.
+        Let&apos;s move to something new.
       </p>
       <Button variant="primary" onClick={onContinue}>
         Continue to Next Topic
@@ -349,7 +349,7 @@ export default function AdaptiveSessionView({
     }
   };
 
-  const handleItemComplete = () => {
+  const _handleItemComplete = () => {
     if (session && currentIndex < session.items.length) {
       onItemComplete(session.items[currentIndex]);
       setCurrentIndex(prev => prev + 1);

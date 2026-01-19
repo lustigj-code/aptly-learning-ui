@@ -120,6 +120,7 @@ const nextConfig: NextConfig = {
       '@tanstack/react-query',
     ],
   },
+
 };
 
 export default nextConfig;

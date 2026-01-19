@@ -13,7 +13,7 @@ import {
   TrendingUp,
   Clock,
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/Card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { CircularProgress } from '@/components/ui/ProgressBar';
 import { cn } from '@/lib/utils';
@@ -63,7 +63,7 @@ export function ExamReadinessWidget({
           // Calculate average mastery from nodes
           if (data.data?.nodes && data.data.nodes.length > 0) {
             const nodes = data.data.nodes;
-            const totalMastery = nodes.reduce((sum: number, n: any) => sum + (n.mlMastery ?? n.mastery ?? 0), 0);
+            const totalMastery = nodes.reduce((sum: number, n: { mlMastery?: number; mastery?: number }) => sum + (n.mlMastery ?? n.mastery ?? 0), 0);
             setAvgMastery(totalMastery / nodes.length);
           }
         }

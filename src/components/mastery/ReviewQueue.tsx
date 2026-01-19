@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, Clock, TrendingUp, ChevronRight, RotateCcw, CheckCircle, XCircle, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -14,7 +14,7 @@ import {
   SOCIAL_MEDIA_MARKETING_GRAPH,
   getDueForReview,
   updateConceptMastery,
-  scoreToRating,
+  predictIntervalsForRatings,
 } from '@/lib/mastery';
 
 // ============================================
@@ -40,14 +40,28 @@ type ReviewState = 'idle' | 'reviewing' | 'showing_answer' | 'complete';
 // ============================================
 
 export function ReviewQueue({
-  userId,
+  userId: _userId,
   masteryRecords,
   onMasteryUpdate,
   onComplete,
 }: ReviewQueueProps) {
-  const [queue, setQueue] = useState<ReviewCardData[]>([]);
+  // Build review queue from mastery records (computed once per masteryRecords change)
+  const initialQueue = useMemo(() => {
+    const dueItems = getDueForReview(masteryRecords, 15);
+    return dueItems
+      .map(mastery => {
+        const concept = SOCIAL_MEDIA_MARKETING_GRAPH.concepts[mastery.conceptId];
+        if (!concept) return null;
+        return { mastery, concept };
+      })
+      .filter((item): item is ReviewCardData => item !== null);
+  }, [masteryRecords]);
+
+  const [queue, setQueue] = useState<ReviewCardData[]>(initialQueue);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [reviewState, setReviewState] = useState<ReviewState>('idle');
+  const [reviewState, setReviewState] = useState<ReviewState>(() =>
+    initialQueue.length > 0 ? 'reviewing' : 'idle'
+  );
   const [sessionStats, setSessionStats] = useState({
     reviewed: 0,
     correct: 0,
@@ -55,7 +69,9 @@ export function ReviewQueue({
   });
   const [userAnswer, setUserAnswer] = useState('');
   const [showHint, setShowHint] = useState(false);
-  const [startTime, setStartTime] = useState<number | null>(null);
+  const [startTime, setStartTime] = useState<number | null>(() =>
+    initialQueue.length > 0 ? Date.now() : null
+  );
 
   // Track attempt numbers per concept
   const attemptCountRef = useRef<Record<string, number>>({});
@@ -63,26 +79,24 @@ export function ReviewQueue({
   // Interaction logging for ML model training
   const { logReviewAttempt, logHintRequest } = useInteractionLogger();
 
-  // Build review queue on mount
+  // Update queue when masteryRecords change (after initial render)
   useEffect(() => {
-    const dueItems = getDueForReview(masteryRecords, 15);
-    const reviewCards: ReviewCardData[] = dueItems
-      .map(mastery => {
-        const concept = SOCIAL_MEDIA_MARKETING_GRAPH.concepts[mastery.conceptId];
-        if (!concept) return null;
-        return { mastery, concept };
-      })
-      .filter((item): item is ReviewCardData => item !== null);
-
-    setQueue(reviewCards);
-    if (reviewCards.length > 0) {
+    if (initialQueue !== queue && initialQueue.length > 0) {
+      setQueue(initialQueue);
       setReviewState('reviewing');
       setStartTime(Date.now());
     }
-  }, [masteryRecords]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialQueue]);
 
   const currentCard = queue[currentIndex];
   const progress = queue.length > 0 ? ((currentIndex) / queue.length) * 100 : 0;
+
+  // Calculate predicted intervals for current card's FSRS state
+  const predictedIntervals = useMemo(() => {
+    if (!currentCard) return { again: '<1d', hard: '1d', good: '3d', easy: '1w' };
+    return predictIntervalsForRatings(currentCard.mastery.fsrsState);
+  }, [currentCard]);
 
   const handleShowAnswer = () => {
     setReviewState('showing_answer');
@@ -421,7 +435,8 @@ export function ReviewQueue({
                       )}
                     >
                       <XCircle size={20} className="mx-auto mb-1" />
-                      <span className="text-xs">Again</span>
+                      <span className="text-xs block">Again</span>
+                      <span className="text-[10px] opacity-70">{predictedIntervals.again}</span>
                     </button>
                     <button
                       onClick={() => handleRate(60)}
@@ -432,7 +447,8 @@ export function ReviewQueue({
                       )}
                     >
                       <Clock size={20} className="mx-auto mb-1" />
-                      <span className="text-xs">Hard</span>
+                      <span className="text-xs block">Hard</span>
+                      <span className="text-[10px] opacity-70">{predictedIntervals.hard}</span>
                     </button>
                     <button
                       onClick={() => handleRate(80)}
@@ -443,7 +459,8 @@ export function ReviewQueue({
                       )}
                     >
                       <CheckCircle size={20} className="mx-auto mb-1" />
-                      <span className="text-xs">Good</span>
+                      <span className="text-xs block">Good</span>
+                      <span className="text-[10px] opacity-70">{predictedIntervals.good}</span>
                     </button>
                     <button
                       onClick={() => handleRate(100)}
@@ -454,7 +471,8 @@ export function ReviewQueue({
                       )}
                     >
                       <TrendingUp size={20} className="mx-auto mb-1" />
-                      <span className="text-xs">Easy</span>
+                      <span className="text-xs block">Easy</span>
+                      <span className="text-[10px] opacity-70">{predictedIntervals.easy}</span>
                     </button>
                   </div>
                 </motion.div>

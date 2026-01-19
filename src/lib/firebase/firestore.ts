@@ -14,7 +14,6 @@ import {
   DocumentSnapshot,
   QuerySnapshot,
   writeBatch,
-  Firestore,
 } from 'firebase/firestore';
 import { db } from './config';
 
@@ -31,7 +30,7 @@ export async function getDocData<T extends DocumentData>(
 
   try {
     const docRef = doc(db, collectionName, docId);
-    const docSnapshot: DocumentSnapshot<T> = await getDoc(docRef as any);
+    const docSnapshot: DocumentSnapshot<T> = await getDoc(docRef as Parameters<typeof getDoc>[0]) as DocumentSnapshot<T>;
 
     if (docSnapshot.exists()) {
       return { id: docSnapshot.id, ...docSnapshot.data() } as T & { id: string };
@@ -85,7 +84,7 @@ export async function updateDocData<T extends DocumentData>(
 
   try {
     const docRef = doc(db, collectionName, docId);
-    await updateDoc(docRef, data as any);
+    await updateDoc(docRef, data as DocumentData);
   } catch (error) {
     console.error(
       `Error updating document ${docId} in ${collectionName}:`,
@@ -131,7 +130,7 @@ export async function queryDocs<T extends DocumentData>(
 
   try {
     const collectionRef = collection(db, collectionName);
-    const q: Query<T> = query(collectionRef, ...constraints) as any;
+    const q: Query<T> = query(collectionRef, ...constraints) as Query<T>;
     const querySnapshot: QuerySnapshot<T> = await getDocs(q);
 
     return querySnapshot.docs.map((doc) => ({
@@ -188,10 +187,10 @@ export async function batchWrite(
 
       switch (op.type) {
         case 'set':
-          batch.set(docRef as any, op.data || {});
+          batch.set(docRef, op.data || {});
           break;
         case 'update':
-          batch.update(docRef as any, op.data || {});
+          batch.update(docRef, op.data || {});
           break;
         case 'delete':
           batch.delete(docRef);

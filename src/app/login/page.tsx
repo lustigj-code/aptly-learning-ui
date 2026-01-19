@@ -15,13 +15,12 @@ import { signInSchema } from '@/lib/auth/validation'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
-import { Mail, Lock, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react'
+import { Mail, Lock, Loader2, AlertCircle } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
@@ -169,53 +168,30 @@ export default function LoginPage() {
 
             {/* Email Input */}
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-navy mb-2">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 w-5 h-5 text-rich-black/40" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={isLoading || isGoogleLoading}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
+              <Input
+                id="email"
+                type="email"
+                label="Email Address"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading || isGoogleLoading}
+                leftIcon={<Mail className="w-5 h-5" />}
+                required
+              />
 
               {/* Password Input */}
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-navy mb-2">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 w-5 h-5 text-rich-black/40" />
-                  <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    disabled={isLoading || isGoogleLoading}
-                    className="w-full pl-10 pr-10 py-2.5 border-2 border-grey rounded-xl focus:outline-none focus:ring-2 focus:ring-teal/20 focus:border-teal disabled:bg-light-grey disabled:text-rich-black/50 transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 text-rich-black/40 hover:text-rich-black/70 transition-colors"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="w-5 h-5" />
-                    ) : (
-                      <Eye className="w-5 h-5" />
-                    )}
-                  </button>
-                </div>
-              </div>
+              <Input
+                id="password"
+                type="password"
+                label="Password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading || isGoogleLoading}
+                leftIcon={<Lock className="w-5 h-5" />}
+                required
+              />
 
               {/* Forgot Password Link */}
               <div className="flex justify-end">

@@ -20,9 +20,9 @@ export function MetricsChart({
   label,
   height = 200,
 }: MetricsChartProps) {
-  const { pathD, points, yScale, xLabels, yLabels } = useMemo(() => {
+  const { pathD, points, xLabels, yLabels } = useMemo(() => {
     if (data.length === 0) {
-      return { pathD: '', points: [], yScale: { min: 0, max: 100 }, xLabels: [], yLabels: [] };
+      return { pathD: '', points: [], xLabels: [], yLabels: [] };
     }
 
     const values = data.map((d) => d.value);
@@ -65,8 +65,7 @@ export function MetricsChart({
     return {
       pathD: path,
       points: pointCoords,
-      yScale: { min: yMin, max: yMax },
-      xLabels: xLabelData.map((d, i) => ({
+      xLabels: xLabelData.map((d) => ({
         label: formatDate(d.date),
         x: (data.indexOf(d) / (data.length - 1)) * width,
       })),
@@ -265,7 +264,6 @@ export function ComparisonChart({ data, height = 300 }: ComparisonChartProps) {
   }
 
   const maxValue = Math.max(...data.flatMap((d) => [d.control, d.treatment]));
-  const rowHeight = height / data.length;
 
   return (
     <div style={{ height }} className="overflow-y-auto">

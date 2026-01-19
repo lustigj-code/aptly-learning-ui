@@ -8,7 +8,7 @@
  * 4. New learning (progress the course)
  */
 
-import { type SkillState, type SkillMap, getSkillsByPriority, estimateAttemptsToMastery, DEFAULT_MASTERY_THRESHOLD } from '@/lib/mastery/bkt';
+import { type SkillState, type SkillMap, estimateAttemptsToMastery, DEFAULT_MASTERY_THRESHOLD } from '@/lib/mastery/bkt';
 import { getDueForReview } from '@/lib/mastery/fsrs';
 import { type ConceptMastery } from '@/lib/mastery/knowledgeGraph';
 import { AI_AT_WORK_SKILL_MAP, getSkillName, getSkillModule } from '@/data/skillMap';
@@ -98,7 +98,7 @@ function getSkillNameFromMap(skillId: string, skillMap: SkillMap): string {
 /**
  * Get skill module number from skill ID
  */
-function getSkillModuleFromMap(skillId: string): number {
+function _getSkillModuleFromMap(skillId: string): number {
   // Try to parse module from skill ID pattern like "course-1-M1-01"
   const match = skillId.match(/M(\d+)/);
   if (match) {

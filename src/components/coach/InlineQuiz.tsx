@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { CheckCircle, XCircle, Send } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useReducedMotion } from '@/hooks/useReducedMotion'
 
 // ============================================
 // TYPES
@@ -34,6 +35,7 @@ type InlineQuizProps = {
 // ============================================
 
 export function InlineQuiz({ question, onAnswer, disabled = false }: InlineQuizProps) {
+  const prefersReducedMotion = useReducedMotion()
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [fillInValue, setFillInValue] = useState('')
   const [hasAnswered, setHasAnswered] = useState(false)
@@ -77,23 +79,32 @@ export function InlineQuiz({ question, onAnswer, disabled = false }: InlineQuizP
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="my-2 max-w-sm"
+      initial={{ opacity: 0, y: 12, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{
+        duration: 0.4,
+        ease: [0.34, 1.56, 0.64, 1]
+      }}
+      className="my-3 max-w-sm"
     >
       <div className={cn(
-        'rounded-xl p-4 shadow-sm border',
-        'bg-white border-grey/30',
+        'rounded-2xl p-5 shadow-md border backdrop-blur-sm',
+        'bg-gradient-to-br from-white to-grey/5 border-grey/20',
         disabled && 'opacity-60'
       )}>
         {/* Question Text */}
-        <p className="text-sm font-medium text-navy mb-3">
-          {question.text}
-        </p>
+        <div className="flex items-start gap-2 mb-4">
+          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-teal to-purple flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span className="text-white text-xs font-bold">?</span>
+          </div>
+          <p className="text-sm font-semibold text-navy leading-relaxed">
+            {question.text}
+          </p>
+        </div>
 
         {/* Multiple Choice */}
         {question.type === 'mc' && question.options && (
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {question.options.map((option, index) => {
               const isSelected = selectedOption === option
               const isCorrectOption = option.toLowerCase().trim() === question.correctAnswer.toLowerCase().trim()
@@ -101,41 +112,47 @@ export function InlineQuiz({ question, onAnswer, disabled = false }: InlineQuizP
               const showIncorrect = hasAnswered && isSelected && !isCorrectOption
 
               return (
-                <button
+                <motion.button
                   key={index}
                   onClick={() => handleMCSelect(option)}
                   disabled={hasAnswered || disabled}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1, duration: 0.3 }}
+                  whileHover={!hasAnswered && !disabled && !prefersReducedMotion ? { scale: 1.02, x: 4 } : undefined}
+                  whileTap={!hasAnswered && !disabled && !prefersReducedMotion ? { scale: 0.98 } : undefined}
                   className={cn(
-                    'w-full text-left px-3 py-2 rounded-lg text-sm transition-all',
-                    'border flex items-center gap-2',
+                    'w-full text-left px-4 py-3 rounded-xl text-sm transition-all',
+                    'border flex items-center gap-3 shadow-sm',
                     // Default state
-                    !hasAnswered && !isSelected && 'border-grey/30 bg-light-grey/30 hover:bg-light-grey hover:border-grey/50',
+                    !hasAnswered && !isSelected && 'border-grey/20 bg-white hover:bg-gradient-to-br hover:from-teal/5 hover:to-purple/5 hover:border-teal/30 hover:shadow',
                     // Selected but not submitted
-                    !hasAnswered && isSelected && 'border-teal bg-teal/10',
+                    !hasAnswered && isSelected && 'border-teal bg-gradient-to-br from-teal/10 to-purple/5 shadow',
                     // Correct answer revealed
-                    showCorrect && 'border-green-500 bg-green-50 text-green-800',
+                    showCorrect && 'border-green-500/50 bg-gradient-to-br from-green-50 to-green-100/50 text-green-800 shadow-green-200/50',
                     // Incorrect selection
-                    showIncorrect && 'border-red-500 bg-red-50 text-red-800',
+                    showIncorrect && 'border-red-500/50 bg-gradient-to-br from-red-50 to-red-100/50 text-red-800 shadow-red-200/50',
                     // Disabled
                     (hasAnswered || disabled) && 'cursor-default'
                   )}
                 >
                   <span className={cn(
-                    'w-5 h-5 rounded-full border flex items-center justify-center text-xs flex-shrink-0',
-                    !hasAnswered && 'border-grey/40 text-rich-black/60',
+                    'w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-semibold flex-shrink-0 transition-all',
+                    !hasAnswered && !isSelected && 'border-grey/30 bg-light-grey/50 text-rich-black/60',
+                    !hasAnswered && isSelected && 'border-teal bg-teal text-white',
                     showCorrect && 'bg-green-500 border-green-500 text-white',
                     showIncorrect && 'bg-red-500 border-red-500 text-white'
                   )}>
                     {showCorrect ? (
-                      <CheckCircle className="w-3 h-3" />
+                      <CheckCircle className="w-4 h-4" />
                     ) : showIncorrect ? (
-                      <XCircle className="w-3 h-3" />
+                      <XCircle className="w-4 h-4" />
                     ) : (
                       String.fromCharCode(65 + index)
                     )}
                   </span>
-                  <span className="flex-1">{option}</span>
-                </button>
+                  <span className="flex-1 font-medium">{option}</span>
+                </motion.button>
               )
             })}
           </div>
@@ -153,26 +170,29 @@ export function InlineQuiz({ question, onAnswer, disabled = false }: InlineQuizP
                 disabled={hasAnswered || disabled}
                 placeholder="Type your answer..."
                 className={cn(
-                  'flex-1 px-3 py-2 rounded-lg border text-sm',
-                  'focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal',
-                  'bg-light-grey/30 border-grey/30',
-                  'placeholder:text-grey',
+                  'flex-1 px-4 py-3 rounded-xl border text-sm shadow-sm',
+                  'focus:outline-none focus:ring-2 focus:ring-teal/20 focus:border-teal/50',
+                  'bg-white border-grey/20',
+                  'placeholder:text-grey/60',
+                  'transition-all',
                   (hasAnswered || disabled) && 'cursor-default opacity-70'
                 )}
               />
               {!hasAnswered && (
-                <button
+                <motion.button
                   onClick={handleFillInSubmit}
                   disabled={!fillInValue.trim() || disabled}
+                  whileHover={!prefersReducedMotion ? { scale: 1.05 } : undefined}
+                  whileTap={!prefersReducedMotion ? { scale: 0.95 } : undefined}
                   className={cn(
-                    'px-3 py-2 rounded-lg transition-all',
-                    'bg-teal text-white',
-                    'hover:bg-teal-dark',
+                    'px-4 py-3 rounded-xl transition-all shadow-sm',
+                    'bg-gradient-to-br from-teal to-purple text-white',
+                    'hover:shadow-md',
                     'disabled:opacity-50 disabled:cursor-not-allowed'
                   )}
                 >
                   <Send className="w-4 h-4" />
-                </button>
+                </motion.button>
               )}
             </div>
           </div>
@@ -181,26 +201,43 @@ export function InlineQuiz({ question, onAnswer, disabled = false }: InlineQuizP
         {/* Feedback */}
         {hasAnswered && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            className="mt-3 pt-3 border-t border-grey/20"
+            initial={{ opacity: 0, height: 0, y: -10 }}
+            animate={{ opacity: 1, height: 'auto', y: 0 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            className="mt-4 pt-4 border-t border-grey/10"
           >
-            <div className={cn(
-              'flex items-center gap-2 text-sm font-medium',
-              isCorrect ? 'text-green-600' : 'text-red-600'
-            )}>
+            <motion.div
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.1, type: 'spring', stiffness: 200 }}
+              className={cn(
+                'flex items-center gap-3 text-sm font-semibold px-4 py-3 rounded-xl',
+                isCorrect
+                  ? 'bg-gradient-to-br from-green-50 to-green-100/50 text-green-700 border border-green-200/50'
+                  : 'bg-gradient-to-br from-orange-50 to-orange-100/50 text-orange-700 border border-orange-200/50'
+              )}
+            >
               {isCorrect ? (
                 <>
-                  <CheckCircle className="w-4 h-4" />
-                  <span>Correct!</span>
+                  <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                    <CheckCircle className="w-4 h-4 text-white" />
+                  </div>
+                  <span>Excellent work!</span>
                 </>
               ) : (
                 <>
-                  <XCircle className="w-4 h-4" />
-                  <span>Not quite. The answer is: {question.correctAnswer}</span>
+                  <div className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center flex-shrink-0">
+                    <XCircle className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <span className="block">Not quite right.</span>
+                    <span className="text-xs font-medium text-orange-600/80 mt-1 block">
+                      The answer is: <span className="font-bold">{question.correctAnswer}</span>
+                    </span>
+                  </div>
                 </>
               )}
-            </div>
+            </motion.div>
           </motion.div>
         )}
       </div>

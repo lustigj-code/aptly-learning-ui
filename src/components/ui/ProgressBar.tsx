@@ -2,11 +2,8 @@
 
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import {
-  PROGRESS_COLORS,
-  SPRING,
-  COLORS_RAW,
-} from '@/lib/design-tokens';
+import { PROGRESS_COLORS, COLORS_RAW } from '@/lib/design-tokens';
+import { SPRING } from '@/lib/motion/springs';
 
 type ProgressBarSize = 'xs' | 'sm' | 'md' | 'lg';
 type ProgressBarColor = 'teal' | 'yellow' | 'success' | 'navy' | 'gradient' | 'purple';
@@ -98,20 +95,21 @@ export function ProgressBar({
             />
           )}
         </motion.div>
+
+        {/* Inside label - positioned relative to the progress bar container */}
+        {showLabel && labelPosition === 'inside' && size === 'lg' && (
+          <motion.span
+            className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white mix-blend-difference pointer-events-none"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: percentage > 10 ? 1 : 0 }}
+          >
+            {label}
+          </motion.span>
+        )}
       </div>
 
       {showLabel && labelPosition === 'right' && (
         <span className="text-sm font-semibold text-navy min-w-[40px]">{label}</span>
-      )}
-
-      {showLabel && labelPosition === 'inside' && size === 'lg' && (
-        <motion.span
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-xs font-bold text-white mix-blend-difference"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: percentage > 10 ? 1 : 0 }}
-        >
-          {label}
-        </motion.span>
       )}
     </div>
   );

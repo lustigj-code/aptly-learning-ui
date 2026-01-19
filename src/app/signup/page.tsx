@@ -16,7 +16,7 @@ import { signUpSchema } from '@/lib/auth/validation'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
-import { Mail, Lock, User, Loader2, AlertCircle, Eye, EyeOff, CheckCircle2 } from 'lucide-react'
+import { Mail, Lock, User, Loader2, AlertCircle } from 'lucide-react'
 
 export default function SignupPage() {
   const router = useRouter()
@@ -26,8 +26,6 @@ export default function SignupPage() {
     password: '',
     confirmPassword: '',
   })
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
@@ -234,74 +232,47 @@ export default function SignupPage() {
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Name Input */}
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-navy mb-2">
-                  Full Name
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-3 w-5 h-5 text-rich-black/40" />
-                  <Input
-                    id="name"
-                    name="name"
-                    type="text"
-                    placeholder="John Doe"
-                    value={formData.name}
-                    onChange={handleChange}
-                    disabled={isLoading || isGoogleLoading}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
+              <Input
+                id="name"
+                name="name"
+                type="text"
+                label="Full Name"
+                placeholder="John Doe"
+                value={formData.name}
+                onChange={handleChange}
+                disabled={isLoading || isGoogleLoading}
+                leftIcon={<User className="w-5 h-5" />}
+                required
+              />
 
               {/* Email Input */}
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-navy mb-2">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 w-5 h-5 text-rich-black/40" />
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="you@example.com"
-                    value={formData.email}
-                    onChange={handleChange}
-                    disabled={isLoading || isGoogleLoading}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                label="Email Address"
+                placeholder="you@example.com"
+                value={formData.email}
+                onChange={handleChange}
+                disabled={isLoading || isGoogleLoading}
+                leftIcon={<Mail className="w-5 h-5" />}
+                required
+              />
 
               {/* Password Input */}
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-navy mb-2">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 w-5 h-5 text-rich-black/40" />
-                  <input
-                    id="password"
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    value={formData.password}
-                    onChange={handleChange}
-                    disabled={isLoading || isGoogleLoading}
-                    className="w-full pl-10 pr-10 py-2.5 border-2 border-grey rounded-xl focus:outline-none focus:ring-2 focus:ring-teal/20 focus:border-teal disabled:bg-light-grey transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 text-rich-black/40 hover:text-rich-black/70 transition-colors"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="w-5 h-5" />
-                    ) : (
-                      <Eye className="w-5 h-5" />
-                    )}
-                  </button>
-                </div>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  label="Password"
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={handleChange}
+                  disabled={isLoading || isGoogleLoading}
+                  leftIcon={<Lock className="w-5 h-5" />}
+                  required
+                />
 
                 {/* Password Strength Indicator */}
                 {formData.password && (
@@ -314,7 +285,7 @@ export default function SignupPage() {
                     <div className="space-y-1 text-xs">
                       <div className="flex items-center gap-2">
                         <div
-                          className={`w-4 h-4 rounded-full transition-colors ${
+                          className={`w-4 h-4 rounded-full flex-shrink-0 transition-colors ${
                             passwordStrength.length
                               ? 'bg-success'
                               : 'bg-grey'
@@ -326,7 +297,7 @@ export default function SignupPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <div
-                          className={`w-4 h-4 rounded-full transition-colors ${
+                          className={`w-4 h-4 rounded-full flex-shrink-0 transition-colors ${
                             passwordStrength.uppercase
                               ? 'bg-success'
                               : 'bg-grey'
@@ -338,7 +309,7 @@ export default function SignupPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <div
-                          className={`w-4 h-4 rounded-full transition-colors ${
+                          className={`w-4 h-4 rounded-full flex-shrink-0 transition-colors ${
                             passwordStrength.number
                               ? 'bg-success'
                               : 'bg-grey'
@@ -355,54 +326,20 @@ export default function SignupPage() {
 
               {/* Confirm Password Input */}
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-navy mb-2">
-                  Confirm Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 w-5 h-5 text-rich-black/40" />
-                  <input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    disabled={isLoading || isGoogleLoading}
-                    className="w-full pl-10 pr-10 py-2.5 border-2 border-grey rounded-xl focus:outline-none focus:ring-2 focus:ring-teal/20 focus:border-teal disabled:bg-light-grey transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-3 text-rich-black/40 hover:text-rich-black/70 transition-colors"
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="w-5 h-5" />
-                    ) : (
-                      <Eye className="w-5 h-5" />
-                    )}
-                  </button>
-                </div>
-
-                {/* Password Match Indicator */}
-                {formData.confirmPassword && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    className="mt-2 flex items-center gap-2"
-                  >
-                    {formData.password === formData.confirmPassword ? (
-                      <>
-                        <CheckCircle2 className="w-4 h-4 text-success" />
-                        <span className="text-xs text-success">Passwords match</span>
-                      </>
-                    ) : (
-                      <>
-                        <AlertCircle className="w-4 h-4 text-error" />
-                        <span className="text-xs text-error">Passwords do not match</span>
-                      </>
-                    )}
-                  </motion.div>
-                )}
+                <Input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  label="Confirm Password"
+                  placeholder="••••••••"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  disabled={isLoading || isGoogleLoading}
+                  leftIcon={<Lock className="w-5 h-5" />}
+                  error={formData.confirmPassword && formData.password !== formData.confirmPassword ? 'Passwords do not match' : undefined}
+                  success={formData.confirmPassword.length > 0 && formData.password === formData.confirmPassword}
+                  required
+                />
               </div>
 
               {/* Sign Up Button */}
@@ -480,7 +417,7 @@ export default function SignupPage() {
         {/* Footer */}
         <p className="text-center text-sm text-rich-black/40 mt-6">
           By continuing, you agree to our{' '}
-          <Link href="/privacy" className="text-teal hover:underline">Terms</Link>
+          <Link href="/terms" className="text-teal hover:underline">Terms</Link>
           {' '}and{' '}
           <Link href="/privacy" className="text-teal hover:underline">Privacy Policy</Link>
         </p>

@@ -14,7 +14,6 @@ import {
   getUserNotificationPreferences,
 } from './notificationService';
 import { canSendNotification, recordNotificationSent } from './rateLimiter';
-import type { NotificationType } from './types';
 
 // ============================================
 // CONSTANTS

@@ -17,10 +17,8 @@ import { adminDb } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import {
   type SkillState,
-  type SkillHistoryEntry,
   createInitialState,
   isMastered,
-  getReadySkills,
   DEFAULT_MASTERY_THRESHOLD,
 } from '@/lib/mastery/bkt';
 import { AI_AT_WORK_SKILL_MAP } from '@/data/skillMap';

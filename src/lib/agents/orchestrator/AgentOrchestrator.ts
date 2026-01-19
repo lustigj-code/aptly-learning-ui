@@ -19,10 +19,8 @@ import {
   AgentResponse,
   AgentMessage,
   StudentState,
-  RoutingDecision,
   OrchestrationResult,
   Workflow,
-  WorkflowStep,
 } from '../types';
 import { AgentBase } from '../shared/AgentBase';
 import { getDirectorAgent } from '../director';
@@ -468,7 +466,7 @@ export class AgentOrchestrator {
    */
   private createFallbackResponse(
     request: AgentRequest,
-    error: string
+    _error: string
   ): AgentResponse {
     return {
       requestId: request.requestId,

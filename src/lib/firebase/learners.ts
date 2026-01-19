@@ -26,9 +26,6 @@ import type {
   LearningSession,
   ResumeState,
   StreakData,
-  DEFAULT_LEARNER_PROGRESS,
-  DEFAULT_FSRS,
-  DEFAULT_BKT,
 } from './schema';
 import { getMasteryLevel, SMM_SKILLS } from './schema';
 

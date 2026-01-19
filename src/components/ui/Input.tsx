@@ -1,8 +1,8 @@
 'use client';
 
-import { forwardRef, type InputHTMLAttributes, useState } from 'react';
+import { forwardRef, type InputHTMLAttributes, useState, useId } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type InputSize = 'sm' | 'md' | 'lg';
@@ -14,7 +14,10 @@ type InputProps = {
   hint?: string;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
+  /** @deprecated Use `size` instead */
   inputSize?: InputSize;
+  size?: InputSize;
+  showValidationIcon?: boolean;
 } & Omit<InputHTMLAttributes<HTMLInputElement>, 'size'>;
 
 const sizes: Record<InputSize, string> = {
@@ -29,6 +32,12 @@ const iconSizes: Record<InputSize, number> = {
   lg: 22,
 };
 
+const iconContainerSizes: Record<InputSize, string> = {
+  sm: 'w-9',
+  md: 'w-11',
+  lg: 'w-14',
+};
+
 const Input = forwardRef<HTMLInputElement, InputProps>(
   (
     {
@@ -38,113 +47,252 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
       hint,
       leftIcon,
       rightIcon,
-      inputSize = 'md',
+      size,
+      inputSize,
       type = 'text',
       className,
       disabled,
+      showValidationIcon = true,
       ...props
     },
     ref
   ) => {
     const [showPassword, setShowPassword] = useState(false);
+    const [isFocused, setIsFocused] = useState(false);
+    const uniqueId = useId();
+    const inputId = props.id || `input-${uniqueId}`;
+
+    // Support both `size` and deprecated `inputSize` prop
+    const resolvedSize = size ?? inputSize ?? 'md';
+
     const isPassword = type === 'password';
     const inputType = isPassword && showPassword ? 'text' : type;
+    const iconSize = iconSizes[resolvedSize];
 
-    const iconSize = iconSizes[inputSize];
+    // Determine if we should show validation icons
+    const showErrorIcon = error && showValidationIcon;
+    const showSuccessIcon = success && showValidationIcon && !error;
+
+    // Calculate padding based on icons
+    const hasLeftIcon = !!leftIcon;
+    const hasRightContent = isPassword || rightIcon || showErrorIcon || showSuccessIcon;
 
     return (
       <div className="w-full">
         {label && (
           <motion.label
-            className="block text-sm font-medium text-navy mb-1.5"
+            htmlFor={inputId}
+            className="block text-sm font-medium text-navy mb-2"
             initial={{ opacity: 0, y: -5 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
           >
             {label}
+            {props.required && (
+              <span className="text-error ml-1" aria-label="required">
+                *
+              </span>
+            )}
           </motion.label>
         )}
 
-        <div className="relative">
+        <div className="relative group">
+          {/* Left Icon */}
           {leftIcon && (
             <div
               className={cn(
-                'absolute left-3 top-1/2 -translate-y-1/2 text-grey pointer-events-none',
-                error && 'text-error'
+                'absolute left-0 top-0 bottom-0 flex items-center justify-center pointer-events-none',
+                'transition-colors duration-150',
+                iconContainerSizes[resolvedSize],
+                error
+                  ? 'text-error'
+                  : isFocused
+                  ? 'text-teal'
+                  : 'text-grey group-hover:text-muted-teal'
               )}
             >
               {leftIcon}
             </div>
           )}
 
+          {/* Input Field */}
           <input
             ref={ref}
+            id={inputId}
             type={inputType}
             disabled={disabled}
             aria-invalid={!!error}
-            aria-describedby={error ? `${props.id || props.name}-error` : hint ? `${props.id || props.name}-hint` : undefined}
-            className={cn(
-              'w-full rounded-lg border bg-white transition-all duration-200',
-              'focus:outline-none focus:ring-2 focus:border-teal',
-              'placeholder:text-grey',
-              sizes[inputSize],
-              leftIcon && 'pl-10',
-              (rightIcon || isPassword) && 'pr-10',
+            aria-describedby={
               error
-                ? 'border-error focus:ring-error/30 focus:border-error'
+                ? `${inputId}-error`
+                : hint
+                ? `${inputId}-hint`
+                : undefined
+            }
+            onFocus={(e) => {
+              setIsFocused(true);
+              props.onFocus?.(e);
+            }}
+            onBlur={(e) => {
+              setIsFocused(false);
+              props.onBlur?.(e);
+            }}
+            className={cn(
+              // Base styles
+              'w-full rounded-lg border bg-white',
+              'transition-all duration-150 ease-out',
+              'focus:outline-none',
+              'placeholder:text-grey placeholder:transition-opacity placeholder:duration-150',
+              'focus:placeholder:opacity-60',
+
+              // Typography
+              sizes[resolvedSize],
+
+              // Padding for icons
+              hasLeftIcon && 'pl-11',
+              hasRightContent && resolvedSize === 'sm' && 'pr-20',
+              hasRightContent && resolvedSize === 'md' && 'pr-24',
+              hasRightContent && resolvedSize === 'lg' && 'pr-28',
+
+              // Touch targets (minimum 44px height on mobile)
+              'min-h-[44px] sm:min-h-0',
+
+              // State-based styles
+              error
+                ? [
+                    'border-error',
+                    'focus:border-error',
+                    'focus:ring-2 focus:ring-error/20',
+                    'shadow-sm shadow-error/5',
+                  ]
                 : success
-                ? 'border-success focus:ring-success/30 focus:border-success'
-                : 'border-grey hover:border-muted-teal focus:ring-teal/30',
-              disabled && 'bg-light-grey cursor-not-allowed opacity-60',
+                ? [
+                    'border-success',
+                    'focus:border-success',
+                    'focus:ring-2 focus:ring-success/20',
+                    'shadow-sm shadow-success/5',
+                  ]
+                : [
+                    'border-grey/40',
+                    'hover:border-muted-teal',
+                    'focus:border-teal',
+                    'focus:ring-2 focus:ring-teal/20',
+                    'shadow-sm shadow-navy/5',
+                    'hover:shadow-md hover:shadow-navy/5',
+                  ],
+
+              // Disabled state
+              disabled && [
+                'bg-light-grey',
+                'cursor-not-allowed',
+                'opacity-60',
+                'hover:border-grey/40',
+                'hover:shadow-sm',
+              ],
+
               className
             )}
             {...props}
           />
 
-          {isPassword && (
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-grey hover:text-navy transition-colors"
-              tabIndex={-1}
-            >
-              {showPassword ? <EyeOff size={iconSize} /> : <Eye size={iconSize} />}
-            </button>
-          )}
+          {/* Right Icons Container */}
+          <div className="absolute right-0 top-0 bottom-0 flex items-center gap-1 pr-3">
+            {/* Validation Icons */}
+            <AnimatePresence mode="wait">
+              {showErrorIcon && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.15 }}
+                  className="text-error"
+                  aria-hidden="true"
+                >
+                  <AlertCircle size={iconSize} />
+                </motion.div>
+              )}
 
-          {rightIcon && !isPassword && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-grey pointer-events-none">
-              {rightIcon}
-            </div>
-          )}
+              {showSuccessIcon && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.15 }}
+                  className="text-success"
+                  aria-hidden="true"
+                >
+                  <CheckCircle2 size={iconSize} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Password Toggle */}
+            {isPassword && (
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className={cn(
+                  'touch-target flex items-center justify-center',
+                  'text-grey hover:text-navy',
+                  'transition-colors duration-150',
+                  'focus:outline-none focus-visible:text-teal',
+                  'rounded-md p-2 -m-2',
+                  'active:scale-95 transition-transform'
+                )}
+                tabIndex={0}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={iconSize} /> : <Eye size={iconSize} />}
+              </button>
+            )}
+
+            {/* Custom Right Icon */}
+            {rightIcon && !isPassword && (
+              <div className="text-grey pointer-events-none" aria-hidden="true">
+                {rightIcon}
+              </div>
+            )}
+          </div>
         </div>
 
+        {/* Error/Hint Messages */}
         <AnimatePresence mode="wait">
           {error && (
-            <motion.p
-              id={`${props.id || props.name}-error`}
-              role="alert"
-              className="mt-1.5 text-sm text-error"
-              initial={{ opacity: 0, y: -5 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -5 }}
-              transition={{ duration: 0.2 }}
+            <motion.div
+              key="error"
+              initial={{ opacity: 0, y: -4, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              exit={{ opacity: 0, y: -4, height: 0 }}
+              transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
+              className="overflow-hidden"
             >
-              {error}
-            </motion.p>
+              <p
+                id={`${inputId}-error`}
+                role="alert"
+                className="mt-2 text-sm text-error flex items-start gap-1.5"
+              >
+                <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
+                <span>{error}</span>
+              </p>
+            </motion.div>
           )}
 
           {hint && !error && (
-            <motion.p
-              id={`${props.id || props.name}-hint`}
-              className="mt-1.5 text-sm text-rich-black/60"
-              initial={{ opacity: 0, y: -5 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -5 }}
-              transition={{ duration: 0.2 }}
+            <motion.div
+              key="hint"
+              initial={{ opacity: 0, y: -4, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              exit={{ opacity: 0, y: -4, height: 0 }}
+              transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
+              className="overflow-hidden"
             >
-              {hint}
-            </motion.p>
+              <p
+                id={`${inputId}-hint`}
+                className="mt-2 text-sm text-rich-black/60"
+              >
+                {hint}
+              </p>
+            </motion.div>
           )}
         </AnimatePresence>
       </div>

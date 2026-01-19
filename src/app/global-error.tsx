@@ -1,10 +1,17 @@
 'use client';
 
-// This is a minimal global error boundary for Next.js
-// It must not use any external dependencies or hooks
+/**
+ * Global Error Boundary for Next.js
+ *
+ * This component handles unhandled errors at the root level.
+ * Note: There's a known issue with Next.js 16.1.1 + React 19 where
+ * the internal /_global-error page fails to prerender. Using
+ * --experimental-build-mode compile as a workaround.
+ *
+ * @see https://github.com/vercel/next.js/issues (file issue when confirmed)
+ */
 
 export default function GlobalError({
-  error,
   reset,
 }: {
   error: Error & { digest?: string };
@@ -12,18 +19,22 @@ export default function GlobalError({
 }) {
   return (
     <html lang="en">
-      <body style={{
-        margin: 0,
-        padding: '2rem',
-        fontFamily: 'system-ui, sans-serif',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-        backgroundColor: '#f8fafc'
-      }}>
+      <body
+        style={{
+          margin: 0,
+          padding: '2rem',
+          fontFamily: 'system-ui, sans-serif',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+          backgroundColor: '#f8fafc',
+        }}
+      >
         <div style={{ textAlign: 'center' }}>
-          <h2 style={{ marginBottom: '1rem', color: '#0a004a' }}>Something went wrong!</h2>
+          <h2 style={{ marginBottom: '1rem', color: '#0a004a' }}>
+            Something went wrong!
+          </h2>
           <button
             onClick={() => reset()}
             style={{
@@ -33,7 +44,7 @@ export default function GlobalError({
               border: 'none',
               borderRadius: '0.5rem',
               cursor: 'pointer',
-              fontSize: '1rem'
+              fontSize: '1rem',
             }}
           >
             Try again

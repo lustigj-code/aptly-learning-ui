@@ -229,7 +229,6 @@ export async function getOrCompute<T>(
  * Note: This is a simplified implementation that clears all caches.
  * In production, you might want more sophisticated invalidation.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function invalidatePattern(_pattern: RegExp): void {
   dataCache.clear();
   apiCache.clear();

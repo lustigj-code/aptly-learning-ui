@@ -8,7 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getNextItems, DEFAULT_SEQUENCER_CONFIG, type SequencerConfig, fetchLearnerState } from '@/lib/adaptive/sequencer';
+import { getNextItems, type SequencerConfig, fetchLearnerState } from '@/lib/adaptive/sequencer';
 import { getSkillName } from '@/data/skillMap';
 import { getSkillMap } from '@/lib/skillmap/skillMapStorage';
 import {
@@ -75,7 +75,7 @@ interface SessionRequest {
  * Convert interleaving intensity to ratio
  * light = 20%, moderate = 30%, heavy = 50%
  */
-function getInterleavingRatioFromIntensity(
+function _getInterleavingRatioFromIntensity(
   intensity: 'light' | 'moderate' | 'heavy' = 'moderate'
 ): number {
   const ratioMap = {
@@ -96,7 +96,8 @@ async function buildSessionServer(
   availableMinutes: number,
   preferences: SessionRequest['preferences']
 ): Promise<LearningSession> {
-  const sessionId = `session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+  // Use cryptographically secure ID generation
+  const sessionId = `session-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
   const items: SessionItem[] = [];
   let remainingMinutes = availableMinutes;
   let order = 0;

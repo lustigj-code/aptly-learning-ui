@@ -12,6 +12,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { motion } from 'framer-motion';
+import { format } from 'date-fns';
 import { TrendingUp } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 
@@ -69,10 +70,7 @@ export function MasteryTrajectoryChart({
   const chartData = useMemo(() => {
     return data.map((point) => ({
       ...point,
-      date: new Date(point.date).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      }),
+      date: format(new Date(point.date), 'MMM d'),
       fullDate: point.date,
       mastery: Math.round(point.pMastery * 100),
     }));

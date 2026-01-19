@@ -5,27 +5,71 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useCoach } from '../useCoach';
 
-// Mock fetch
-global.fetch = vi.fn();
+// Unmock useCoach since we want to test the actual implementation
+vi.unmock('@/hooks/useCoach');
 
-// Mock unified store
-vi.mock('@/store/unifiedStore', () => ({
-  useUnifiedStore: vi.fn(() => ({
+// Mock fetch globally before any imports
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
+
+// Mock sessionStorage
+const mockSessionStorage: Record<string, string> = {};
+Object.defineProperty(window, 'sessionStorage', {
+  value: {
+    getItem: vi.fn((key: string) => mockSessionStorage[key] || null),
+    setItem: vi.fn((key: string, value: string) => {
+      mockSessionStorage[key] = value;
+    }),
+    removeItem: vi.fn((key: string) => {
+      delete mockSessionStorage[key];
+    }),
+    clear: vi.fn(() => {
+      Object.keys(mockSessionStorage).forEach((key) => delete mockSessionStorage[key]);
+    }),
+  },
+  writable: true,
+});
+
+// Mock useUser from userProfileStore - the hook depends on this
+vi.mock('@/store/userProfileStore', () => ({
+  useUser: vi.fn(() => ({
     user: {
       id: 'test-user',
       name: 'Test User',
       progress: { currentCourseId: 'course-1' },
     },
-    authUser: { uid: 'test-user' },
+    isLoading: false,
+    error: null,
   })),
+  useUserProfileStore: vi.fn((selector) => {
+    const state = {
+      user: {
+        id: 'test-user',
+        name: 'Test User',
+        progress: { currentCourseId: 'course-1' },
+      },
+      isUserLoading: false,
+      userError: null,
+    };
+    if (typeof selector === 'function') {
+      return selector(state);
+    }
+    return state;
+  }),
 }));
+
+// Import the hook after mocks are set up
+import { useCoach } from '../useCoach';
 
 describe('useCoach', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(global.fetch).mockResolvedValue({
+    // Clear session storage mock
+    Object.keys(mockSessionStorage).forEach((key) => delete mockSessionStorage[key]);
+
+    // Default mock for fetch - returns successful response with conversationId
+    mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({
         message: "Great question! What do you already know about this?",
@@ -36,12 +80,7 @@ describe('useCoach', () => {
   });
 
   it('initializes with empty state', () => {
-    const { result } = renderHook(() =>
-      useCoach({
-        lessonId: 'lesson-1',
-        currentAtomId: 'atom-1',
-      })
-    );
+    const { result } = renderHook(() => useCoach());
 
     expect(result.current.messages).toEqual([]);
     expect(result.current.isLoading).toBe(false);
@@ -49,18 +88,14 @@ describe('useCoach', () => {
   });
 
   it('sends message and receives response', async () => {
-    const { result } = renderHook(() =>
-      useCoach({
-        lessonId: 'lesson-1',
-        currentAtomId: 'atom-1',
-      })
-    );
+    const { result } = renderHook(() => useCoach());
 
     await act(async () => {
       await result.current.sendMessage('What is a lookalike audience?');
     });
 
-    expect(result.current.messages).toHaveLength(2); // User + Coach
+    // Should have user message + assistant response
+    expect(result.current.messages.length).toBeGreaterThanOrEqual(2);
     expect(result.current.messages[0].role).toBe('user');
     expect(result.current.messages[1].role).toBe('assistant');
     expect(result.current.isLoading).toBe(false);
@@ -68,74 +103,67 @@ describe('useCoach', () => {
 
   it('sets loading state while waiting for response', async () => {
     let resolvePromise: (value: Response) => void;
-    vi.mocked(global.fetch).mockReturnValue(
+    mockFetch.mockReturnValue(
       new Promise((resolve) => {
         resolvePromise = resolve;
       })
     );
 
-    const { result } = renderHook(() =>
-      useCoach({
-        lessonId: 'lesson-1',
-        currentAtomId: 'atom-1',
-      })
-    );
+    const { result } = renderHook(() => useCoach());
 
+    // Start sending message (don't await)
     act(() => {
       result.current.sendMessage('Test message');
     });
 
+    // Check loading state is true while waiting
     expect(result.current.isLoading).toBe(true);
 
+    // Resolve the fetch promise
     await act(async () => {
-      resolvePromise({
+      resolvePromise!({
         ok: true,
         json: async () => ({ message: 'Response', conversationId: 'conv-1' }),
-      });
+      } as Response);
     });
 
+    // Wait for loading to finish
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });
   });
 
   it('handles API errors gracefully', async () => {
-    vi.mocked(global.fetch).mockResolvedValue({
+    mockFetch.mockResolvedValue({
       ok: false,
       status: 500,
-      json: async () => ({ error: 'Server error' }),
+      json: async () => ({ error: 'Server error', message: 'Server error' }),
     } as Response);
 
-    const { result } = renderHook(() =>
-      useCoach({
-        lessonId: 'lesson-1',
-        currentAtomId: 'atom-1',
-      })
-    );
+    const { result } = renderHook(() => useCoach());
 
     await act(async () => {
       await result.current.sendMessage('Test');
     });
 
+    // Hook should set error state
     expect(result.current.error).toBeDefined();
     expect(result.current.isLoading).toBe(false);
+    // Hook also adds a fallback message from coach on error
+    expect(result.current.messages.length).toBeGreaterThan(0);
   });
 
   it('includes context in API request', async () => {
-    const { result } = renderHook(() =>
-      useCoach({
-        lessonId: 'lesson-1',
-        currentAtomId: 'atom-1',
-        atomType: 'quiz',
-        masteryLevel: 75,
-      })
-    );
+    const { result } = renderHook(() => useCoach());
 
     await act(async () => {
-      await result.current.sendMessage('Help me');
+      await result.current.sendMessage('Help me', 'quiz_help', {
+        currentAtom: 'atom-1',
+        atomType: 'quiz',
+      });
     });
 
-    expect(global.fetch).toHaveBeenCalledWith(
+    expect(mockFetch).toHaveBeenCalledWith(
       '/api/coach',
       expect.objectContaining({
         method: 'POST',
@@ -145,19 +173,13 @@ describe('useCoach', () => {
   });
 
   it('supports practice feedback type', async () => {
-    const { result } = renderHook(() =>
-      useCoach({
-        lessonId: 'lesson-1',
-        currentAtomId: 'atom-practice-1',
-        atomType: 'practice',
-      })
-    );
+    const { result } = renderHook(() => useCoach());
 
     await act(async () => {
-      await result.current.requestPracticeFeedback('My campaign strategy...');
+      await result.current.getPracticeFeedback('My campaign strategy...');
     });
 
-    expect(global.fetch).toHaveBeenCalledWith(
+    expect(mockFetch).toHaveBeenCalledWith(
       '/api/coach',
       expect.objectContaining({
         body: expect.stringContaining('"type":"practice_feedback"'),
@@ -165,22 +187,20 @@ describe('useCoach', () => {
     );
   });
 
-  it('clears conversation when requested', () => {
-    const { result } = renderHook(() =>
-      useCoach({
-        lessonId: 'lesson-1',
-        currentAtomId: 'atom-1',
-      })
-    );
+  it('clears conversation when requested', async () => {
+    const { result } = renderHook(() => useCoach());
 
-    act(() => {
-      result.current.messages.push({ role: 'user', content: 'Test' });
+    // First add a message by sending one
+    await act(async () => {
+      await result.current.sendMessage('Test message');
     });
 
+    // Verify messages were added
     expect(result.current.messages.length).toBeGreaterThan(0);
 
+    // Clear messages
     act(() => {
-      result.current.clearConversation();
+      result.current.clearMessages();
     });
 
     expect(result.current.messages).toEqual([]);

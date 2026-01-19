@@ -47,7 +47,7 @@ export function RealTimeMasteryBar({
 
   const change = previousMastery !== undefined ? currentMastery - previousMastery : 0;
   const hasImproved = change > 0;
-  const hasDecreased = change < 0;
+  const _hasDecreased = change < 0;
 
   // Animate mastery change
   useEffect(() => {
@@ -83,6 +83,7 @@ export function RealTimeMasteryBar({
 
       return () => clearInterval(interval);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- displayedMastery used as animation target, not dependency
   }, [currentMastery, previousMastery, celebrateImprovement, change, hasImproved]);
 
   const sizeConfig = {

@@ -5,7 +5,7 @@
  * Used for Exam Mode feature to help users prepare for certification exams.
  */
 
-import type { ConceptMastery, FSRSState } from './knowledgeGraph';
+import type { ConceptMastery } from './knowledgeGraph';
 
 // ============================================
 // TYPES

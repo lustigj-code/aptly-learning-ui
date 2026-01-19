@@ -326,7 +326,6 @@ ${interventionDirective.constraints.slice(0, 3).map((c) => `- ${c}`).join('\n')}
   ];
 
   let response: string;
-  let modelUsed = 'unknown';
   try {
     console.log('[SocraticHandler] Calling ModelRouter in fallback handler...', {
       messagesCount: messages.length,
@@ -340,7 +339,6 @@ ${interventionDirective.constraints.slice(0, 3).map((c) => `- ${c}`).join('\n')}
       userId,
     });
     response = result.content;
-    modelUsed = result.model;
     console.log('[SocraticHandler] ModelRouter success:', {
       model: result.model,
       responseLength: response.length,

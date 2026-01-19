@@ -54,7 +54,7 @@ const serverEnvSchema = z.object({
 });
 
 // Combined schema
-const envSchema = clientEnvSchema.merge(serverEnvSchema);
+const _envSchema = clientEnvSchema.merge(serverEnvSchema);
 
 // ============================================
 // VALIDATION FUNCTIONS

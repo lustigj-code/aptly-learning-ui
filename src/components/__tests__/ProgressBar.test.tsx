@@ -43,10 +43,11 @@ describe('ProgressBar Component', () => {
   });
 
   it('includes accessible label', () => {
-    render(<ProgressBar value={60} max={100} label="Lesson progress" />);
+    render(<ProgressBar value={60} max={100} />);
 
     const progressBar = screen.getByRole('progressbar');
-    expect(progressBar).toHaveAccessibleName(/Lesson progress/);
+    // Component uses hardcoded "Progress: XX%" format for aria-label
+    expect(progressBar).toHaveAccessibleName(/Progress: 60%/);
   });
 
   it('applies custom className', () => {

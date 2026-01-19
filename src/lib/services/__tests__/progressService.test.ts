@@ -43,16 +43,18 @@ vi.mock('@/lib/monitoring/sentry', () => ({
 describe('Progress Service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default mock implementations
+    // Default mock implementations - note: progress is nested inside user document
     getMock.mockResolvedValue({
       exists: true,
       data: () => ({
-        userId: 'test-user',
-        atomsCompleted: ['atom-1', 'atom-2'],
-        lessonsCompleted: ['lesson-1'],
-        xp: 250,
-        totalTimeSpentMinutes: 120,
-        overallPercentage: 45,
+        progress: {
+          atomsCompleted: ['atom-1', 'atom-2'],
+          lessonsCompleted: ['lesson-1'],
+          xp: 250,
+          totalTimeSpentMinutes: 120,
+          overallPercentage: 45,
+        },
+        lastActiveAt: { toDate: () => new Date() },
       }),
     });
     setMock.mockResolvedValue(undefined);
@@ -64,6 +66,7 @@ describe('Progress Service', () => {
       const progress = await getUserProgress('test-user');
 
       expect(progress).toBeDefined();
+      // userId is set from the uid argument, not from stored data
       expect(progress?.userId).toBe('test-user');
       expect(progress?.atomsCompleted).toHaveLength(2);
       expect(progress?.xp).toBe(250);
@@ -80,8 +83,8 @@ describe('Progress Service', () => {
     });
 
     it('throws error with invalid UID', async () => {
-      await expect(getUserProgress('')).rejects.toThrow('Invalid UID');
-      await expect(getUserProgress(null as any)).rejects.toThrow();
+      await expect(getUserProgress('')).rejects.toThrow('Invalid uid');
+      await expect(getUserProgress(null as unknown as string)).rejects.toThrow();
     });
 
     it('handles Firestore errors gracefully', async () => {
@@ -93,26 +96,41 @@ describe('Progress Service', () => {
 
   describe('initializeProgress', () => {
     it('creates initial progress document for new user', async () => {
-      // Function returns void on success, should not throw
+      // Mock user doesn't exist, so set() should be called
+      getMock.mockResolvedValueOnce({ exists: false });
+
       await expect(initializeProgress('new-user-123')).resolves.not.toThrow();
       expect(setMock).toHaveBeenCalled();
     });
 
-    it('sets correct default values', async () => {
+    it('sets correct default values for new user', async () => {
+      // Mock user doesn't exist
+      getMock.mockResolvedValueOnce({ exists: false });
+
       await initializeProgress('user-123');
 
       expect(setMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          userId: 'user-123',
-          atomsCompleted: [],
-          xp: 0,
-          overallPercentage: 0,
+          progress: expect.objectContaining({
+            atomsCompleted: [],
+            xp: 0,
+            overallPercentage: 0,
+          }),
         })
       );
     });
 
+    it('updates existing user progress', async () => {
+      // Mock user exists, so update() should be called
+      getMock.mockResolvedValueOnce({ exists: true });
+
+      await initializeProgress('existing-user');
+
+      expect(updateMock).toHaveBeenCalled();
+    });
+
     it('throws error with invalid UID', async () => {
-      await expect(initializeProgress('')).rejects.toThrow('Invalid UID');
+      await expect(initializeProgress('')).rejects.toThrow('Invalid uid');
     });
   });
 

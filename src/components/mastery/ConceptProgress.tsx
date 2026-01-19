@@ -2,13 +2,13 @@
 
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Brain, TrendingUp, Clock, AlertCircle, CheckCircle } from 'lucide-react';
+import { Brain, Clock, AlertCircle, CheckCircle } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { cn } from '@/lib/utils';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import {
   type ConceptMastery,
-  type Concept,
   SOCIAL_MEDIA_MARKETING_GRAPH,
   predictMasteryDecay,
 } from '@/lib/mastery';
@@ -32,6 +32,7 @@ export function ConceptProgress({
   showDetails = false,
   onClick,
 }: ConceptProgressProps) {
+  const prefersReducedMotion = useReducedMotion();
   const concept = SOCIAL_MEDIA_MARKETING_GRAPH.concepts[mastery.conceptId];
 
   const status = useMemo(() => {
@@ -60,7 +61,7 @@ export function ConceptProgress({
     return Math.ceil(diff / (24 * 60 * 60 * 1000));
   }, [mastery.nextReviewAt]);
 
-  const StatusIcon = () => {
+  const getStatusIcon = () => {
     switch (status) {
       case 'mastered':
         return <CheckCircle size={16} className="text-success" />;
@@ -86,8 +87,8 @@ export function ConceptProgress({
 
   return (
     <motion.div
-      whileHover={onClick ? { scale: 1.02 } : undefined}
-      whileTap={onClick ? { scale: 0.98 } : undefined}
+      whileHover={onClick && !prefersReducedMotion ? { scale: 1.02 } : undefined}
+      whileTap={onClick && !prefersReducedMotion ? { scale: 0.98 } : undefined}
     >
       <Card
         variant="outlined"
@@ -117,7 +118,7 @@ export function ConceptProgress({
             </div>
 
             <div className="flex items-center gap-1 text-xs">
-              <StatusIcon />
+              {getStatusIcon()}
               <span
                 className={cn(
                   status === 'mastered' && 'text-success',

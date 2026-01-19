@@ -137,7 +137,7 @@ export async function generateSocraticDialogues(targetCount: number = 1000) {
  * Generate a single Socratic dialogue
  */
 async function generateDialogue(
-  model: any,
+  model: unknown,
   concept: BlueprintConcept,
   scenario: SocraticDialogue['scenario']
 ): Promise<SocraticDialogue | null> {

@@ -20,6 +20,7 @@ import { queryKeys, onQuizResult } from '@/lib/api/queryClient';
 import { get, isSuccess } from '@/lib/api/client';
 import type { ConceptId } from '@/lib/mastery/knowledgeGraph';
 import { SOCIAL_MEDIA_MARKETING_GRAPH } from '@/lib/mastery/knowledgeGraph';
+import { getPrerequisitesForLesson } from '@/data/courseToConceptMap';
 
 // ============================================
 // TYPES
@@ -136,9 +137,6 @@ export function checkPrerequisites(
   masteryLevels: Record<ConceptId, number>,
   threshold: number = 70
 ): { met: boolean; missing: ConceptId[] } {
-  // Import dynamically to avoid circular dependency
-  const { getPrerequisitesForLesson } = require('@/data/courseToConceptMap');
-
   const prerequisites = getPrerequisitesForLesson(lessonId);
 
   if (prerequisites.length === 0) {

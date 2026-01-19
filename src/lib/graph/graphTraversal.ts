@@ -7,7 +7,6 @@
 
 import {
   Concept,
-  ConceptEdge,
   ConceptId,
   ConceptMastery,
   GraphNode,
@@ -16,9 +15,7 @@ import {
 } from './types';
 import {
   getAllConcepts,
-  getAllEdges,
   getConcept,
-  getPrerequisiteEdges,
   getUserMastery,
 } from './KnowledgeGraphService';
 

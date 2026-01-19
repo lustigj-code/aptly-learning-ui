@@ -712,7 +712,7 @@ Remember, I won't give you the answer directly, but this example shows you exact
    */
   private async checkUnderstanding(
     studentResponse: string,
-    conceptId: string
+    _conceptId: string
   ): Promise<{ understood: boolean; confidence: number }> {
     // Analyze response for indicators of understanding
     const positiveIndicators = [

@@ -9,6 +9,7 @@ import { adminDb } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import type { Conversation, CoachMessage, MessageContext, CoachFeedback } from '@/lib/auth/schemas';
 import { withErrorHandling, validateString, validateRequired, validateNumber } from '@/lib/errors/handlers';
+import { MAX_PAGINATION_LIMIT, DEFAULT_PAGINATION_LIMIT } from '@/lib/validation/apiParams';
 
 // ============================================
 // EXPLANATION TRACKING TYPES
@@ -190,20 +191,23 @@ export async function addMessage(
  * Get all conversations for a user
  * Retrieves conversation list with latest message preview
  * @param uid - User's Firebase UID
- * @param limit - Optional limit on number of conversations (default 50)
+ * @param limit - Optional limit on number of conversations (default 10, max 100)
  * @returns Array of conversations sorted by most recent first
  * @throws Error if database operation fails
  */
-export async function getConversationsByUser(uid: string, limit: number = 50): Promise<Conversation[]> {
+export async function getConversationsByUser(uid: string, limit: number = DEFAULT_PAGINATION_LIMIT): Promise<Conversation[]> {
   return withErrorHandling(`fetch conversations for user ${uid}`, async () => {
     validateString('uid', uid);
-    validateNumber('limit', limit, 1);
+    validateNumber('limit', limit, 1, MAX_PAGINATION_LIMIT);
+
+    // Bound the limit to prevent DoS
+    const boundedLimit = Math.min(limit, MAX_PAGINATION_LIMIT);
 
     const snapshot = await adminDb
       .collection('conversations')
       .where('userId', '==', uid)
       .orderBy('updatedAt', 'desc')
-      .limit(limit)
+      .limit(boundedLimit)
       .get();
 
     const conversations: Conversation[] = [];
@@ -230,21 +234,27 @@ export async function getConversationsByUser(uid: string, limit: number = 50): P
  * Get conversations for a specific lesson
  * @param uid - User's Firebase UID
  * @param lessonId - Lesson ID to filter by
+ * @param limit - Optional limit on number of conversations (default 10, max 100)
  * @returns Array of conversations for that lesson
  * @throws Error if database operation fails
  */
 export async function getConversationsByLesson(
   uid: string,
-  lessonId: string
+  lessonId: string,
+  limit: number = DEFAULT_PAGINATION_LIMIT
 ): Promise<Conversation[]> {
   return withErrorHandling(`fetch conversations for user ${uid} and lesson ${lessonId}`, async () => {
     validateRequired({ uid, lessonId });
+
+    // Bound the limit to prevent DoS
+    const boundedLimit = Math.min(limit, MAX_PAGINATION_LIMIT);
 
     const snapshot = await adminDb
       .collection('conversations')
       .where('userId', '==', uid)
       .where('lessonId', '==', lessonId)
       .orderBy('createdAt', 'desc')
+      .limit(boundedLimit)
       .get();
 
     const conversations: Conversation[] = [];

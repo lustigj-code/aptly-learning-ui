@@ -3,7 +3,8 @@ import * as admin from 'firebase-admin';
 // This file should ONLY be used on the server side
 // Never import this in client-side code
 
-type AdminCredential = {
+// Admin credential type (used implicitly in JSON parsing)
+type _AdminCredential = {
   type: string;
   project_id: string;
   private_key_id: string;

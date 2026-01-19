@@ -1,14 +1,12 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   Lock,
   CheckCircle,
   BookOpen,
-  ChevronRight,
   TrendingUp,
-  Sparkles,
   AlertCircle,
   RefreshCw,
 } from 'lucide-react';
@@ -16,9 +14,7 @@ import { cn } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Button } from '@/components/ui/Button';
-import { InlineBadge } from '@/components/ui/Badge';
-import { AI_AT_WORK_SKILL_MAP, getSkillsByModule, getSkillName } from '@/data/skillMap';
-import type { SkillState } from '@/lib/mastery/bkt';
+import { AI_AT_WORK_SKILL_MAP, getSkillsByModule } from '@/data/skillMap';
 
 // ============================================
 // TYPES

@@ -402,8 +402,8 @@ export function calculateSignificance(
   const t = (mean1 - mean2) / se;
 
   // Degrees of freedom (Welch's approximation)
-  const df = Math.pow((s1 * s1 / n1) + (s2 * s2 / n2), 2) /
-             (Math.pow(s1 * s1 / n1, 2) / (n1 - 1) + Math.pow(s2 * s2 / n2, 2) / (n2 - 1));
+  const _df = Math.pow((s1 * s1 / n1) + (s2 * s2 / n2), 2) /
+              (Math.pow(s1 * s1 / n1, 2) / (n1 - 1) + Math.pow(s2 * s2 / n2, 2) / (n2 - 1));
 
   // Approximate p-value using normal distribution
   const pValue = 2 * (1 - normalCDF(Math.abs(t)));

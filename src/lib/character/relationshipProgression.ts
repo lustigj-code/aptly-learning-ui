@@ -460,7 +460,7 @@ function getMemoryReferenceChance(frequency: 'never' | 'rare' | 'occasional' | '
 /**
  * Generate a natural reference to a shared memory
  */
-function generateMemoryReference(memory: SharedMemory, daysKnown: number): string {
+function generateMemoryReference(memory: SharedMemory, _daysKnown: number): string {
   const timeAgo = Math.floor((Date.now() - memory.date.getTime()) / (24 * 60 * 60 * 1000));
 
   const prefixes = {

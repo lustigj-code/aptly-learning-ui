@@ -143,7 +143,7 @@ export async function getUserRetentionTests(
     .orderBy('scheduledFor', 'asc');
 
   if (status) {
-    query = query.where('status', '==', status) as any;
+    query = query.where('status', '==', status) as typeof query;
   }
 
   const snapshot = await query.get();
@@ -172,8 +172,6 @@ export async function getUserRetentionTests(
  * Get available retention tests (scheduled date has passed)
  */
 export async function getAvailableTests(userId: string): Promise<RetentionTest[]> {
-  const now = new Date();
-
   // First, update any scheduled tests that are now available
   await updateScheduledToAvailable(userId);
 
@@ -448,14 +446,13 @@ export async function completeRetentionTest(
   const retention: Record<string, number> = {};
   const decay: Record<string, number> = {};
   let totalCorrect = 0;
-  let totalQuestions = 0;
+  const _totalQuestions = Object.values(skillQuestions).reduce((sum, qs) => sum + qs.length, 0);
 
   for (const skillId of Object.keys(skillQuestions)) {
     const skillQs = skillQuestions[skillId];
     let correct = 0;
 
     for (const q of skillQs) {
-      totalQuestions++;
       if (answers[q.id] === q.correctAnswer) {
         correct++;
         totalCorrect++;

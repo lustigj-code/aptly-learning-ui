@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { z } from 'zod';
 import { FieldValue } from 'firebase-admin/firestore';
+import { verifyBearerToken } from '@/lib/auth/apiAuth';
 
 const updateProfileSchema = z.object({
-  userId: z.string().min(1),
   name: z.string().min(1).optional(),
   avatar: z.string().url().optional().nullable(),
   preferences: z
@@ -31,6 +31,13 @@ const updateProfileSchema = z.object({
  */
 export async function PATCH(request: NextRequest) {
   try {
+    // SECURITY: Verify Bearer token and get authenticated userId
+    const auth = await verifyBearerToken(request);
+    if (!auth.authenticated) {
+      return auth.error;
+    }
+    const userId = auth.userId;
+
     const body = await request.json();
 
     // Validate input
@@ -42,7 +49,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const { userId, name, avatar, preferences } = validation.data;
+    const { name, avatar, preferences } = validation.data;
 
     // Build update object - only include fields that are provided
     const updateData: Record<string, unknown> = {

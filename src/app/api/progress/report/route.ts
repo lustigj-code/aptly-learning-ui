@@ -110,6 +110,41 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    // Fallback: Also read from user progress document if reviewQueue is empty
+    if (Object.keys(skillStates).length === 0) {
+      // Use lessons completed as proxy for skill mastery
+      const lessonsCompleted = userProgress.lessonsCompleted || [];
+      const _overallMastery = userProgress.overallPercentage ? userProgress.overallPercentage / 100 : 0;
+
+      // If user has made progress, estimate skill mastery based on completed lessons
+      if (lessonsCompleted.length > 0) {
+        // Map lesson IDs to skills (simplified - assume each lesson maps to a skill)
+        const skillFromLesson: Record<string, string> = {
+          'c1-m1-l1': 'smm-fundamentals',
+          'c1-m1-l2': 'platform-overview',
+          'c1-m1-l3': 'campaign-objectives',
+          'c1-m2-l1': 'campaign-structure',
+          'c1-m2-l2': 'social-strategy',
+          'c1-m2-l3': 'content-creation',
+          'c1-m3-l1': 'meta-ads',
+          'c1-m3-l2': 'analytics',
+          'c1-m3-l3': 'audience-targeting',
+        };
+
+        for (const lessonId of lessonsCompleted) {
+          const skillId = skillFromLesson[lessonId];
+          if (skillId && !skillStates[skillId]) {
+            skillStates[skillId] = {
+              skillId,
+              skillName: SMM_SKILLS[skillId] || skillId,
+              pMastery: 0.7, // Assume 70% mastery for completed lessons
+              lastAttempt: undefined,
+            };
+          }
+        }
+      }
+    }
+
     // Calculate skill categories
     const skills = Object.values(skillStates);
     const masteredSkills = skills.filter(s => s.pMastery >= 0.95);
@@ -127,20 +162,8 @@ export async function GET(request: NextRequest) {
       .limit(100);
     const interactionsSnap = await interactionsRef.get();
 
-    let totalPredictions = 0;
-    let correctPredictions = 0;
-
-    interactionsSnap.forEach(doc => {
-      const data = doc.data();
-      if (data.pMasteryBefore !== undefined && data.isCorrect !== undefined) {
-        totalPredictions++;
-        // If high mastery predicted correct and was correct, or low mastery predicted wrong and was wrong
-        const predictedCorrect = data.pMasteryBefore >= 0.6;
-        if (predictedCorrect === data.isCorrect) {
-          correctPredictions++;
-        }
-      }
-    });
+    // Note: prediction accuracy tracking is available but not currently displayed in UI
+    // interactionsSnap data is used for building mastery history below
 
     // Fetch recent activity (wrapped in try-catch - index may not exist)
     const recentActivity: Array<{

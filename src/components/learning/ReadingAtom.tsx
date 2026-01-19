@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { useTimeTracking, formatTimeMMSS } from '@/hooks/useTimeTracking';
 import { useCoach } from '@/hooks/useCoach';
 import { useInteractionLogger } from '@/hooks/useInteractionLogger';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { post } from '@/lib/api/client';
 import type { Atom, ReadingContent } from '@/types';
 
@@ -33,6 +34,7 @@ export function ReadingAtom({ atom, onComplete, isLoading = false }: ReadingAtom
   const [showSummary, setShowSummary] = useState(false);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
 
   // Track view start time for logging
   const viewStartTimeRef = useRef<number>(Date.now());
@@ -151,9 +153,10 @@ export function ReadingAtom({ atom, onComplete, isLoading = false }: ReadingAtom
     <div className="flex flex-col h-full">
       {/* Time-Based Progress Header - Sticky */}
       <motion.div
-        className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-light-grey px-4 py-3"
-        initial={{ opacity: 0, y: -10 }}
+        className="sticky top-0 z-10 bg-white/95 backdrop-blur-md border-b border-light-grey/60 px-4 py-3 shadow-sm"
+        initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 350, damping: 30 }}
       >
         <div className="max-w-[680px] mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -285,7 +288,7 @@ export function ReadingAtom({ atom, onComplete, isLoading = false }: ReadingAtom
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block p-3 rounded-lg hover:bg-light-teal/20 transition-colors duration-150 group"
-                    whileHover={{ x: 4 }}
+                    whileHover={!prefersReducedMotion ? { x: 4 } : undefined}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
@@ -314,27 +317,45 @@ export function ReadingAtom({ atom, onComplete, isLoading = false }: ReadingAtom
 
       {/* Completion Section - Sticky Bottom */}
       <motion.div
-        className="sticky bottom-0 bg-white/95 backdrop-blur-sm border-t border-light-grey px-4 py-4"
-        initial={{ opacity: 0, y: 10 }}
+        className="sticky bottom-0 bg-white/95 backdrop-blur-md border-t border-light-grey/60 px-4 py-4 shadow-lg shadow-navy/5"
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 350, damping: 30, delay: 0.2 }}
       >
         <div className="max-w-[680px] mx-auto">
           {isCompleted ? (
-            <div className="flex items-center justify-center gap-2 p-4 bg-green-50 rounded-lg border border-green-200">
-              <Check size={20} className="text-green-600" />
-              <span className="font-semibold text-green-600">Completed!</span>
-            </div>
-          ) : (
-            <Button
-              variant="primary"
-              size="lg"
-              fullWidth={true}
-              onClick={handleManualComplete}
-              isLoading={isSubmitting}
-              isDisabled={isSubmitting || isLoading}
+            <motion.div
+              className="flex items-center justify-center gap-2 p-4 bg-gradient-to-r from-green-50 to-success-light/30 rounded-xl border border-green-200 shadow-md shadow-success/20"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
             >
-              Mark as Complete
-            </Button>
+              <motion.div
+                initial={{ scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: 'spring', stiffness: 250, damping: 15, delay: 0.1 }}
+              >
+                <Check size={20} className="text-green-600" />
+              </motion.div>
+              <span className="font-semibold text-green-600">Completed!</span>
+            </motion.div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <Button
+                variant="primary"
+                size="lg"
+                fullWidth={true}
+                onClick={handleManualComplete}
+                isLoading={isSubmitting}
+                isDisabled={isSubmitting || isLoading}
+              >
+                Mark as Complete
+              </Button>
+            </motion.div>
           )}
         </div>
       </motion.div>

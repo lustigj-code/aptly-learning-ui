@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Calendar, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { cn } from '@/lib/utils';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 // ============================================
 // TYPES
@@ -86,6 +87,7 @@ export function ReviewForecast({
   daysAhead = 7,
   className,
 }: ReviewForecastProps) {
+  const prefersReducedMotion = useReducedMotion();
   const { forecast, totalCount, totalMinutes, overallLevel } = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -188,14 +190,51 @@ export function ReviewForecast({
                 <div className="w-full flex flex-col justify-end" style={{ height: '60px' }}>
                   <motion.div
                     className={cn(
-                      'w-full rounded-t-sm',
+                      'w-full rounded-t relative overflow-hidden',
                       getWorkloadColor(level),
-                      isToday && 'ring-2 ring-navy/20'
+                      isToday && 'ring-2 ring-navy/30 shadow-lg'
                     )}
-                    initial={{ height: 0 }}
-                    animate={{ height: `${Math.max(barHeight, day.dueCount > 0 ? 8 : 0)}%` }}
-                    transition={{ delay: 0.2 + index * 0.05, duration: 0.4 }}
-                  />
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: `${Math.max(barHeight, day.dueCount > 0 ? 8 : 0)}%`, opacity: 1 }}
+                    transition={{
+                      height: {
+                        type: 'spring',
+                        stiffness: 300,
+                        damping: 25,
+                        delay: 0.15 + index * 0.04,
+                      },
+                      opacity: {
+                        duration: 0.2,
+                        delay: 0.15 + index * 0.04,
+                      },
+                    }}
+                    whileHover={!prefersReducedMotion ? {
+                      scale: 1.05,
+                      y: -2,
+                      transition: { type: 'spring', stiffness: 500, damping: 20 },
+                    } : undefined}
+                  >
+                    {/* Glossy gradient overlay */}
+                    <div
+                      className="absolute inset-0 bg-gradient-to-b from-white/40 via-white/20 to-transparent"
+                      style={{ pointerEvents: 'none' }}
+                    />
+                    {/* Shine effect for today */}
+                    {isToday && (
+                      <motion.div
+                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent"
+                        initial={{ x: '-100%' }}
+                        animate={{ x: '100%' }}
+                        transition={{
+                          duration: 2,
+                          repeat: Infinity,
+                          repeatDelay: 3,
+                          ease: 'easeInOut',
+                        }}
+                        style={{ pointerEvents: 'none' }}
+                      />
+                    )}
+                  </motion.div>
                 </div>
 
                 {/* Day label */}

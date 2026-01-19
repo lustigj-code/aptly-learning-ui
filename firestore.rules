@@ -7,7 +7,9 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Use admin custom claim (set via Firebase Admin SDK) for consistent security
+      // This matches storage.rules and is more secure than checking Firestore document
+      return isAuthenticated() && request.auth.token.admin == true;
     }
 
     function isOwner(uid) {
@@ -76,13 +78,13 @@ service cloud.firestore {
       }
     }
 
-    // User achievements/badges
+    // User achievements/badges - users can only read their own achievements
     match /userAchievements/{userId} {
-      allow read: if isOwner(userId) || isAuthenticated();
+      allow read: if isOwner(userId);
       allow write: if false; // Only server-side updates
 
       match /badges/{badgeId} {
-        allow read: if isOwner(userId) || isAuthenticated();
+        allow read: if isOwner(userId);
         allow write: if false;
       }
     }
@@ -93,9 +95,9 @@ service cloud.firestore {
       allow write: if false; // Only server-side updates
     }
 
-    // Quiz submissions - students can only create their own, API validates answers
+    // Quiz submissions - students can only read/create their own submissions
     match /quizSubmissions/{submissionId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
       allow update: if false; // Submissions are immutable
       allow delete: if isAdmin();

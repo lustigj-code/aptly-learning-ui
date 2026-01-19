@@ -7,7 +7,7 @@ import { logger } from '@/lib/monitoring/logger'
  * Cron job for cleaning up stale data
  * Runs daily at midnight (configured in vercel.json)
  */
-export async function GET(request: Request) {
+export async function GET(_request: Request) {
   // Verify this is a legitimate cron request from Vercel
   const headersList = await headers()
   const authHeader = headersList.get('authorization')

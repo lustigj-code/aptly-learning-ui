@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
+import { format } from 'date-fns';
 import {
   Target,
   Clock,
@@ -26,9 +27,9 @@ import { Section } from '@/components/layout/AppLayout';
 import { SkillMap } from '@/components/mastery/SkillMap';
 import { useUser } from '@/store/userProfileStore';
 import { useProgressReport } from '@/hooks/useProgressReport';
-import { getAllCourses } from '@/data/courseRegistry';
+import { useAllCourses } from '@/hooks/useCourseContent';
 import { SOCIAL_MEDIA_MARKETING_GRAPH } from '@/lib/mastery/knowledgeGraph';
-import { cn, formatDuration } from '@/lib/utils';
+import { cn, formatDuration, formatDate } from '@/lib/utils';
 
 export default function ProgressPage() {
   const { user, isLoading } = useUser();
@@ -42,6 +43,9 @@ export default function ProgressPage() {
     refresh: refreshReport,
   } = useProgressReport(user?.id ?? null);
 
+  // Dynamic course content
+  const { data: courses = [], isLoading: coursesLoading } = useAllCourses();
+
   // Handler for export - only export real data
   const handleExport = useCallback(async () => {
     if (report) return report;
@@ -50,7 +54,7 @@ export default function ProgressPage() {
     return report;
   }, [report, refreshReport]);
 
-  if (isLoading || !user) {
+  if (isLoading || !user || coursesLoading) {
     return <SkeletonProgressPage />;
   }
 
@@ -58,10 +62,13 @@ export default function ProgressPage() {
   const userProgress = user.progress || {};
   const streak = user.streak || { currentStreak: 0, longestStreak: 0, freezesAvailable: 2, streakHistory: [] };
 
-  // Calculate total lessons from actual course data
-  const courses = getAllCourses();
+  // Calculate total lessons from actual course data (with defensive handling)
   const totalLessons = courses.reduce((total, course) => {
-    return total + course.modules.reduce((modTotal, mod) => modTotal + mod.lessons.length, 0);
+    const moduleTotal = (course.modules ?? []).reduce(
+      (modTotal, mod) => modTotal + (mod.lessons?.length ?? 0),
+      0
+    );
+    return total + moduleTotal;
   }, 0) || 47; // Fallback if modules not populated
   const completedPercentage = userProgress.overallPercentage || 0;
   const estimatedCompletion = new Date();
@@ -81,7 +88,7 @@ export default function ProgressPage() {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 text-sm text-rich-black/60">
               <Calendar size={16} />
-              <span>Started {new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+              <span>Started {formatDate(user.createdAt)}</span>
             </div>
             <ExportProgressReport
               data={report}
@@ -130,7 +137,7 @@ export default function ProgressPage() {
               <StatItem
                 icon={<Target size={20} />}
                 label="Est. Completion"
-                value={estimatedCompletion.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                value={format(estimatedCompletion, 'MMM d')}
               />
             </div>
           </div>
@@ -180,7 +187,7 @@ export default function ProgressPage() {
                 );
 
                 // Calculate course progress dynamically
-                const moduleCount = course.modules.length || 3; // Fallback to 3 if not populated
+                const moduleCount = course.modules?.length || 3; // Fallback to 3 if not populated
                 const completedModules = (userProgress.modulesCompleted || []).filter(
                   m => m.startsWith(`c${course.number}-`)
                 ).length;

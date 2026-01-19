@@ -24,17 +24,13 @@ import {
   getAllCourses,
   getModule,
   getLesson,
-  FSM_COURSE,
-  FSM_MODULE_1,
 } from '@/data/courseRegistry';
 import type { Course, Module, Lesson, Atom } from '@/types';
 
-// Provide backwards-compatible functions
-const AI_WORK_COURSES: Course[] = [FSM_COURSE];
-const AI_WORK_MODULE_1 = FSM_MODULE_1;
-function getAllAIWorkLessons() {
-  return FSM_MODULE_1.lessons || [];
-}
+// Backwards-compatible aliases (unused but kept for reference)
+// const _AI_WORK_COURSES: Course[] = [FSM_COURSE];
+// const _AI_WORK_MODULE_1 = FSM_MODULE_1;
+// function _getAllAIWorkLessons() { return FSM_MODULE_1.lessons || []; }
 import type { VideoContent } from '@/types';
 
 // Flag to use Firestore (set to true when content is migrated)
@@ -388,9 +384,9 @@ export function usePrefetchNextLesson(
     ? getNextLessonId(currentLessonId, moduleData)
     : null;
 
-  // Fetch next lesson data
+  // Fetch next lesson data using same query key as useLesson for cache sharing
   const { data: nextLesson } = useQuery({
-    queryKey: ['lesson', nextLessonId, 'prefetch'],
+    queryKey: ['lesson', nextLessonId],
     queryFn: () => fetchLesson(nextLessonId!),
     staleTime: COURSE_CONTENT_STALE_TIME,
     gcTime: COURSE_CONTENT_GC_TIME,

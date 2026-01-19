@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { Lock, Award, Flame, Star, Trophy, Target, Zap, BookOpen, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { SPRING } from '@/lib/design-tokens';
+import { SPRING } from '@/lib/motion/springs';
 import type { Badge as BadgeType, BadgeRarity } from '@/types';
 
 type BadgeSize = 'sm' | 'md' | 'lg';

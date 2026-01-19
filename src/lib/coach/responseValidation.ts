@@ -248,8 +248,6 @@ function detectHallucinations(
   response: string,
   chunks: RetrievedChunk[]
 ): { detected: boolean; evidence?: string } {
-  const responseLower = response.toLowerCase();
-
   // Check for unsupported statistical claims
   for (const pattern of HALLUCINATION_INDICATORS) {
     const match = response.match(pattern);

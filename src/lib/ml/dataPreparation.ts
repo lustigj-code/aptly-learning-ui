@@ -76,7 +76,7 @@ export interface InteractionLoader {
 export function createInteractionLoader(): InteractionLoader {
   return {
     async loadInteractions(
-      _params: InteractionQueryParams
+      /* _params: InteractionQueryParams */
     ): Promise<InteractionLog[]> {
       // Implementation would query Firestore:
       // const snapshot = await adminDb.collection('interactionLogs')
@@ -91,11 +91,11 @@ export function createInteractionLoader(): InteractionLoader {
       return [];
     },
 
-    async loadUserInteractions(_userId: string): Promise<InteractionLog[]> {
+    async loadUserInteractions(/* _userId: string */): Promise<InteractionLog[]> {
       return [];
     },
 
-    async loadSkillInteractions(_skillId: string): Promise<InteractionLog[]> {
+    async loadSkillInteractions(/* _skillId: string */): Promise<InteractionLog[]> {
       return [];
     },
   };

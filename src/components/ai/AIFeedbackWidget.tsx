@@ -10,7 +10,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ThumbsUp, ThumbsDown, MessageSquare, X, Check, Loader2 } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, X, Check, Loader2 } from 'lucide-react';
 
 type Props = {
   responseId: string;

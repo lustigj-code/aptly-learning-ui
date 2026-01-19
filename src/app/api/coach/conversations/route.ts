@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/firebase/admin';
 import { getConversationsByLesson, getConversationsByUser } from '@/lib/services/coachService';
+import { parseConversationListParams } from '@/lib/validation/apiParams';
 
 // ============================================
 // TYPES
@@ -35,16 +36,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    // Parse query parameters
+    // Parse and validate query parameters with bounds
     const { searchParams } = new URL(request.url);
-    const lessonId = searchParams.get('lessonId');
-    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    const { lessonId, limit } = parseConversationListParams(searchParams);
 
-    // Fetch conversations
+    // Fetch conversations with bounded limit
     let conversations;
     if (lessonId) {
       // Get conversations for specific lesson
-      conversations = await getConversationsByLesson(userId, lessonId);
+      conversations = await getConversationsByLesson(userId, lessonId, limit);
     } else {
       // Get all user conversations
       conversations = await getConversationsByUser(userId, limit);

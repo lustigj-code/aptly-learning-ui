@@ -17,9 +17,6 @@ import {
   type BKTParameters,
   type Skill,
   type SkillMap,
-  DEFAULT_BKT_PARAMS,
-  EASY_BKT_PARAMS,
-  HARD_BKT_PARAMS,
 } from '@/lib/mastery/bkt';
 
 // ============================================
@@ -467,7 +464,7 @@ export function getSkillsByModule(): Record<string, Skill[]> {
  */
 export function getSkillCounts(
   masteredSkills: string[],
-  allStates: Record<string, { pMastery: number }>
+  _allStates: Record<string, { pMastery: number }>
 ): { total: number; mastered: number; learning: number; locked: number } {
   const total = Object.keys(AI_AT_WORK_SKILL_MAP.skills).length;
   const mastered = masteredSkills.length;

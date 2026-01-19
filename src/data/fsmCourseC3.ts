@@ -73,39 +73,33 @@ Introduction to Social Media Advertising`,
   {
     id: 'fsm-c3-m1-l0-a3',
     lessonId: 'fsm-c3-m1-l0',
-    type: 'video',
+    type: 'reading',
     title: 'Introduction to Daniel Kob',
     content: {
-      videoUrl: '', // TODO: Add video URL when available
-      transcript: `-Program: Facebook Social Media Marketing Professional Certificate 
+      body: `-Program: Facebook Social Media Marketing Professional Certificate
 
-Course 2: Social Media Content Management  
-Module 1: Social Media Branding 
+Course 2: Social Media Content Management
+Module 1: Social Media Branding
 Lesson 0: {descriptive lesson title}
 
 Course Objectives:
 
-Understand how and why to create content for your social media platforms 
+Understand how and why to create content for your social media platforms
 
-Create your brand, tone, and voice for your social media presence 
+Create your brand, tone, and voice for your social media presence
 
 Manage content calendar for my social media presence
 
-Evaluate the performance of my content on social media and iterate on the performence 
+Evaluate the performance of my content on social media and iterate on the performence
 
 Demonstrate...`,
-      duration: 420,
-      chapters: [
-        { time: 0, title: 'Introduction' },
-        { time: 120, title: 'Main Content' },
-        { time: 300, title: 'Summary' },
-      ],
-      keyTakeaways: [
+      highlights: [
         '-Program: Facebook Social Media Marketing Professional Certificate',
         'Course 2: Social Media Content Management',
         'Module 1: Social Media Branding',
         'Lesson 0: {descriptive lesson title}',
       ],
+      relatedResources: [],
     },
     estimatedMinutes: 7,
     isRequired: true,
@@ -552,37 +546,31 @@ Five Elements of an Ad on Instagram and Facebook
   {
     id: 'fsm-c3-m1-l2-a4',
     lessonId: 'fsm-c3-m1-l2',
-    type: 'video',
+    type: 'reading',
     title: 'Introduction to Social Media Advertising Conclusion',
     content: {
-      videoUrl: '', // TODO: Add video URL when available
-      transcript: `-Program: Facebook Social Media Marketing Professional Certificate 
+      body: `-Program: Facebook Social Media Marketing Professional Certificate
 
-Course 3: Creating Ads on Social Media (The Art)  
-Module 1: Introduction to Paid Advertising on Social Media 
+Course 3: Creating Ads on Social Media (The Art)
+Module 1: Introduction to Paid Advertising on Social Media
 Lesson 2: What makes a good ad?
 
 Course Objectives:
 
-Determine why and when to invest in paid advertisement 
+Determine why and when to invest in paid advertisement
 
 Understand the difference between a paid-ad and organic post on multiple platforms
 
 Understand the main components of a paid-ad (text, image, call to action, target audience)
 
 Evaluate what makes an effective a...`,
-      duration: 420,
-      chapters: [
-        { time: 0, title: 'Introduction' },
-        { time: 120, title: 'Main Content' },
-        { time: 300, title: 'Summary' },
-      ],
-      keyTakeaways: [
+      highlights: [
         '-Program: Facebook Social Media Marketing Professional Certificate',
         'Course 3: Creating Ads on Social Media (The Art)',
         'Module 1: Introduction to Paid Advertising on Social Media',
         'Lesson 2: What makes a good ad?',
       ],
+      relatedResources: [],
     },
     estimatedMinutes: 7,
     isRequired: true,
@@ -738,37 +726,31 @@ Collaborating with Others Effectively
   {
     id: 'fsm-c3-m2-l1-a1',
     lessonId: 'fsm-c3-m2-l1',
-    type: 'video',
+    type: 'reading',
     title: 'Creating Effective Ads on Social Media Overview',
     content: {
-      videoUrl: '', // TODO: Add video URL when available
-      transcript: `-Program: Facebook Social Media Marketing Professional Certificate 
+      body: `-Program: Facebook Social Media Marketing Professional Certificate
 
-Course 3: Creating Ads on Social Media (The Art)  
+Course 3: Creating Ads on Social Media (The Art)
 Module 2: Creating Ads on Social Media
 Lesson 1: Creating Effective Ads
 
 Course Objectives:
 
-Determine why and when to invest in paid advertisement 
+Determine why and when to invest in paid advertisement
 
 Understand the difference between a paid-ad and organic post on multiple platforms
 
 Understand the main components of a paid-ad (text, image, call to action, target audience)
 
 Evaluate what makes an effective and exciting campaign...`,
-      duration: 420,
-      chapters: [
-        { time: 0, title: 'Introduction' },
-        { time: 120, title: 'Main Content' },
-        { time: 300, title: 'Summary' },
-      ],
-      keyTakeaways: [
+      highlights: [
         '-Program: Facebook Social Media Marketing Professional Certificate',
         'Course 3: Creating Ads on Social Media (The Art)',
         'Module 2: Creating Ads on Social Media',
         'Lesson 1: Creating Effective Ads',
       ],
+      relatedResources: [],
     },
     estimatedMinutes: 7,
     isRequired: true,
@@ -1114,37 +1096,31 @@ Collaborating with Others Effectively
   {
     id: 'fsm-c3-m2-l2-a4',
     lessonId: 'fsm-c3-m2-l2',
-    type: 'video',
+    type: 'reading',
     title: 'Creating Effective Ads on Social Media Conclusion',
     content: {
-      videoUrl: '', // TODO: Add video URL when available
-      transcript: `-Program: Facebook Social Media Marketing Professional Certificate 
+      body: `-Program: Facebook Social Media Marketing Professional Certificate
 
-Course 3: Creating Ads on Social Media (The Art)  
+Course 3: Creating Ads on Social Media (The Art)
 Module 2: Creating Ads on Social Media
 Lesson 2: Working with Internal and External Teams for your Social Media Marketing
 
 Course Objectives:
 
-Determine why and when to invest in paid advertisement 
+Determine why and when to invest in paid advertisement
 
 Understand the difference between a paid-ad and organic post on multiple platforms
 
 Understand the main components of a paid-ad (text, image, call to action, target audience)
 
 Eval...`,
-      duration: 420,
-      chapters: [
-        { time: 0, title: 'Introduction' },
-        { time: 120, title: 'Main Content' },
-        { time: 300, title: 'Summary' },
-      ],
-      keyTakeaways: [
+      highlights: [
         '-Program: Facebook Social Media Marketing Professional Certificate',
         'Course 3: Creating Ads on Social Media (The Art)',
         'Module 2: Creating Ads on Social Media',
         'Lesson 2: Working with Internal and External Teams for your Social Media Marketing',
       ],
+      relatedResources: [],
     },
     estimatedMinutes: 7,
     isRequired: true,

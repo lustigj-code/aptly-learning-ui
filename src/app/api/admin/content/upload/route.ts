@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth/apiAuth'
 import { adminDb } from '@/lib/firebase/admin'
 import JSZip from 'jszip'
+import { z } from 'zod'
+import type { DocumentReference } from 'firebase-admin/firestore'
+
+// Security constants
+const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024 // 50MB max upload size
 
 // Helper to trigger RAG auto-indexing
 async function triggerRAGIndexing(courseId: string): Promise<void> {
@@ -50,6 +55,69 @@ type UploadJob = {
   options: CourseManifest['options']
 }
 
+// Zod schema for manifest validation (Issue 38)
+const CourseManifestSchema = z.object({
+  version: z.string(),
+  course: z.object({
+    id: z.string().optional(),
+    title: z.string().min(1, 'Course title is required'),
+    description: z.string(),
+    objectives: z.array(z.string()).optional(),
+    estimatedHours: z.number().positive().optional(),
+    prerequisites: z.array(z.string()).optional(),
+  }),
+  options: z.object({
+    autoTranscribe: z.boolean().optional(),
+    autoGenerateQuizzes: z.boolean().optional(),
+    autoGenerateSummaries: z.boolean().optional(),
+    mapToKnowledgeGraph: z.boolean().optional(),
+  }).optional(),
+})
+
+// Security: Validate ZIP file paths to prevent path traversal (Issue 37 - CRITICAL)
+function isPathSafe(filePath: string): boolean {
+  // Reject paths with path traversal patterns
+  if (filePath.includes('..')) return false
+
+  // Reject absolute paths (starting with / or drive letters like C:)
+  if (filePath.startsWith('/') || /^[a-zA-Z]:/.test(filePath)) return false
+
+  // Reject paths with null bytes (can bypass some checks)
+  if (filePath.includes('\0')) return false
+
+  // Normalize and check if path tries to escape
+  const normalized = filePath.split('/').filter(part => part !== '.' && part !== '').join('/')
+  if (normalized !== filePath.replace(/^\.\//, '').replace(/\/+/g, '/')) {
+    // Path normalization changed the path - could be suspicious
+    // Allow simple differences like trailing slashes or duplicate slashes
+    const simplifiedOriginal = filePath.replace(/\/+/g, '/').replace(/\/$/, '').replace(/^\.\//, '')
+    if (normalized !== simplifiedOriginal) return false
+  }
+
+  return true
+}
+
+// Security: Filter and validate all paths in ZIP (Issue 37)
+function getValidatedZipFiles(zip: JSZip): string[] {
+  const allFiles = Object.keys(zip.files)
+  const validFiles: string[] = []
+  const rejectedFiles: string[] = []
+
+  for (const filePath of allFiles) {
+    if (isPathSafe(filePath)) {
+      validFiles.push(filePath)
+    } else {
+      rejectedFiles.push(filePath)
+    }
+  }
+
+  if (rejectedFiles.length > 0) {
+    console.warn('[Upload Security] Rejected unsafe paths:', rejectedFiles)
+  }
+
+  return validFiles
+}
+
 export async function POST(request: NextRequest) {
   // Verify admin access
   const authResult = await requireAdmin(request)
@@ -72,6 +140,14 @@ export async function POST(request: NextRequest) {
     if (!file.name.endsWith('.zip')) {
       return NextResponse.json(
         { error: 'File must be a .zip file' },
+        { status: 400 }
+      )
+    }
+
+    // Security: Server-side file size validation (Issues 36, 41)
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      return NextResponse.json(
+        { error: `File size exceeds maximum allowed (${MAX_FILE_SIZE_BYTES / 1024 / 1024}MB)` },
         { status: 400 }
       )
     }
@@ -102,7 +178,31 @@ export async function POST(request: NextRequest) {
 
     if (manifestFile) {
       const manifestContent = await manifestFile.async('string')
-      manifest = JSON.parse(manifestContent) as CourseManifest
+
+      // Security: Safe JSON parsing with Zod validation (Issue 38)
+      let parsedJson: unknown
+      try {
+        parsedJson = JSON.parse(manifestContent)
+      } catch (jsonError) {
+        await jobRef.update({ status: 'failed', errors: ['Invalid JSON in manifest.json'] })
+        return NextResponse.json(
+          { error: 'Invalid JSON in manifest.json', details: jsonError instanceof Error ? jsonError.message : 'Parse error' },
+          { status: 400 }
+        )
+      }
+
+      // Validate manifest schema
+      const validationResult = CourseManifestSchema.safeParse(parsedJson)
+      if (!validationResult.success) {
+        const errorMessages = validationResult.error.issues.map(e => `${e.path.join('.')}: ${e.message}`)
+        await jobRef.update({ status: 'failed', errors: errorMessages })
+        return NextResponse.json(
+          { error: 'Invalid manifest schema', details: errorMessages },
+          { status: 400 }
+        )
+      }
+
+      manifest = validationResult.data
     } else {
       // Auto-generate manifest from folder structure
       manifest = {
@@ -127,15 +227,15 @@ export async function POST(request: NextRequest) {
       currentStep: 'Analyzing course structure...',
     })
 
-    // Analyze zip structure
-    const files = Object.keys(zip.files)
+    // Analyze zip structure - using validated paths only (Issue 37)
+    const files = getValidatedZipFiles(zip)
     const videoFiles = files.filter(f =>
       f.match(/\.(mp4|mov|webm|m4v)$/i) && !zip.files[f].dir
     )
     const markdownFiles = files.filter(f =>
       f.match(/\.(md|txt)$/i) && !zip.files[f].dir
     )
-    const jsonFiles = files.filter(f =>
+    const _jsonFiles = files.filter(f =>
       f.match(/\.json$/i) && !zip.files[f].dir && f !== 'manifest.json'
     )
 
@@ -183,23 +283,65 @@ export async function POST(request: NextRequest) {
       currentStep: `Creating ${structure.modules.length} modules with ${structure.totalLessons} lessons...`,
     })
 
-    // Create modules and lessons in Firestore
+    // Create modules and lessons in Firestore using batched writes for atomicity (Issue 43)
+    // Firestore batches are limited to 500 operations, so we batch in chunks
+    const MAX_BATCH_SIZE = 500
+    const allWrites: Array<{ ref: DocumentReference; data: object }> = []
+
     for (const courseModule of structure.modules) {
       const moduleRef = courseRef.collection('modules').doc(courseModule.id)
-      await moduleRef.set({
-        ...courseModule,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { lessons, ...moduleData } = courseModule
+      allWrites.push({
+        ref: moduleRef,
+        data: {
+          ...moduleData,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
       })
 
       for (const lesson of courseModule.lessons) {
         const lessonRef = moduleRef.collection('lessons').doc(lesson.id)
-        await lessonRef.set({
-          ...lesson,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+        allWrites.push({
+          ref: lessonRef,
+          data: {
+            ...lesson,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
         })
       }
+    }
+
+    // Execute writes in batches for atomicity
+    try {
+      for (let i = 0; i < allWrites.length; i += MAX_BATCH_SIZE) {
+        const batch = adminDb.batch()
+        const chunk = allWrites.slice(i, i + MAX_BATCH_SIZE)
+
+        for (const write of chunk) {
+          batch.set(write.ref, write.data)
+        }
+
+        await batch.commit()
+      }
+    } catch (batchError) {
+      // Rollback: delete the course document if module/lesson creation fails
+      console.error('[Upload] Batch write failed, rolling back course:', batchError)
+      try {
+        await courseRef.delete()
+      } catch (rollbackError) {
+        console.error('[Upload] Rollback failed:', rollbackError)
+      }
+      await jobRef.update({
+        status: 'failed',
+        errors: ['Failed to create course structure. Changes have been rolled back.'],
+      })
+      return NextResponse.json(
+        { error: 'Failed to create course structure', details: batchError instanceof Error ? batchError.message : 'Batch write error' },
+        { status: 500 }
+      )
     }
 
     await jobRef.update({

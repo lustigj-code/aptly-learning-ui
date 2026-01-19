@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { COLORS_RAW, SPRING } from '@/lib/design-tokens';
+import { SPRING } from '@/lib/motion/springs';
+import { COLORS_RAW } from '@/lib/design-tokens';
 import { type StudentMasteryData, type ConceptInfo } from '@/lib/teacher/types';
 
 interface ClassHeatmapProps {

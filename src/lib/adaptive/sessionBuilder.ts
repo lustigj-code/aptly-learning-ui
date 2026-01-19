@@ -241,13 +241,11 @@ async function buildSessionViaAPI(
  * Create a mock session for development/fallback
  * @internal Parameters reserved for future enhancement
  */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 function createMockSession(
   _userId: string,
   _availableMinutes: number,
   _preferences: SessionConfig['preferences']
 ): LearningSession {
-  /* eslint-enable @typescript-eslint/no-unused-vars */
   const sessionId = generateSessionId();
 
   // Create simple mock items based on available time

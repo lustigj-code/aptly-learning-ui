@@ -5,94 +5,85 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { Header } from '../layout/Header';
 
-// Mock Next.js router
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({
-    push: vi.fn(),
-    pathname: '/dashboard',
-  }),
-  usePathname: () => '/dashboard',
-}));
-
-// Mock unified store
-vi.mock('@/store/unifiedStore', () => ({
-  useUnifiedStore: () => ({
+// Mock hooks and stores
+vi.mock('@/store/userProfileStore', () => ({
+  useUser: () => ({
     user: {
       id: 'test-user',
       name: 'Test User',
       avatar: null,
-      progress: {
-        totalXP: 500,
-        currentLevel: 5,
+      streak: {
+        currentStreak: 5,
       },
     },
-    authUser: { uid: 'test-user' },
-    signOut: vi.fn(),
   }),
 }));
 
+vi.mock('@/store/uiStore', () => ({
+  useUIStore: (selector: (state: { toggleMobileMenu: () => void }) => unknown) =>
+    selector({ toggleMobileMenu: vi.fn() }),
+}));
+
+vi.mock('@/hooks/useReducedMotion', () => ({
+  useReducedMotion: () => false,
+}));
+
+vi.mock('@/components/pwa/ConnectivityStatus', () => ({
+  ConnectivityStatus: () => <div data-testid="connectivity-status" />,
+}));
+
+vi.mock('@/components/progress/StreakCounter', () => ({
+  InlineStreak: ({ count }: { count: number }) => <div data-testid="streak">{count} day streak</div>,
+}));
+
+vi.mock('@/components/navigation/UserMenu', () => ({
+  UserMenu: () => <button aria-label="User menu">User Menu</button>,
+}));
+
 describe('Header Component', () => {
-  it('renders user name', () => {
+  it('renders greeting with user name', () => {
     render(<Header />);
 
-    expect(screen.getByText('Test User')).toBeInTheDocument();
+    // Should show greeting with user name
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
   });
 
-  it('displays user XP', () => {
+  it('displays streak counter', () => {
     render(<Header />);
 
-    expect(screen.getByText(/500.*XP/i)).toBeInTheDocument();
+    expect(screen.getByTestId('streak')).toBeInTheDocument();
   });
 
-  it('shows user level', () => {
+  it('has mobile menu toggle button', () => {
     render(<Header />);
 
-    expect(screen.getByText(/Level 5|Lv\. 5/i)).toBeInTheDocument();
-  });
-
-  it('has navigation menu button', () => {
-    render(<Header />);
-
-    const menuButton = screen.getByLabelText(/menu|navigation/i);
+    const menuButton = screen.getByLabelText(/Toggle navigation menu/i);
     expect(menuButton).toBeInTheDocument();
   });
 
-  it('opens user menu on click', async () => {
-    const user = userEvent.setup();
-    render(<Header />);
+  it('shows custom title when provided', () => {
+    render(<Header showGreeting={false} title="Settings" />);
 
-    const userMenuButton = screen.getByLabelText(/user menu|account/i);
-    await user.click(userMenuButton);
-
-    // Should show menu options
-    await expect(screen.findByText(/settings|logout|profile/i)).resolves.toBeInTheDocument();
+    expect(screen.getByText('Settings')).toBeInTheDocument();
   });
 
-  it('has logout functionality', async () => {
-    const user = userEvent.setup();
-    render(<Header />);
+  it('shows subtitle when provided', () => {
+    render(<Header showGreeting={false} title="Settings" subtitle="Manage your account" />);
 
-    const userMenuButton = screen.getByLabelText(/user menu/i);
-    await user.click(userMenuButton);
-
-    const logoutButton = await screen.findByText(/logout|sign out/i);
-    expect(logoutButton).toBeInTheDocument();
+    expect(screen.getByText('Manage your account')).toBeInTheDocument();
   });
 
-  it('shows notification bell', () => {
+  it('renders user menu', () => {
     render(<Header />);
 
-    const notificationButton = screen.getByLabelText(/notification/i);
-    expect(notificationButton).toBeInTheDocument();
+    expect(screen.getByLabelText(/User menu/i)).toBeInTheDocument();
   });
 
-  it('displays current page breadcrumb', () => {
-    render(<Header />);
+  it('applies custom className', () => {
+    const { container } = render(<Header className="custom-header" />);
 
-    // Should show current location
-    expect(screen.getByText(/dashboard/i)).toBeInTheDocument();
+    expect(container.firstChild).toHaveClass('custom-header');
   });
 });

@@ -7,7 +7,7 @@
  */
 
 import { getAIOrchestrator } from './orchestrator';
-import { predictStruggle, optimizeLearningPath } from './predictive-analytics';
+import { optimizeLearningPath } from './predictive-analytics';
 import type { UserLearningFeatures } from './predictive-analytics';
 import type { AIMessage } from './providers/interfaces';
 
@@ -85,7 +85,7 @@ Why this order?`,
       reasoning: index < 5 ? result.content : item.reasoning,
       recommendationStrength: getStrength(item.recommendationScore),
     }));
-  } catch (error) {
+  } catch (_error) {
     // Fallback to score-based reasoning
     return goalWeighted.map((item, index) => ({
       lessonId: item.lessonId,
@@ -184,7 +184,7 @@ Keep it SHORT - they need this knowledge right now for an upcoming task.`,
         answer: 'See explanation above',
       },
     };
-  } catch (error) {
+  } catch (_error) {
     // Fallback micro-lesson
     return {
       conceptId,
@@ -301,7 +301,7 @@ Generate reflection.`,
       keyInsight: extractKeyTakeaway(result.content),
       nextSteps: extractNextSteps(result.content),
     };
-  } catch (error) {
+  } catch (_error) {
     return {
       reflection: `Great work completing this lesson! Your ${userPerformance.quizScore}% score shows solid understanding.`,
       keyInsight: 'Practice and review strengthen retention.',

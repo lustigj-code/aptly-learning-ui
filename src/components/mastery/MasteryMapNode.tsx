@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Lock, Play, CheckCircle, AlertTriangle, Star, Zap } from 'lucide-react';
 import type { SkillNodeData, SkillNodeStatus } from './types';
 import { STATUS_COLORS, COLORS_RAW } from '@/lib/design-tokens';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 /**
  * Mastery Map Node Component
@@ -63,6 +64,7 @@ export function MasteryMapNode({
   onClick,
   size = 'md',
 }: MasteryMapNodeProps) {
+  const prefersReducedMotion = useReducedMotion();
   const [showTooltip, setShowTooltip] = useState(false);
 
   const sizeConfig = NODE_SIZES[size];
@@ -79,17 +81,30 @@ export function MasteryMapNode({
 
   // Animation variants
   const nodeVariants = {
-    idle: { scale: 1 },
-    hover: { scale: 1.08 },
-    tap: { scale: 0.95 },
-    selected: { scale: 1.1 },
+    idle: { scale: 1, rotate: 0 },
+    hover: {
+      scale: 1.08,
+      transition: { type: 'spring' as const, stiffness: 400, damping: 17 }
+    },
+    tap: {
+      scale: 0.95,
+      transition: { type: 'spring' as const, stiffness: 500, damping: 20 }
+    },
+    selected: {
+      scale: 1.1,
+      transition: { type: 'spring' as const, stiffness: 300, damping: 20 }
+    },
   };
 
   const progressVariants = {
     initial: { strokeDashoffset: circumference },
     animate: {
       strokeDashoffset,
-      transition: { duration: 0.8, ease: 'easeOut' as const },
+      transition: {
+        duration: 1.2,
+        ease: [0.4, 0, 0.2, 1] as const,
+        delay: 0.1
+      },
     },
   };
 
@@ -103,20 +118,60 @@ export function MasteryMapNode({
     >
       {/* Glow effect for active/current nodes */}
       {(isCurrent || node.status === 'active') && (
+        <>
+          <motion.circle
+            r={sizeConfig.outer / 2 + 8}
+            fill="none"
+            stroke={statusConfig.glowColor}
+            strokeWidth={12}
+            opacity={0.15}
+            animate={{
+              opacity: [0.1, 0.25, 0.1],
+              r: [sizeConfig.outer / 2 + 8, sizeConfig.outer / 2 + 12, sizeConfig.outer / 2 + 8],
+            }}
+            transition={{
+              duration: 2.5,
+              repeat: Infinity,
+              ease: [0.4, 0, 0.6, 1],
+            }}
+          />
+          <motion.circle
+            r={sizeConfig.outer / 2 + 4}
+            fill="none"
+            stroke={statusConfig.glowColor}
+            strokeWidth={6}
+            opacity={0.4}
+            animate={{
+              opacity: [0.3, 0.7, 0.3],
+              r: [sizeConfig.outer / 2 + 4, sizeConfig.outer / 2 + 6, sizeConfig.outer / 2 + 4],
+            }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              ease: [0.4, 0, 0.6, 1],
+            }}
+          />
+        </>
+      )}
+
+      {/* Shimmer effect for mastered nodes */}
+      {node.status === 'mastered' && (
         <motion.circle
-          r={sizeConfig.outer / 2 + 4}
+          r={sizeConfig.outer / 2 + 2}
           fill="none"
-          stroke={statusConfig.glowColor}
-          strokeWidth={8}
-          opacity={0.5}
+          stroke={statusConfig.progressColor}
+          strokeWidth={2}
+          opacity={0.6}
+          initial={{ opacity: 0, scale: 0.8 }}
           animate={{
-            opacity: [0.3, 0.6, 0.3],
-            r: [sizeConfig.outer / 2 + 4, sizeConfig.outer / 2 + 8, sizeConfig.outer / 2 + 4],
+            opacity: [0, 0.6, 0],
+            scale: [0.8, 1.2, 0.8],
           }}
           transition={{
-            duration: 2,
+            duration: 3,
             repeat: Infinity,
             ease: 'easeInOut',
+            repeatDelay: 2,
           }}
         />
       )}
@@ -152,8 +207,8 @@ export function MasteryMapNode({
         strokeWidth={isSelected ? 3 : 2}
         variants={nodeVariants}
         initial="idle"
-        whileHover={isClickable ? 'hover' : undefined}
-        whileTap={isClickable ? 'tap' : undefined}
+        whileHover={isClickable && !prefersReducedMotion ? 'hover' : undefined}
+        whileTap={isClickable && !prefersReducedMotion ? 'tap' : undefined}
         animate={isSelected ? 'selected' : 'idle'}
       />
 
@@ -189,27 +244,47 @@ export function MasteryMapNode({
       <AnimatePresence>
         {showTooltip && (
           <motion.g
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.15 }}
+            initial={{ opacity: 0, y: -5, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -5, scale: 0.95 }}
+            transition={{
+              type: 'spring',
+              stiffness: 500,
+              damping: 25,
+              mass: 0.5,
+            }}
           >
             <foreignObject
-              x={-100}
-              y={-sizeConfig.outer / 2 - 70}
-              width={200}
-              height={60}
+              x={-110}
+              y={-sizeConfig.outer / 2 - 85}
+              width={220}
+              height={80}
               style={{ pointerEvents: 'none', overflow: 'visible' }}
             >
               <div className="flex justify-center">
-                <div className="bg-navy text-white px-3 py-2 rounded-lg shadow-lg max-w-[180px]">
-                  <p className="text-xs font-semibold truncate">{node.name}</p>
-                  <p className="text-xs opacity-80 mt-0.5">
-                    {getStatusLabel(node.status)}
-                    {node.retrievability !== undefined && node.status === 'decaying' && (
-                      <span className="ml-1">({Math.round(node.retrievability * 100)}% retention)</span>
-                    )}
-                  </p>
+                <div
+                  className="bg-navy text-white px-4 py-3 rounded-xl shadow-2xl max-w-[200px]"
+                  style={{
+                    backdropFilter: 'blur(8px)',
+                    background: 'linear-gradient(135deg, rgba(10, 0, 74, 0.98) 0%, rgba(27, 16, 96, 0.98) 100%)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                  }}
+                >
+                  <p className="text-sm font-semibold truncate leading-tight">{node.name}</p>
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    <div
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: statusConfig.progressColor }}
+                    />
+                    <p className="text-xs opacity-90 leading-tight">
+                      {getStatusLabel(node.status)}
+                    </p>
+                  </div>
+                  {node.retrievability !== undefined && node.status === 'decaying' && (
+                    <p className="text-xs opacity-75 mt-1 leading-tight">
+                      {Math.round(node.retrievability * 100)}% retention
+                    </p>
+                  )}
                 </div>
               </div>
             </foreignObject>

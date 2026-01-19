@@ -225,7 +225,7 @@ function parseHeader(
 function parseRow(
   values: string[],
   indices: Map<string, number>,
-  rowNumber: number
+  _rowNumber: number
 ): EdNetInteraction | null {
   const getValue = (field: string): string | undefined => {
     const idx = indices.get(field);

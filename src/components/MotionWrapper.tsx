@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { ComponentProps, ReactNode } from 'react';
+import { ReactNode } from 'react';
 
 // Dynamically import framer-motion components with SSR disabled
 // This prevents useContext errors during prerendering

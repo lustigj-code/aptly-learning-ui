@@ -43,7 +43,8 @@ export default function SkillMapsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+   
+  }, []);
 
   useEffect(() => {
     if (!userLoading && (!user || user.role !== 'admin')) {

@@ -7,13 +7,11 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, Award, Zap, Trophy, Flame, X, ChevronRight, AlertTriangle, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { useUserProfileStore } from '@/store/userProfileStore';
-import { formatTime } from '@/lib/utils';
 
 type Notification = {
   id: string;
@@ -23,7 +21,7 @@ type Notification = {
   timestamp: Date;
   read: boolean;
   icon?: string;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
   ctaUrl?: string;
   priority?: number;
 };
@@ -33,48 +31,47 @@ type NotificationCenterProps = {
   onClose: () => void;
 };
 
+// Sample notifications data (defined outside component to avoid recreating)
+const createSampleNotifications = (): Notification[] => {
+  const now = Date.now();
+  return [
+    {
+      id: '1',
+      type: 'badge',
+      title: 'New Badge Earned!',
+      message: 'You earned the "Week Warrior" badge for a 7-day streak',
+      timestamp: new Date(now - 3600000), // 1 hour ago
+      read: false,
+      icon: 'trophy',
+    },
+    {
+      id: '2',
+      type: 'level_up',
+      title: 'Level Up!',
+      message: "You've reached level 5! Keep up the great work.",
+      timestamp: new Date(now - 7200000), // 2 hours ago
+      read: false,
+      icon: 'trending-up',
+    },
+    {
+      id: '3',
+      type: 'streak',
+      title: 'Streak Milestone',
+      message: 'Amazing! You hit a 14-day learning streak.',
+      timestamp: new Date(now - 86400000), // 1 day ago
+      read: true,
+      icon: 'flame',
+    },
+  ];
+};
+
 export function NotificationCenter({ isOpen, onClose }: NotificationCenterProps) {
   const user = useUserProfileStore((state) => state.user);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  // Initialize notifications lazily - only creates sample data once on first render
+  const [notifications, setNotifications] = useState<Notification[]>(() =>
+    user ? createSampleNotifications() : []
+  );
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
-
-  useEffect(() => {
-    // Load notifications from localStorage or Firestore
-    // For now, generating sample notifications
-    if (user) {
-      const sampleNotifications: Notification[] = [
-        {
-          id: '1',
-          type: 'badge',
-          title: 'New Badge Earned!',
-          message: 'You earned the "Week Warrior" badge for a 7-day streak',
-          timestamp: new Date(Date.now() - 3600000), // 1 hour ago
-          read: false,
-          icon: 'trophy',
-        },
-        {
-          id: '2',
-          type: 'level_up',
-          title: 'Level Up!',
-          message: "You've reached level 5! Keep up the great work.",
-          timestamp: new Date(Date.now() - 7200000), // 2 hours ago
-          read: false,
-          icon: 'trending-up',
-        },
-        {
-          id: '3',
-          type: 'streak',
-          title: 'Streak Milestone',
-          message: 'Amazing! You hit a 14-day learning streak.',
-          timestamp: new Date(Date.now() - 86400000), // 1 day ago
-          read: true,
-          icon: 'flame',
-        },
-      ];
-
-      setNotifications(sampleNotifications);
-    }
-  }, [user]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
   const displayedNotifications =
@@ -110,14 +107,18 @@ export function NotificationCenter({ isOpen, onClose }: NotificationCenterProps)
     }
   };
 
-  const getTimeAgo = (date: Date): string => {
-    const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  // Calculate time ago - pure function that requires explicit now parameter
+  const getTimeAgo = (date: Date, now: number): string => {
+    const seconds = Math.floor((now - date.getTime()) / 1000);
     if (seconds < 60) return 'Just now';
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
     if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
     return date.toLocaleDateString();
   };
+
+  // Capture current time once per render cycle using state
+  const [currentTime] = useState(() => Date.now());
 
   if (!isOpen) return null;
 
@@ -221,7 +222,7 @@ export function NotificationCenter({ isOpen, onClose }: NotificationCenterProps)
                         )}
                       </div>
                       <p className="text-sm text-gray-700 mb-2">{notification.message}</p>
-                      <p className="text-xs text-gray-500">{getTimeAgo(notification.timestamp)}</p>
+                      <p className="text-xs text-gray-500">{getTimeAgo(notification.timestamp, currentTime)}</p>
                     </div>
                   </div>
                 </motion.div>
@@ -250,7 +251,7 @@ export function NotificationCenter({ isOpen, onClose }: NotificationCenterProps)
  */
 export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(3); // TODO: Get from state
+  const [unreadCount] = useState(3); // TODO: Get from state
 
   return (
     <>

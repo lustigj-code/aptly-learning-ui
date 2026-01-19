@@ -9,7 +9,6 @@ import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import {
   calculateMetrics,
   compareMetrics,
-  type EfficacyMetrics,
   type MetricsComparison,
 } from '@/lib/analytics/efficacy';
 
@@ -158,7 +157,7 @@ export async function getExperiments(
   let query = adminDb.collection('experiments').orderBy('createdAt', 'desc');
 
   if (status) {
-    query = query.where('status', '==', status) as any;
+    query = query.where('status', '==', status) as typeof query;
   }
 
   const snapshot = await query.get();
@@ -183,7 +182,7 @@ export async function updateExperimentStatus(
   experimentId: string,
   status: Experiment['status']
 ): Promise<void> {
-  const updates: Record<string, any> = {
+  const updates: Record<string, unknown> = {
     status,
     updatedAt: FieldValue.serverTimestamp(),
   };

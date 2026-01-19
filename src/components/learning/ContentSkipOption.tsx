@@ -41,7 +41,7 @@ export function ContentSkipOption({
   isEnabled = true,
   className,
 }: ContentSkipOptionProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, _setIsExpanded] = useState(false);
 
   // Only show if mastery meets threshold
   if (mastery < masteryThreshold || !isEnabled) {

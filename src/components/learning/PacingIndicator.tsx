@@ -89,8 +89,8 @@ export function PacingIndicator({
   show = true,
   isCorrect,
   size = 'md',
-  autoHideMs = 5000,
-  onDismiss,
+  autoHideMs: _autoHideMs = 5000,
+  onDismiss: _onDismiss,
   className,
 }: PacingIndicatorProps) {
   const status = getPacingStatus(responseTimeMs, avgTimeMs);

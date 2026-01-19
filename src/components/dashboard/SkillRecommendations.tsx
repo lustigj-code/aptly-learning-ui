@@ -13,11 +13,9 @@ import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import {
   Sparkles,
-  Target,
   TrendingUp,
   ChevronRight,
   Brain,
-  Lock,
   CheckCircle,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/Card';

@@ -15,7 +15,7 @@
 
 import { getModelRouter } from '@/lib/training/serving/modelRouter';
 import type { RetrievedChunk } from '../rag/types';
-import type { LearnerState, BuiltContext, SourceCitation } from '../rag/contextBuilder';
+import type { LearnerState, SourceCitation } from '../rag/contextBuilder';
 import { buildContext, buildMisconceptionContext } from '../rag/contextBuilder';
 import {
   buildSocraticSystemPrompt,
@@ -236,11 +236,8 @@ export async function generateWrongAnswerResponse(
   learnerState: LearnerState,
   interventionLevel: InterventionLevel
 ): Promise<SocraticResponse> {
-  // Build misconception-focused context
-  const misconceptionContext = buildMisconceptionContext(
-    retrievedContext,
-    studentAnswer
-  );
+  // Build misconception-focused context (used internally by buildContext)
+  buildMisconceptionContext(retrievedContext, studentAnswer);
 
   const userMessage = `I answered "${studentAnswer}" but I'm not sure if that's right.`;
 

@@ -155,7 +155,7 @@ export async function updateUserProfile(
     }
 
     // Filter out nested objects that need special handling
-    const { preferences, progress, streak, badges, ...flatData } = data;
+    const { preferences, progress, streak, badges: _badges, ...flatData } = data;
 
     const updateData: Record<string, unknown> = {
       ...flatData,

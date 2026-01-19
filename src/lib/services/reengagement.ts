@@ -385,7 +385,7 @@ export interface NotificationSchedule {
  */
 export function scheduleReengagementNotification(
   lastLoginAt: Date,
-  userTimezone: string = 'UTC'
+  _userTimezone: string = 'UTC'
 ): NotificationSchedule {
   // Target: 60 hours after last login
   const targetTime = new Date(lastLoginAt.getTime() + 60 * 60 * 1000 * 60);

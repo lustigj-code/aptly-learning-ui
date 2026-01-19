@@ -25,7 +25,7 @@ type ExamModeSettingsProps = {
 };
 
 export function ExamModeSettings({
-  userId,
+  userId: _userId,
   examDate,
   targetRetention,
   examModeEnabled,

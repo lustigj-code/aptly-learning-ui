@@ -14,7 +14,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/auth/apiAuth';
 import {
-  getReadyToLearnSkills,
   getMasteredSkills,
   getSkillStatesRecord,
 } from '@/lib/services/skillService';

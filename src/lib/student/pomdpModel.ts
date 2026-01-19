@@ -50,7 +50,6 @@ import {
 import {
   selectAction as selectOptimalAction,
   selectActionWithExploration,
-  calculateQValue,
   evaluatePolicyForCourse,
 } from './policySelector';
 

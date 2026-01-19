@@ -16,7 +16,6 @@
  */
 
 import { db } from '@/lib/firebase/config';
-import { adminDb } from '@/lib/firebase/admin';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
@@ -159,8 +158,8 @@ function validateUserData(data: LegacyUserStoreData): { valid: boolean; errors: 
  * Transform legacy data to Firestore schema
  */
 function transformToFirestoreSchema(legacyData: LegacyUserStoreData): {
-  users: any;
-  userProgress: any;
+  users: Record<string, unknown>;
+  userProgress: Record<string, unknown>;
 } {
   const userId = legacyData.uid;
 
@@ -218,7 +217,7 @@ function transformToFirestoreSchema(legacyData: LegacyUserStoreData): {
  */
 async function migrateUserToFirestore(
   userId: string,
-  userData: { users: any; userProgress: any },
+  userData: { users: Record<string, unknown>; userProgress: Record<string, unknown> },
   dryRun: boolean = false
 ): Promise<{ success: boolean; error?: string }> {
   try {

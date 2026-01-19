@@ -12,8 +12,6 @@ import {
   ExtractedConcept,
   ExtractedRelationship,
   ExtractionResult,
-  MergeResult,
-  EdgeRelationship,
 } from './types';
 import {
   addConcept,
@@ -22,7 +20,6 @@ import {
   getAllConcepts,
   findConceptByName,
   updateConcept,
-  generateConceptId,
   getGraph,
   createGraph,
 } from './KnowledgeGraphService';

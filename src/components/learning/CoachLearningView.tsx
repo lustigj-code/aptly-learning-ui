@@ -11,18 +11,24 @@ import {
   Brain,
   WifiOff,
   RefreshCw,
+  BookOpen,
 } from 'lucide-react'
+import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { useReviewQueue } from '@/hooks/useReviewQueue'
 import { useOfflineSync } from '@/hooks/useOfflineSync'
 import { useUser } from '@/store/userProfileStore'
 import { useLearningPreference } from '@/hooks/useLearningPreference'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/Button'
+import { useCourse, useModule, usePrefetchNextLesson } from '@/hooks/useCourseContent'
 import { getCourse, getDefaultCourse, DEFAULT_COURSE_ID } from '@/data/courseRegistry'
-import type { Atom, Lesson, Module } from '@/types'
+import type { Lesson, Module } from '@/types'
 
 // Import content renderers
 import { ContentRenderer } from './ContentRenderer'
 import { SwipeableAtomView } from './SwipeableAtomView'
+import { AnimatedContent } from './AnimatedContent'
+import { ContentSkeleton } from './ContentSkeleton'
 
 // Import coach chat component (Phase 4 integration)
 import { MainCoachChat } from '@/components/coach/MainCoachChat'
@@ -30,8 +36,9 @@ import type { CoachAction } from '@/types/coachActions'
 
 // Import intelligence components (Phase 3-2)
 import { WhyThisContent } from './WhyThisContent'
-import { RealTimeMasteryBar, MasteryIndicator } from './RealTimeMasteryBar'
-import { ContentSkipOption, SkipOptionBadge } from './ContentSkipOption'
+// These are imported but currently not used in the JSX - keeping for future use
+// import { RealTimeMasteryBar } from './RealTimeMasteryBar'
+// import { ContentSkipOption } from './ContentSkipOption'
 import { PacingIndicator, calculateAverageResponseTime } from './PacingIndicator'
 
 // Import struggle detection
@@ -39,7 +46,6 @@ import {
   initStruggleTracking,
   recordAnswer,
   recordContentView,
-  recordMasteryChange,
   clearStruggleTracking,
   type StruggleState,
   type InterventionType as StruggleInterventionType,
@@ -52,8 +58,6 @@ import {
   type TimingTrigger,
   type SessionPhase,
   type TimingPreferences,
-  checkMasteryMilestone,
-  checkDifficultContentPrep,
   checkSessionTransition,
   filterByPreferences,
   DEFAULT_TIMING_PREFERENCES,
@@ -133,6 +137,11 @@ type CoachLearningViewProps = {
 // ============================================
 // SESSION STORAGE
 // ============================================
+// SECURITY NOTE: Only non-sensitive data is stored in localStorage:
+// - courseId, moduleId (public identifiers)
+// - currentLessonIndex, currentAtomIndex (progress indices)
+// - completedAtomIds, completedLessonIds (progress arrays)
+// NEVER store: tokens, credentials, PII, or user-identifiable data here
 
 const SESSION_KEY = 'aptly_learning_session_v2'
 
@@ -155,7 +164,7 @@ function loadSession(): SessionState | null {
   return null
 }
 
-function clearSession() {
+function _clearSession() {
   if (typeof window !== 'undefined') {
     localStorage.removeItem(SESSION_KEY)
   }
@@ -358,46 +367,70 @@ function SmartCoachBar({
   showContinue: boolean
   onContinue: () => void
 }) {
+  const prefersReducedMotion = useReducedMotion()
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      initial={{ opacity: 0, y: 30, scale: 0.9 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 20, scale: 0.95 }}
       transition={{
         type: 'spring',
-        stiffness: 400,
-        damping: 30,
+        stiffness: 350,
+        damping: 28,
       }}
       className={cn(
-        'fixed bottom-6 left-1/2 -translate-x-1/2 z-40',
+        'fixed bottom-6 left-1/2 -translate-x-1/2 z-30',
         'flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4',
-        'px-5 py-4 rounded-2xl',
-        'bg-white/70 backdrop-blur-xl',
-        'border border-white/50',
-        'shadow-lg shadow-navy/10',
-        'max-w-[90vw] sm:max-w-2xl'
+        'px-6 py-4 rounded-2xl',
+        'bg-white/90 backdrop-blur-lg overflow-hidden',
+        'border border-white/60',
+        'shadow-2xl shadow-navy/15',
+        'max-w-[90vw] sm:max-w-2xl',
+        'relative'
       )}
     >
+      {/* Subtle gradient overlay for depth */}
+      <div className="absolute inset-0 bg-gradient-to-br from-light-teal/5 to-transparent pointer-events-none" />
+
+      {/* Glass reflection effect */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent opacity-50 pointer-events-none" />
+
       {/* Sage Avatar */}
-      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal to-teal-dark flex items-center justify-center flex-shrink-0 shadow-md">
-        <span className="text-lg">🦉</span>
-      </div>
+      <motion.div
+        className="w-12 h-12 rounded-full bg-gradient-to-br from-teal to-teal-dark flex items-center justify-center flex-shrink-0 shadow-lg shadow-teal/30 relative z-10"
+        whileHover={!prefersReducedMotion ? { scale: 1.05, rotate: [0, -5, 5, 0] } : undefined}
+        transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+      >
+        <span className="text-xl">🦉</span>
+      </motion.div>
 
       {/* Message */}
-      <p className="flex-1 text-sm text-navy min-w-0 font-medium">{message}</p>
+      <motion.p
+        className="flex-1 text-sm text-navy min-w-0 font-medium relative z-10"
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        {message}
+      </motion.p>
 
       {/* Actions */}
-      <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto">
+      <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto relative z-10">
         <motion.button
           onClick={onAskSage}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
+          whileHover={!prefersReducedMotion ? { scale: 1.03, boxShadow: '0 4px 12px rgba(33, 168, 176, 0.2)' } : undefined}
+          whileTap={!prefersReducedMotion ? { scale: 0.97 } : undefined}
           className={cn(
             'flex items-center justify-center gap-1.5 px-4 py-2.5',
             'text-sm font-medium text-teal',
             'bg-teal/10 hover:bg-teal/20',
-            'rounded-xl transition-colors',
-            'min-h-[44px] flex-1 sm:flex-initial'
+            'rounded-xl transition-all duration-200',
+            'min-h-[44px] flex-1 sm:flex-initial',
+            'border border-teal/20 hover:border-teal/40'
           )}
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.2 }}
         >
           <MessageCircle className="w-4 h-4" />
           <span>Ask Sage</span>
@@ -405,15 +438,18 @@ function SmartCoachBar({
         {showContinue && (
           <motion.button
             onClick={onContinue}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={!prefersReducedMotion ? { scale: 1.03, boxShadow: '0 8px 24px rgba(33, 168, 176, 0.3)' } : undefined}
+            whileTap={!prefersReducedMotion ? { scale: 0.97 } : undefined}
             className={cn(
               'flex items-center justify-center gap-1.5 px-4 py-2.5',
-              'bg-teal text-white text-sm font-medium',
-              'rounded-xl hover:bg-teal-dark transition-colors',
+              'bg-gradient-to-r from-teal to-teal-dark text-white text-sm font-medium',
+              'rounded-xl hover:from-teal-dark hover:to-teal transition-all duration-200',
               'min-h-[44px] flex-1 sm:flex-initial',
-              'shadow-md shadow-teal/30'
+              'shadow-lg shadow-teal/40'
             )}
+            initial={{ opacity: 0, scale: 0.9, x: 10 }}
+            animate={{ opacity: 1, scale: 1, x: 0 }}
+            transition={{ delay: 0.25, type: 'spring', stiffness: 300 }}
           >
             <span>Continue</span>
             <ChevronRight className="w-4 h-4" />
@@ -436,13 +472,20 @@ function SmartCoachBar({
 // ============================================
 
 export function CoachLearningView({
-  lessonId,
+  lessonId: _lessonId,
   courseId,
   onExit,
   onLessonComplete,
 }: CoachLearningViewProps) {
   const { user } = useUser()
-  const { sessionRecommendation, prefersVideo, prefersReading } = useLearningPreference()
+
+  // Dynamic course content hooks
+  const effectiveCourseId = courseId || user?.progress?.currentCourseId || DEFAULT_COURSE_ID
+  const effectiveModuleId = user?.progress?.currentModuleId || ''
+  const { data: courseData, isLoading: courseLoading, error: courseError } = useCourse(effectiveCourseId)
+  const { data: moduleData, isLoading: moduleLoading, error: moduleError } = useModule(effectiveModuleId)
+
+  const { sessionRecommendation, prefersVideo: _prefersVideo, prefersReading: _prefersReading } = useLearningPreference()
   const { dueCount } = useReviewQueue(user?.id || null)
   const {
     isOnline,
@@ -451,13 +494,17 @@ export function CoachLearningView({
     withOfflineSupport,
     syncPendingProgress,
   } = useOfflineSync()
-  // Get courseId from props, user progress, or default
-  const effectiveCourseId = courseId || user?.progress?.currentCourseId || DEFAULT_COURSE_ID
-  const effectiveModuleId = user?.progress?.currentModuleId
-  const currentModule = getModule(effectiveCourseId, effectiveModuleId)
+
+  // Dynamic currentModule with fallback to local getModule
+  const currentModule = useMemo(() => {
+    if (moduleData) return moduleData
+    if (courseData?.modules?.length) return courseData.modules[0]
+    // Use the local getModule function as fallback
+    return getModule(effectiveCourseId, effectiveModuleId)
+  }, [moduleData, courseData, effectiveCourseId, effectiveModuleId])
 
   // Mastery levels for prerequisite checking (cold-start safe)
-  const { masteryLevels, isColdStart } = useMasteryLevels(user?.id || null)
+  const { masteryLevels, isColdStart: _isColdStart } = useMasteryLevels(user?.id || null)
   const [prerequisiteWarning, setPrerequisiteWarning] = useState<string | null>(null)
 
   // Session state
@@ -520,14 +567,17 @@ export function CoachLearningView({
 
   // Struggle detection state
   const [struggleState, setStruggleState] = useState<StruggleState | null>(null)
-  const [struggleContext, setStruggleContext] = useState<string | null>(null)
+  const [_struggleContext, _setStruggleContext] = useState<string | null>(null)
   const answerStartTimeRef = useRef<number>(0)
 
   // Timing trigger state for proactive coach
   const [timingTrigger, setTimingTrigger] = useState<TimingTrigger | null>(null)
   const [timingPreferences] = useState<TimingPreferences>(DEFAULT_TIMING_PREFERENCES)
-  const [previousMastery, setPreviousMastery] = useState<Record<string, number>>({})
+  const [_previousMastery, _setPreviousMastery] = useState<Record<string, number>>({})
   const [currentSessionPhase, setCurrentSessionPhase] = useState<SessionPhase>('warmup')
+
+  // Navigation direction for smooth transitions
+  const [navigationDirection, setNavigationDirection] = useState<'forward' | 'backward'>('forward')
 
   // Generate a unique session ID for struggle tracking (useState with lazy init is allowed for impure calls)
   const [sessionStartTime] = useState(() => Date.now())
@@ -547,6 +597,9 @@ export function CoachLearningView({
   const isLastAtomInLesson = sessionState.currentAtomIndex >= (currentLesson?.atoms.length || 0) - 1
   const isLastLesson = sessionState.currentLessonIndex >= currentModule.lessons.length - 1
 
+  // Prefetch next lesson videos for better UX
+  usePrefetchNextLesson(currentLesson?.id || null, currentModule.id)
+
   // Progress calculations
   const totalAtoms = currentModule.lessons.reduce((sum, l) => sum + l.atoms.length, 0)
   const completedAtoms = sessionState.completedAtomIds.length
@@ -560,6 +613,7 @@ export function CoachLearningView({
   // Sync server progress and auto-advance past completed lessons
   // This runs when component mounts or when server progress updates
   const hasAutoAdvancedRef = useRef(false)
+  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
   useEffect(() => {
     // Get completed lessons from server (Firebase user progress)
     const serverLessonsCompleted = user?.progress?.lessonsCompleted || []
@@ -614,8 +668,10 @@ export function CoachLearningView({
       })
     }
   }, [user?.progress?.lessonsCompleted, currentModule.id])
+  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
   // Set initial coach tip - personalized based on insights and learning preferences
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (currentAtom && currentLesson) {
       // Use session recommendation on first atom, otherwise content-specific tips
@@ -628,17 +684,21 @@ export function CoachLearningView({
       // Reset pacing indicator when moving to new content
       setShowPacingIndicator(false)
     }
-  }, [currentAtom, sessionRecommendation])
+  }, [currentAtom, currentLesson, sessionRecommendation, sessionState.currentAtomIndex, sessionState.currentLessonIndex, learningInsights])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Generate content reasoning when lesson changes (Phase 3-2)
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (currentLesson) {
       const reason = generateContentReason(currentLesson, learningInsights)
       setContentReason(reason)
     }
-  }, [currentLesson?.id])
+  }, [currentLesson, learningInsights])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Record content view when atom changes (for re-reading detection)
+  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
   useEffect(() => {
     if (currentAtom) {
       const newStruggleState = recordContentView(sessionId, currentAtom.id)
@@ -647,8 +707,10 @@ export function CoachLearningView({
       answerStartTimeRef.current = Date.now()
     }
   }, [currentAtom?.id, sessionId])
+  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
   // Determine session phase based on progress
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const phase: SessionPhase = (() => {
       if (progressPercent >= 100) return 'complete'
@@ -673,6 +735,7 @@ export function CoachLearningView({
       setCurrentSessionPhase(phase)
     }
   }, [progressPercent, currentSessionPhase, completedAtoms, totalAtoms, timingPreferences])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Handle timing trigger dismissal
   const handleTimingDismiss = useCallback(() => {
@@ -856,6 +919,9 @@ export function CoachLearningView({
     console.log('[CoachLearningView] isLastAtomInLesson:', isLastAtomInLesson, 'isLastLesson:', isLastLesson)
     console.log('[CoachLearningView] currentAtomIndex:', sessionState.currentAtomIndex, 'totalAtoms:', currentLesson.atoms.length)
 
+    // Set direction to forward
+    setNavigationDirection('forward')
+
     if (isLastAtomInLesson) {
       // Complete current lesson
       if (!sessionState.completedLessonIds.includes(currentLesson.id)) {
@@ -912,10 +978,13 @@ export function CoachLearningView({
 
     setContentComplete(false)
     console.log('[CoachLearningView] setContentComplete(false) called')
-  }, [isLastAtomInLesson, isLastLesson, currentLesson, sessionState.completedLessonIds, onLessonComplete, effectiveCourseId, withOfflineSupport])
+  }, [isLastAtomInLesson, isLastLesson, currentLesson, sessionState.completedLessonIds, sessionState.currentAtomIndex, onLessonComplete, effectiveCourseId, withOfflineSupport])
 
   // Handle swipe to previous atom
   const handleSwipePrevious = useCallback(() => {
+    // Set direction to backward
+    setNavigationDirection('backward')
+
     if (sessionState.currentAtomIndex > 0) {
       setSessionState(prev => ({
         ...prev,
@@ -991,7 +1060,7 @@ export function CoachLearningView({
       currentAtomIndex: 0,
     }))
     setContentComplete(false)
-  }, [currentModule.lessons, currentModule, user?.progress?.lessonsCompleted, masteryLevels])
+  }, [currentModule, user?.progress?.lessonsCompleted, masteryLevels])
 
   // Handle struggle intervention acceptance
   const handleStruggleIntervention = useCallback((intervention: StruggleInterventionType) => {
@@ -1098,7 +1167,7 @@ export function CoachLearningView({
   }, [])
 
   // Handle content skip for mastered content (Phase 3-2)
-  const handleSkipToQuiz = useCallback(() => {
+  const _handleSkipToQuiz = useCallback(() => {
     // Find the quiz atom in the current lesson
     const quizIndex = currentLesson?.atoms.findIndex(atom => atom.type === 'quiz')
     if (quizIndex !== undefined && quizIndex >= 0) {
@@ -1112,12 +1181,12 @@ export function CoachLearningView({
   }, [currentLesson])
 
   // Get current skill mastery for the lesson (Phase 3-2)
-  const currentSkillMastery = useMemo(() => {
+  const _currentSkillMastery = useMemo(() => {
     return learningInsights.skillMastery[currentLesson?.id] ?? learningInsights.averageQuizScore
   }, [learningInsights.skillMastery, learningInsights.averageQuizScore, currentLesson?.id])
 
   // Get previous skill mastery for delta display (Phase 3-2)
-  const previousSkillMastery = useMemo(() => {
+  const _previousSkillMastery = useMemo(() => {
     return learningInsights.previousSkillMastery[currentLesson?.id]
   }, [learningInsights.previousSkillMastery, currentLesson?.id])
 
@@ -1126,12 +1195,64 @@ export function CoachLearningView({
     return calculateAverageResponseTime(learningInsights.responseTimes, 30000)
   }, [learningInsights.responseTimes])
 
-  if (!currentLesson || !currentAtom) {
+  // Loading state for async data
+  if (courseLoading || moduleLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <p className="text-grey">No lesson content available.</p>
+      <div className="flex h-screen items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-teal mx-auto mb-4" />
+          <p className="text-grey">Loading learning content...</p>
+        </div>
       </div>
     )
+  }
+
+  // Error state for async data
+  if (courseError || moduleError) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-white">
+        <div className="text-center max-w-md px-4">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+            <span className="text-2xl">⚠️</span>
+          </div>
+          <h2 className="text-lg font-semibold text-navy mb-2">Unable to Load Content</h2>
+          <p className="text-grey mb-4">
+            {courseError?.message || moduleError?.message || 'An error occurred while loading the learning content.'}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-teal text-white rounded-lg hover:bg-teal-dark transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!currentLesson || !currentAtom) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-white">
+        <div className="text-center max-w-md px-4">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-yellow/10 flex items-center justify-center">
+            <BookOpen className="w-8 h-8 text-yellow" />
+          </div>
+          <h2 className="text-lg font-semibold text-navy mb-2">Content Not Found</h2>
+          <p className="text-grey mb-4">
+            We couldn&apos;t find this lesson. Your progress may have been saved with outdated content.
+          </p>
+          <Button
+            variant="primary"
+            onClick={() => {
+              _clearSession();
+              window.location.reload();
+            }}
+          >
+            Start Fresh
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -1147,17 +1268,17 @@ export function CoachLearningView({
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Content Area - Full Screen (with bottom padding for floating coach bar) */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden px-4 sm:px-6 md:px-8 py-4 sm:py-6 pb-24">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden px-4 sm:px-6 md:px-8 py-4 sm:py-6 pb-48 sm:pb-32">
           {/* Inline Header */}
           <div className="flex items-center justify-between mb-4 flex-shrink-0">
             <div className="flex items-center gap-3 min-w-0">
               {onExit && (
                 <button
                   onClick={onExit}
-                  className="flex items-center gap-2 px-3 py-1.5 text-sm text-grey hover:text-navy hover:bg-light-grey rounded-lg transition-colors flex-shrink-0 min-h-[44px]"
+                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-navy bg-light-grey/50 hover:bg-light-grey border border-grey/20 hover:border-grey/40 rounded-lg transition-colors flex-shrink-0 min-h-[44px]"
                 >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span className="hidden sm:inline">Exit</span>
+                  <ArrowLeft className="w-5 h-5" />
+                  <span>Exit</span>
                 </button>
               )}
               <div className="min-w-0">
@@ -1247,11 +1368,17 @@ export function CoachLearningView({
             </div>
           </div>
 
-          {/* Phase 3-2 intelligence components hidden for cleaner UI
-              - RealTimeMasteryBar (duplicate with header progress)
-              - WhyThisContent (yellow explanation box)
-              - ContentSkipOption (green skip box)
-          */}
+          {/* Phase 3-2 intelligence components - Why This Content */}
+          {contentReason && (
+            <div className="mb-4">
+              <WhyThisContent
+                reason={contentReason}
+                skillName={currentLesson?.title}
+                currentMastery={learningInsights.averageQuizScore}
+                size="sm"
+              />
+            </div>
+          )}
 
           {/* Content - Fills remaining space */}
           <div className="flex-1 min-h-0 relative overflow-hidden">
@@ -1264,19 +1391,28 @@ export function CoachLearningView({
               canSwipePrevious={sessionState.currentAtomIndex > 0 || sessionState.currentLessonIndex > 0}
               disabled={false}
             >
-              <ContentRenderer
-                atom={currentAtom}
-                onComplete={handleContentComplete}
-                onQuizFail={handleQuizFail}
-                onContinue={handleContinue}
-                isActive={!contentComplete}
-                onQuizAnswer={handleQuizAnswer}
-              />
+              {currentAtom ? (
+                <AnimatedContent
+                  contentKey={currentAtom.id}
+                  direction={navigationDirection}
+                >
+                  <ContentRenderer
+                    atom={currentAtom}
+                    onComplete={handleContentComplete}
+                    onQuizFail={handleQuizFail}
+                    onContinue={handleContinue}
+                    isActive={!contentComplete}
+                    onQuizAnswer={handleQuizAnswer}
+                  />
+                </AnimatedContent>
+              ) : (
+                <ContentSkeleton type="reading" />
+              )}
             </SwipeableAtomView>
           </div>
 
           {/* Pacing Indicator after quiz answers (Phase 3-2) */}
-          {showPacingIndicator && currentAtom.type === 'quiz' && lastResponseTimeMs > 0 && (
+          {showPacingIndicator && currentAtom?.type === 'quiz' && lastResponseTimeMs > 0 && (
             <div className="mt-3 flex-shrink-0">
               <PacingIndicator
                 responseTimeMs={lastResponseTimeMs}
@@ -1299,7 +1435,7 @@ export function CoachLearningView({
                 coachQuestionsAsked: prev.coachQuestionsAsked + 1,
               }))
             }}
-            showContinue={false}
+            showContinue={contentComplete}
             onContinue={handleContinue}
           />
         </div>
@@ -1315,7 +1451,7 @@ export function CoachLearningView({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 bg-navy/20 backdrop-blur-sm z-45"
+              className="fixed inset-0 bg-navy/30 z-40"
               onClick={() => {
                 setShowChatOverlay(false)
                 setStruggleContext(null)
@@ -1336,12 +1472,11 @@ export function CoachLearningView({
               }}
               className={cn(
                 'fixed inset-x-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 bottom-4 z-50',
-                'sm:w-full sm:max-w-lg',
-                'bg-white/95 backdrop-blur-xl',
+                'w-full max-w-lg',
+                'bg-white/95 backdrop-blur-md overflow-hidden',
                 'border border-white/60',
                 'rounded-2xl shadow-xl shadow-navy/15',
-                'max-h-[80vh] sm:max-h-[70vh] flex flex-col',
-                'overflow-hidden'
+                'max-h-[80vh] sm:max-h-[70vh] flex flex-col'
               )}
             >
               {/* Close button */}

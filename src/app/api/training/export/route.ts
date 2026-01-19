@@ -39,8 +39,8 @@ export async function GET(request: NextRequest) {
     const token = authHeader.substring(7);
     const decodedToken = await adminAuth.verifyIdToken(token);
 
-    // Check admin claim (you can customize this check)
-    if (!decodedToken.admin && !decodedToken.email?.endsWith('@aptly.io')) {
+    // Check admin claim - SECURITY: Only trust server-side admin claim, not email domain
+    if (!decodedToken.admin) {
       return NextResponse.json(
         { error: 'Admin access required' },
         { status: 403 }
@@ -153,7 +153,8 @@ export async function POST(request: NextRequest) {
     const token = authHeader.substring(7);
     const decodedToken = await adminAuth.verifyIdToken(token);
 
-    if (!decodedToken.admin && !decodedToken.email?.endsWith('@aptly.io')) {
+    // Check admin claim - SECURITY: Only trust server-side admin claim, not email domain
+    if (!decodedToken.admin) {
       return NextResponse.json(
         { error: 'Admin access required' },
         { status: 403 }

@@ -48,33 +48,33 @@ export default function MasteryMapPage() {
     <div className="min-h-screen bg-light-grey">
       {/* Header */}
       <div className="bg-white border-b border-grey/20">
-        <div className="max-w-7xl mx-auto px-6 py-6">
+        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 md:px-8 md:py-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-teal/10 rounded-xl flex items-center justify-center">
                 <Map className="w-6 h-6 text-teal" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-navy">Mastery Map</h1>
-                <p className="text-grey">Visualize your learning journey</p>
+                <h1 className="text-2xl md:text-3xl font-bold text-navy">Mastery Map</h1>
+                <p className="text-grey text-sm md:text-base">Visualize your learning journey</p>
               </div>
             </div>
             <button
               onClick={refresh}
               disabled={isLoading}
-              className="flex items-center gap-2 px-4 py-2 bg-teal text-white rounded-lg hover:bg-teal-dark transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-teal text-white rounded-lg hover:bg-teal-dark transition-colors disabled:opacity-50 shadow-sm"
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
+              <span className="hidden sm:inline">Refresh</span>
             </button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
+      <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 sm:py-8 md:px-8 md:py-10 space-y-6 md:space-y-8">
         {/* Stats Cards */}
         {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
             <StatCard
               label="Total Skills"
               value={stats.totalSkills}
@@ -112,10 +112,10 @@ export default function MasteryMapPage() {
 
         {/* Progress Summary */}
         {stats && stats.totalSkills > 0 && (
-          <div className="bg-white rounded-xl border border-grey/20 p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-navy">Overall Progress</span>
-              <span className="text-sm font-bold text-teal">
+          <div className="bg-white rounded-xl border border-grey/20 p-5 md:p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm md:text-base font-medium text-navy">Overall Progress</span>
+              <span className="text-base md:text-lg font-bold text-teal">
                 {Math.round((stats.mastered / stats.totalSkills) * 100)}%
               </span>
             </div>
@@ -164,9 +164,9 @@ export default function MasteryMapPage() {
         ) : null}
 
         {/* Instructions */}
-        <div className="bg-white rounded-xl border border-grey/20 p-6">
-          <h3 className="font-semibold text-navy mb-4">How to Use This Map</h3>
-          <div className="grid md:grid-cols-2 gap-6">
+        <div className="bg-white rounded-xl border border-grey/20 p-5 md:p-6 shadow-sm">
+          <h3 className="font-semibold text-navy mb-4 md:mb-6">How to Use This Map</h3>
+          <div className="grid md:grid-cols-2 gap-6 md:gap-8">
             <div>
               <h4 className="text-sm font-medium text-navy mb-2">Node States</h4>
               <ul className="text-sm text-grey space-y-2">
@@ -248,17 +248,17 @@ function StatCard({ label, value, color, icon, highlight, warning }: StatCardPro
 
   return (
     <div
-      className={`rounded-xl p-4 transition-all ${colors.bg} ${
+      className={`rounded-xl p-4 md:p-5 transition-all ${colors.bg} ${
         highlight ? 'ring-2 ring-green-400 ring-offset-2' : ''
       } ${warning ? 'animate-pulse' : ''}`}
     >
-      <div className="flex items-start justify-between">
-        <div>
-          <p className={`text-2xl font-bold ${colors.text}`}>{value}</p>
-          <p className={`text-sm opacity-80 ${colors.text}`}>{label}</p>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className={`text-xl md:text-2xl font-bold ${colors.text} truncate`}>{value}</p>
+          <p className={`text-xs md:text-sm opacity-80 ${colors.text}`}>{label}</p>
         </div>
         {icon && (
-          <div className={`p-2 rounded-lg ${colors.iconBg} ${colors.text}`}>
+          <div className={`p-2 rounded-lg ${colors.iconBg} ${colors.text} flex-shrink-0`}>
             {icon}
           </div>
         )}

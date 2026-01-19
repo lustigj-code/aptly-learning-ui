@@ -6,7 +6,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { User, UserPreferences, UserProgress, StreakData, Badge } from '@/types';
+import type { User, UserPreferences, UserProgress, StreakData } from '@/types';
 import { getDateString, isToday, isYesterday } from '@/lib/utils';
 
 type UserStore = {

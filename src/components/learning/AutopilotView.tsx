@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { useAutopilotSession, type AutopilotState } from '@/hooks/useAutopilotSession'
+import { useAutopilotSession } from '@/hooks/useAutopilotSession'
 import { InlineContentBlock } from '@/components/coach/InlineContentBlock'
 import { useCoach } from '@/hooks/useCoach'
 import { cn } from '@/lib/utils'
@@ -48,7 +48,7 @@ export function AutopilotView({ onExit, courseId }: AutopilotViewProps) {
     state,
     session,
     currentContent,
-    currentIndex,
+    currentIndex: _currentIndex,
     progress,
     sessionSummary,
     showIntervention,
@@ -72,6 +72,21 @@ export function AutopilotView({ onExit, courseId }: AutopilotViewProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // Define addMessage before useEffects that use it
+  const addMessage = useCallback((
+    role: Message['role'],
+    content: string,
+    contentBlock?: Atom
+  ) => {
+    setMessages(prev => [...prev, {
+      id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      role,
+      content,
+      timestamp: new Date(),
+      contentBlock,
+    }])
+  }, [])
+
   // Start session on mount
   useEffect(() => {
     if (state === 'idle') {
@@ -80,6 +95,7 @@ export function AutopilotView({ onExit, courseId }: AutopilotViewProps) {
   }, [state, startSession, courseId])
 
   // Add coach intro when content changes
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (currentContent?.coachIntro) {
       addMessage('coach', currentContent.coachIntro)
@@ -108,7 +124,8 @@ export function AutopilotView({ onExit, courseId }: AutopilotViewProps) {
         addMessage('system', '', mockAtom)
       }
     }
-  }, [currentContent])
+  }, [currentContent, addMessage])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -116,25 +133,13 @@ export function AutopilotView({ onExit, courseId }: AutopilotViewProps) {
   }, [messages])
 
   // Handle session complete
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (state === 'complete') {
       addMessage('coach', `Great session! You completed ${sessionSummary.itemsCompleted} items and got ${sessionSummary.correctAnswers}/${sessionSummary.totalQuestions} questions correct. See you next time!`)
     }
-  }, [state, sessionSummary])
-
-  const addMessage = useCallback((
-    role: Message['role'],
-    content: string,
-    contentBlock?: Atom
-  ) => {
-    setMessages(prev => [...prev, {
-      id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      role,
-      content,
-      timestamp: new Date(),
-      contentBlock,
-    }])
-  }, [])
+  }, [state, sessionSummary, addMessage])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleSend = async () => {
     if (!input.trim() || coachLoading) return
@@ -163,7 +168,7 @@ export function AutopilotView({ onExit, courseId }: AutopilotViewProps) {
       if (response) {
         addMessage('coach', response.content)
       }
-    } catch (err) {
+    } catch (_err) {
       addMessage('coach', "I'm here to help! What would you like to know about the current topic?")
     }
   }

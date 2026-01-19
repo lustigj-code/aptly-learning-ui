@@ -127,12 +127,12 @@ function extractLessonsFromCourse(course: Course): {
 }[] {
   const result: { lesson: Lesson; courseId: string; moduleId: string }[] = [];
 
-  for (const module of course.modules || []) {
-    for (const lesson of module.lessons || []) {
+  for (const mod of course.modules || []) {
+    for (const lesson of mod.lessons || []) {
       result.push({
         lesson,
         courseId: course.id,
-        moduleId: module.id,
+        moduleId: mod.id,
       });
     }
   }

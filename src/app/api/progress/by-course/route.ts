@@ -4,7 +4,8 @@
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { adminDb } from '@/lib/firebase/admin'
-import type { Course, Module, Lesson } from '@/types'
+import { verifyBearerToken } from '@/lib/auth/apiAuth'
+import type { Lesson } from '@/types'
 
 type CourseProgressResponse = {
   courseId: string
@@ -22,26 +23,32 @@ type CourseProgressResponse = {
  * Get user's progress for a specific course
  *
  * Query params:
- * - userId (required): User ID
  * - courseId (required): Course ID
+ * Note: userId is now derived from authenticated token
  */
 export async function GET(request: NextRequest) {
   try {
+    // SECURITY: Verify Bearer token and get authenticated userId
+    const auth = await verifyBearerToken(request)
+    if (!auth.authenticated) {
+      return auth.error
+    }
+    const userId = auth.userId
+
     const searchParams = request.nextUrl.searchParams
-    const userId = searchParams.get('userId')
     const courseId = searchParams.get('courseId')
 
     // Validate required params
-    if (!userId || !courseId) {
+    if (!courseId) {
       return NextResponse.json(
-        { error: 'Missing required parameters: userId and courseId' },
+        { error: 'Missing required parameter: courseId' },
         { status: 400 }
       )
     }
 
-    if (typeof userId !== 'string' || typeof courseId !== 'string') {
+    if (typeof courseId !== 'string') {
       return NextResponse.json(
-        { error: 'Invalid parameter types' },
+        { error: 'Invalid parameter type for courseId' },
         { status: 400 }
       )
     }

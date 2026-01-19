@@ -55,8 +55,8 @@ describe('Button Component', () => {
     const { container: small } = render(<Button size="sm">Small</Button>);
     const { container: large } = render(<Button size="lg">Large</Button>);
 
-    // sm uses h-9
-    expect(small.firstChild).toHaveClass('h-9');
+    // sm uses h-10 (44px WCAG touch target)
+    expect(small.firstChild).toHaveClass('h-10');
     // lg uses h-12
     expect(large.firstChild).toHaveClass('h-12');
   });

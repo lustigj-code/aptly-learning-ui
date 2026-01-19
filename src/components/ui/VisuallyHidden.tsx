@@ -49,3 +49,41 @@ export function LiveRegion({
     </div>
   )
 }
+
+/**
+ * Accessible Description
+ * Provides accessible descriptions for complex UI elements
+ * Use with aria-describedby
+ */
+export function AccessibleDescription({
+  id,
+  children,
+}: {
+  id: string
+  children: React.ReactNode
+}) {
+  return (
+    <VisuallyHidden as="div" className="sr-only">
+      <div id={id}>{children}</div>
+    </VisuallyHidden>
+  )
+}
+
+/**
+ * Accessible Label
+ * Provides accessible labels for form elements
+ * Use when a visual label isn't desired
+ */
+export function AccessibleLabel({
+  htmlFor,
+  children,
+}: {
+  htmlFor: string
+  children: React.ReactNode
+}) {
+  return (
+    <VisuallyHidden as="label">
+      <label htmlFor={htmlFor}>{children}</label>
+    </VisuallyHidden>
+  )
+}

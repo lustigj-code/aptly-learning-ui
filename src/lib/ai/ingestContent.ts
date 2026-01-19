@@ -11,8 +11,8 @@
  * 4. Uses vectorStore to store embeddings
  */
 
-import type { Course, Module, Lesson } from '@/types';
-import { chunkAtom, chunkLesson, type ContentChunk } from './contentChunker';
+import type { Course, Lesson } from '@/types';
+import { chunkLesson, type ContentChunk } from './contentChunker';
 import { embedBatch, getEmbeddingConfig } from './embeddingService';
 import { storeEmbeddings, chunkExists, getVectorStoreConfig } from './vectorStore';
 
@@ -65,12 +65,12 @@ function extractLessonsFromCourse(course: Course): {
 }[] {
   const result: { lesson: Lesson; courseId: string; moduleId: string }[] = [];
 
-  for (const module of course.modules || []) {
-    for (const lesson of module.lessons || []) {
+  for (const mod of course.modules || []) {
+    for (const lesson of mod.lessons || []) {
       result.push({
         lesson,
         courseId: course.id,
-        moduleId: module.id,
+        moduleId: mod.id,
       });
     }
   }
@@ -81,7 +81,7 @@ function extractLessonsFromCourse(course: Course): {
 /**
  * Log progress to console
  */
-function logProgress(progress: IngestionProgress): void {
+function _logProgress(progress: IngestionProgress): void {
   const percent = Math.round((progress.current / progress.total) * 100);
   console.log(`[${progress.phase.toUpperCase()}] ${percent}% - ${progress.message}`);
 }
@@ -173,7 +173,7 @@ export async function ingestCourse(
       if (!exists) {
         newChunks.push(chunk);
       }
-    } catch (error) {
+    } catch (_error) {
       // If check fails, assume it doesn't exist and try to add
       newChunks.push(chunk);
     }

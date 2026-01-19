@@ -20,6 +20,7 @@ import { CircularProgress } from '@/components/ui/ProgressBar';
 import { WhyExplanation } from './WhyExplanation';
 import { cn } from '@/lib/utils';
 import { getIdToken } from '@/lib/firebase/auth';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 /**
  * AI Insights Response Type
@@ -72,6 +73,7 @@ type AIInsightsWidgetProps = {
  */
 export function AIInsightsWidget({ userId, className }: AIInsightsWidgetProps) {
   const router = useRouter();
+  const prefersReducedMotion = useReducedMotion();
   const [insights, setInsights] = useState<AIInsights | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -119,21 +121,76 @@ export function AIInsightsWidget({ userId, className }: AIInsightsWidgetProps) {
   // Don't render if no user
   if (!userId) return null;
 
-  // Loading state
+  // Loading state - Enhanced skeleton with shimmer
   if (isLoading) {
     return (
-      <Card variant="elevated" padding="lg" className={cn('animate-pulse', className)}>
+      <Card variant="elevated" padding="lg" className={cn('relative overflow-hidden', className)}>
         <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-grey/20 rounded-lg" />
-            <div className="h-6 w-32 bg-grey/20 rounded" />
+          {/* Header skeleton */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple/10 to-teal/10 rounded-lg animate-pulse" />
+              <div className="space-y-2">
+                <div className="h-5 w-40 bg-grey/10 rounded animate-pulse" />
+                <div className="h-3 w-32 bg-grey/10 rounded animate-pulse" />
+              </div>
+            </div>
+            <div className="w-8 h-8 bg-grey/10 rounded animate-pulse" />
           </div>
+
+          {/* Stats grid skeleton */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="h-24 bg-grey/20 rounded-lg" />
-            <div className="h-24 bg-grey/20 rounded-lg" />
+            {[1, 2].map((i) => (
+              <div key={i} className="p-4 rounded-xl bg-grey/5 animate-pulse space-y-3">
+                <div className="h-3 w-24 bg-grey/10 rounded" />
+                <div className="h-6 w-16 bg-grey/10 rounded" />
+                <div className="h-3 w-20 bg-grey/10 rounded" />
+              </div>
+            ))}
           </div>
-          <div className="h-20 bg-grey/20 rounded-lg" />
+
+          {/* Skills skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {[1, 2].map((i) => (
+              <div key={i} className="p-3 rounded-lg bg-grey/5 animate-pulse space-y-2">
+                <div className="flex justify-between">
+                  <div className="h-3 w-20 bg-grey/10 rounded" />
+                  <div className="h-4 w-10 bg-grey/10 rounded" />
+                </div>
+                <div className="h-4 w-3/4 bg-grey/10 rounded" />
+                <div className="h-8 bg-grey/10 rounded-lg" />
+              </div>
+            ))}
+          </div>
+
+          {/* Bottom section skeleton */}
+          <div className="flex justify-between p-3 bg-grey/5 rounded-lg animate-pulse">
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 bg-grey/10 rounded-lg" />
+              <div className="space-y-2">
+                <div className="h-4 w-24 bg-grey/10 rounded" />
+                <div className="h-3 w-32 bg-grey/10 rounded" />
+              </div>
+            </div>
+            <div className="space-y-2 text-right">
+              <div className="h-5 w-12 bg-grey/10 rounded ml-auto" />
+              <div className="h-3 w-16 bg-grey/10 rounded ml-auto" />
+            </div>
+          </div>
         </div>
+
+        {/* Shimmer overlay */}
+        <motion.div
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+          animate={{
+            x: ['-100%', '100%'],
+          }}
+          transition={{
+            repeat: Infinity,
+            duration: 2,
+            ease: 'linear',
+          }}
+        />
       </Card>
     );
   }
@@ -225,25 +282,31 @@ export function AIInsightsWidget({ userId, className }: AIInsightsWidgetProps) {
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {/* Main Stats Grid */}
+          {/* Main Stats Grid - Enhanced with hover effects */}
           <div className="grid grid-cols-2 gap-4">
             {/* Learning Velocity */}
-            <div className="p-4 rounded-xl bg-white border border-grey/20 shadow-sm">
-              <div className="flex items-center gap-2 mb-2">
-                <Zap size={14} className="text-yellow-dark" />
-                <span className="text-xs font-medium text-rich-black/60 uppercase tracking-wide">
+            <motion.div
+              className="group p-4 rounded-xl bg-white border border-grey/20 shadow-sm hover:shadow-lg hover:border-yellow/30 transition-all cursor-default"
+              whileHover={!prefersReducedMotion ? { y: -2, scale: 1.02 } : undefined}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <div className="p-1.5 rounded-lg bg-yellow/10 group-hover:bg-yellow/20 transition-colors">
+                  <Zap size={14} className="text-yellow-dark" />
+                </div>
+                <span className="text-xs font-semibold text-rich-black/60 uppercase tracking-wider">
                   Learning Velocity
                 </span>
               </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-navy">
+              <div className="flex items-baseline gap-2 mb-2">
+                <span className="text-3xl font-bold text-navy tabular-nums">
                   {velocity.atomsPerHour.toFixed(1)}
                 </span>
-                <span className="text-sm text-rich-black/50">atoms/hr</span>
+                <span className="text-sm text-rich-black/50 font-medium">atoms/hr</span>
               </div>
-              <div className={cn('flex items-center gap-1 mt-1', trendConfig.color)}>
-                <TrendIcon size={14} />
-                <span className="text-xs font-medium">
+              <div className={cn('flex items-center gap-1.5 px-2 py-1 rounded-full w-fit', trendConfig.bg)}>
+                <TrendIcon size={12} className={trendConfig.color} />
+                <span className={cn('text-xs font-semibold', trendConfig.color)}>
                   {trendConfig.label}
                   {velocity.percentChange !== 0 && (
                     <span className="ml-1">
@@ -253,88 +316,124 @@ export function AIInsightsWidget({ userId, className }: AIInsightsWidgetProps) {
                   )}
                 </span>
               </div>
-            </div>
+            </motion.div>
 
             {/* Predicted Completion */}
-            <div className="p-4 rounded-xl bg-white border border-grey/20 shadow-sm">
-              <div className="flex items-center gap-2 mb-2">
-                <Calendar size={14} className="text-purple" />
-                <span className="text-xs font-medium text-rich-black/60 uppercase tracking-wide">
+            <motion.div
+              className="group p-4 rounded-xl bg-white border border-grey/20 shadow-sm hover:shadow-lg hover:border-purple/30 transition-all cursor-default"
+              whileHover={!prefersReducedMotion ? { y: -2, scale: 1.02 } : undefined}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <div className="p-1.5 rounded-lg bg-purple/10 group-hover:bg-purple/20 transition-colors">
+                  <Calendar size={14} className="text-purple" />
+                </div>
+                <span className="text-xs font-semibold text-rich-black/60 uppercase tracking-wider">
                   Est. Completion
                 </span>
               </div>
               <div className="flex items-center gap-3">
                 <CircularProgress
                   value={completion.confidence}
-                  size={44}
-                  strokeWidth={4}
+                  size={48}
+                  strokeWidth={5}
                   color={completion.confidence >= 70 ? 'teal' : 'yellow'}
                 />
                 <div>
-                  <p className="text-lg font-bold text-navy">{completion.daysRemaining} days</p>
-                  <p className="text-xs text-rich-black/50">
-                    {new Date(completion.predictedDate).toLocaleDateString('en-US', {
+                  <p className="text-2xl font-bold text-navy tabular-nums">{completion.daysRemaining}</p>
+                  <p className="text-xs text-rich-black/50 font-medium mt-0.5">
+                    days · {new Date(completion.predictedDate).toLocaleDateString('en-US', {
                       month: 'short',
                       day: 'numeric',
                     })}
                   </p>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
 
-          {/* Skills Insights */}
+          {/* Skills Insights - Enhanced with hover effects */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* Strongest Skill */}
-            <div className="p-3 rounded-lg bg-success/5 border border-success/20">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-success uppercase tracking-wide">
-                  Strongest Skill
-                </span>
-                <span className="text-sm font-bold text-success">{skills.strongest.mastery}%</span>
+            <motion.div
+              className="group p-4 rounded-lg bg-success/5 border border-success/20 hover:bg-success/10 hover:border-success/30 hover:shadow-md transition-all cursor-default"
+              whileHover={!prefersReducedMotion ? { y: -1, scale: 1.01 } : undefined}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-1 rounded bg-success/20 group-hover:scale-110 transition-transform">
+                    <TrendingUp size={12} className="text-success" />
+                  </div>
+                  <span className="text-xs font-bold text-success uppercase tracking-wider">
+                    Strongest Skill
+                  </span>
+                </div>
+                <div className="px-2 py-0.5 rounded-full bg-success/20">
+                  <span className="text-sm font-bold text-success tabular-nums">{skills.strongest.mastery}%</span>
+                </div>
               </div>
-              <p className="text-sm font-medium text-navy mb-2">{skills.strongest.name}</p>
+              <p className="text-sm font-semibold text-navy mb-3 group-hover:text-success transition-colors">
+                {skills.strongest.name}
+              </p>
               <WhyExplanation
                 reason={skills.strongest.reason}
                 confidence={skills.strongest.mastery}
                 variant="compact"
               />
-            </div>
+            </motion.div>
 
             {/* Focus Area */}
-            <div className="p-3 rounded-lg bg-yellow/5 border border-yellow/20">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-yellow uppercase tracking-wide">
-                  Focus Area
-                </span>
-                <span className="text-sm font-bold text-yellow">{skills.focusArea.mastery}%</span>
+            <motion.div
+              className="group p-4 rounded-lg bg-warning/5 border border-warning/20 hover:bg-warning/10 hover:border-warning/30 hover:shadow-md transition-all cursor-default"
+              whileHover={!prefersReducedMotion ? { y: -1, scale: 1.01 } : undefined}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-1 rounded bg-warning/20 group-hover:scale-110 transition-transform">
+                    <Target size={12} className="text-warning" />
+                  </div>
+                  <span className="text-xs font-bold text-warning uppercase tracking-wider">
+                    Focus Area
+                  </span>
+                </div>
+                <div className="px-2 py-0.5 rounded-full bg-warning/20">
+                  <span className="text-sm font-bold text-warning tabular-nums">{skills.focusArea.mastery}%</span>
+                </div>
               </div>
-              <p className="text-sm font-medium text-navy mb-2">{skills.focusArea.name}</p>
+              <p className="text-sm font-semibold text-navy mb-3 group-hover:text-warning transition-colors">
+                {skills.focusArea.name}
+              </p>
               <WhyExplanation
                 reason={skills.focusArea.reason}
                 confidence={60}
                 modelInfo={modelInfo.type}
                 variant="compact"
               />
-            </div>
+            </motion.div>
           </div>
 
-          {/* Daily Study Time */}
-          <div className="flex items-center justify-between p-3 rounded-lg bg-light-grey/50">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-lg bg-teal/10 flex items-center justify-center">
-                <Target size={18} className="text-teal" />
+          {/* Daily Study Time - Enhanced */}
+          <motion.div
+            className="group flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-teal/5 to-purple/5 border border-teal/10 hover:border-teal/20 hover:shadow-md transition-all cursor-default"
+            whileHover={!prefersReducedMotion ? { y: -1, scale: 1.005 } : undefined}
+            transition={{ duration: 0.2 }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal to-teal-light flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
+                <Target size={20} className="text-white" />
               </div>
               <div>
-                <p className="text-sm font-medium text-navy">Avg. Daily Study</p>
-                <p className="text-xs text-rich-black/50">Based on your recent activity</p>
+                <p className="text-sm font-semibold text-navy">Avg. Daily Study</p>
+                <p className="text-xs text-rich-black/60">Based on recent activity</p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-xl font-bold text-navy">{averageDailyMinutes}</p>
-              <p className="text-xs text-rich-black/50">min/day</p>
+              <p className="text-3xl font-bold text-navy tabular-nums">{averageDailyMinutes}</p>
+              <p className="text-xs text-rich-black/50 font-medium mt-0.5">min/day</p>
             </div>
-          </div>
+          </motion.div>
 
           {/* Why Explanation for Overall Insights */}
           <WhyExplanation

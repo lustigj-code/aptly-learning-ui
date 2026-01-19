@@ -3,9 +3,8 @@
  * Main learning flow uses `/api/progress/sync` instead.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase/admin';
+import { adminDb, adminAuth } from '@/lib/firebase/admin';
 import { z } from 'zod';
-import { FieldValue } from 'firebase-admin/firestore';
 
 const completeLessonSchema = z.object({
   lessonId: z.string().min(1),
@@ -19,7 +18,7 @@ const completeLessonSchema = z.object({
  */
 export async function POST(request: NextRequest) {
   try {
-    // Get user ID from auth header
+    // Get and verify Firebase ID token
     const authHeader = request.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json(
@@ -28,7 +27,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const userId = authHeader.slice(7);
+    const idToken = authHeader.slice(7);
+    let userId: string;
+
+    try {
+      // SECURITY: Verify the Firebase ID token to prevent IDOR attacks
+      const decodedToken = await adminAuth.verifyIdToken(idToken);
+      userId = decodedToken.uid;
+    } catch (error) {
+      console.error('Token verification failed:', error);
+      return NextResponse.json(
+        { error: 'Invalid token' },
+        { status: 401 }
+      );
+    }
 
     // Validate input
     const body = await request.json();
@@ -75,7 +87,7 @@ export async function POST(request: NextRequest) {
 
       const lessonSnap = await lessonRef.get();
       if (lessonSnap.exists) {
-        const lessonData = lessonSnap.data();
+        const _lessonData = lessonSnap.data();
         // Get all atoms and filter for required ones
         const atomsSnap = await lessonRef.collection('atoms').get();
         requiredAtoms = atomsSnap.docs

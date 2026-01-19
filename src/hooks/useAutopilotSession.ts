@@ -439,7 +439,7 @@ function handleContentComplete(
 function handleQuizAnswer(
   state: AutopilotSessionState,
   isCorrect: boolean,
-  score: number
+  _score: number
 ): AutopilotSessionState {
   const newSummary = {
     ...state.sessionSummary,

@@ -23,8 +23,8 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/store/userProfileStore';
-import { useReviewQueue, type DueReviewItem } from '@/hooks/useReviewQueue';
-import { post, isSuccess } from '@/lib/api/client';
+import { useReviewQueue } from '@/hooks/useReviewQueue';
+import { post } from '@/lib/api/client';
 
 // New enhanced review components
 import { TimingFeedback } from '@/components/mastery/TimingFeedback';

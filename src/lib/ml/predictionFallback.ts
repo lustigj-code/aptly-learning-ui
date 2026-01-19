@@ -7,7 +7,7 @@
  * Part of Phase 15.3: ML Model Full Integration
  */
 
-import { getHybridModel, type HybridLearnerModel } from './hybridModel';
+import { getHybridModel } from './hybridModel';
 import type { HybridPrediction } from './hybridModelTypes';
 import { getColdStartState, type ColdStartConfig, DEFAULT_COLD_START_CONFIG } from './coldStart';
 import { DEFAULT_BKT_PARAMS, predictCorrect } from '@/lib/mastery/bkt';
@@ -299,7 +299,7 @@ export function getCurrentModelForUser(
 /**
  * Create a default prediction when no data is available
  */
-export function createDefaultPrediction(skillId: string): HybridPrediction {
+export function createDefaultPrediction(_skillId: string): HybridPrediction {
   return {
     masteryProbability: 0.1,
     correctProbability: predictCorrect(0.1, DEFAULT_BKT_PARAMS),

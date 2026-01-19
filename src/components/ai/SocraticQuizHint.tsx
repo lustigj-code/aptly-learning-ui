@@ -14,6 +14,7 @@ import { Lightbulb, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { generatePreAnswerHint } from '@/lib/ai/quiz-ai-integration';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import type { QuizQuestion } from '@/lib/ai/quiz-ai-integration';
 
 type SocraticQuizHintProps = {
@@ -26,9 +27,9 @@ type SocraticQuizHintProps = {
 export function SocraticQuizHint({
   question,
   userMastery,
-  attemptNumber,
   onHintViewed,
 }: SocraticQuizHintProps) {
+  const prefersReducedMotion = useReducedMotion();
   const [hints, setHints] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentLevel, setCurrentLevel] = useState(0);
@@ -69,16 +70,32 @@ export function SocraticQuizHint({
       {hints.map((hint, index) => (
         <motion.div
           key={index}
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
+          initial={{ opacity: 0, y: -15, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{
+            duration: 0.4,
+            ease: [0.34, 1.56, 0.64, 1],
+            delay: index * 0.1
+          }}
         >
-          <Card className="p-4 bg-light-blue/10 border-blue/30">
+          <Card className="p-5 bg-gradient-to-br from-blue-50/80 to-purple-50/40 border border-blue-200/40 shadow-md hover:shadow-lg transition-shadow">
             <div className="flex items-start gap-3">
-              <Lightbulb className="w-5 h-5 text-blue mt-0.5 flex-shrink-0" />
+              <motion.div
+                className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0 shadow-sm"
+                initial={{ scale: 0, rotate: -90 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{
+                  type: 'spring',
+                  stiffness: 260,
+                  damping: 20,
+                  delay: index * 0.1 + 0.1
+                }}
+              >
+                <Lightbulb className="w-4 h-4 text-white" />
+              </motion.div>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-navy mb-1">Hint {index + 1}:</p>
-                <p className="text-sm text-gray-700">{hint}</p>
+                <p className="text-xs font-bold text-blue-600 mb-2 uppercase tracking-wide">Hint {index + 1}</p>
+                <p className="text-sm text-navy leading-relaxed font-medium">{hint}</p>
               </div>
             </div>
           </Card>
@@ -87,38 +104,60 @@ export function SocraticQuizHint({
 
       {/* Request Hint Button */}
       {currentLevel < 3 && (
-        <Button
-          onClick={requestHint}
-          disabled={loading}
-          variant="secondary"
-          size="sm"
-          className="w-full flex items-center justify-center gap-2"
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: hints.length * 0.1 + 0.2 }}
         >
-          {loading ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue border-t-transparent" />
-              Generating hint...
-            </>
-          ) : (
-            <>
-              <Brain className="w-4 h-4" />
-              {currentLevel === 0 ? 'Need a hint?' : `Show hint ${currentLevel + 1}`}
-            </>
-          )}
-        </Button>
+          <motion.div whileHover={!prefersReducedMotion ? { scale: 1.02 } : undefined} whileTap={!prefersReducedMotion ? { scale: 0.98 } : undefined}>
+            <Button
+              onClick={requestHint}
+              disabled={loading}
+              variant="secondary"
+              size="sm"
+              className="w-full flex items-center justify-center gap-2 shadow-sm font-semibold"
+            >
+              {loading ? (
+                <>
+                  <motion.div
+                    className="w-4 h-4 rounded-full border-2 border-blue border-t-transparent"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                  />
+                  Generating hint...
+                </>
+              ) : (
+                <>
+                  <Brain className="w-4 h-4" />
+                  {currentLevel === 0 ? 'Need a hint?' : `Show hint ${currentLevel + 1}`}
+                </>
+              )}
+            </Button>
+          </motion.div>
+        </motion.div>
       )}
 
       {/* Educational message */}
       {currentLevel > 0 && currentLevel < 3 && (
-        <p className="text-xs text-gray-500 text-center">
+        <motion.p
+          className="text-xs text-gray-600 text-center font-medium px-3 py-2 bg-gray-50/50 rounded-lg"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+        >
           Hints help you think through the problem. The goal is understanding, not just getting the right answer!
-        </p>
+        </motion.p>
       )}
 
       {currentLevel >= 3 && (
-        <p className="text-xs text-gray-500 text-center">
-          You've seen all available hints. Use what you've learned to reason through the answer!
-        </p>
+        <motion.p
+          className="text-xs text-gray-600 text-center font-semibold px-3 py-2 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg border border-blue-200/40"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          You&apos;ve seen all available hints. Use what you&apos;ve learned to reason through the answer!
+        </motion.p>
       )}
     </div>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, RotateCcw, CheckCircle, AlertCircle, Clock, TrendingUp, Sparkles, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -86,6 +86,61 @@ function toQuizQuestion(question: Question, index: number): QuizQuestion {
   };
 }
 
+// Storage key generator for quiz state persistence
+const getQuizStorageKey = (atomId: string) => `aptly_quiz_state_${atomId}`;
+
+// Load quiz state from sessionStorage (persists across refresh, not across sessions)
+function loadQuizState(atomId: string): Partial<QuizState> | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const saved = sessionStorage.getItem(getQuizStorageKey(atomId));
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Only restore non-sensitive state (not AI explanations or loading states)
+      return {
+        currentQuestionIndex: parsed.currentQuestionIndex ?? 0,
+        answers: parsed.answers ?? {},
+        showingFeedback: false, // Always reset feedback state
+        isComplete: parsed.isComplete ?? false,
+        score: parsed.score ?? 0,
+        attempts: parsed.attempts ?? 0,
+        consecutiveWrong: parsed.consecutiveWrong ?? 0,
+        hintsViewed: parsed.hintsViewed ?? {},
+      };
+    }
+  } catch (e) {
+    console.warn('[QuizAtom] Failed to load saved quiz state:', e);
+    sessionStorage.removeItem(getQuizStorageKey(atomId));
+  }
+  return null;
+}
+
+// Save quiz state to sessionStorage
+function saveQuizState(atomId: string, state: QuizState) {
+  if (typeof window === 'undefined') return;
+  try {
+    // Only save essential state, not transient UI state
+    const toSave = {
+      currentQuestionIndex: state.currentQuestionIndex,
+      answers: state.answers,
+      isComplete: state.isComplete,
+      score: state.score,
+      attempts: state.attempts,
+      consecutiveWrong: state.consecutiveWrong,
+      hintsViewed: state.hintsViewed,
+    };
+    sessionStorage.setItem(getQuizStorageKey(atomId), JSON.stringify(toSave));
+  } catch (e) {
+    console.warn('[QuizAtom] Failed to save quiz state:', e);
+  }
+}
+
+// Clear quiz state from sessionStorage
+function clearQuizState(atomId: string) {
+  if (typeof window === 'undefined') return;
+  sessionStorage.removeItem(getQuizStorageKey(atomId));
+}
+
 export function QuizAtom({
   atom,
   onComplete,
@@ -98,21 +153,30 @@ export function QuizAtom({
   // Adaptive quiz system
   const adaptiveQuiz = useAdaptiveQuiz(adaptiveConfig);
 
-  const [state, setState] = useState<QuizState>({
-    currentQuestionIndex: 0,
-    answers: {},
-    showingFeedback: false,
-    isComplete: false,
-    score: 0,
-    attempts: 0,
-    currentSkillUpdates: [],
-    allSkillUpdates: [],
-    newlyMasteredSkills: [],
-    consecutiveWrong: 0,
-    hintsViewed: {},
-    aiExplanation: null,
-    loadingExplanation: false,
+  // Initialize state from sessionStorage if available (preserves progress across refresh)
+  const [state, setState] = useState<QuizState>(() => {
+    const savedState = loadQuizState(atom.id);
+    return {
+      currentQuestionIndex: savedState?.currentQuestionIndex ?? 0,
+      answers: savedState?.answers ?? {},
+      showingFeedback: false,
+      isComplete: savedState?.isComplete ?? false,
+      score: savedState?.score ?? 0,
+      attempts: savedState?.attempts ?? 0,
+      currentSkillUpdates: [],
+      allSkillUpdates: [],
+      newlyMasteredSkills: [],
+      consecutiveWrong: savedState?.consecutiveWrong ?? 0,
+      hintsViewed: savedState?.hintsViewed ?? {},
+      aiExplanation: null,
+      loadingExplanation: false,
+    };
   });
+
+  // Persist quiz state to sessionStorage on change
+  useEffect(() => {
+    saveQuizState(atom.id, state);
+  }, [atom.id, state]);
 
   // AI Coach for "Explain Why" feature
   const { getQuizHelp, isLoading: coachLoading } = useCoach();
@@ -122,6 +186,10 @@ export function QuizAtom({
 
   // Track question start time for response time calculation
   const questionStartTimeRef = useRef<number>(Date.now());
+
+  // Prevent double-submit: track submission state and unique submission ID
+  const isSubmittingRef = useRef<boolean>(false);
+  const submissionIdRef = useRef<string | null>(null);
 
   const { content } = atom;
 
@@ -286,6 +354,24 @@ export function QuizAtom({
   };
 
   const submitQuizCompletion = useCallback(async (score: number) => {
+    // Prevent double-submit with ref check
+    if (isSubmittingRef.current) {
+      console.warn('[QuizAtom] Submission already in progress, ignoring duplicate');
+      return;
+    }
+
+    // Generate unique submission ID for idempotency
+    const currentSubmissionId = `${atom.id}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+    // Check if we've already submitted for this quiz attempt
+    if (submissionIdRef.current !== null) {
+      console.warn('[QuizAtom] Quiz already submitted with ID:', submissionIdRef.current);
+      return;
+    }
+
+    isSubmittingRef.current = true;
+    submissionIdRef.current = currentSubmissionId;
+
     try {
       const response = await post('/api/progress/complete-atom', {
         atomId: atom.id,
@@ -294,15 +380,24 @@ export function QuizAtom({
         courseId: atom.lessonId.split('_')[0],
         score,
         timeSpentSeconds: getTimeSpent(),
+        submissionId: currentSubmissionId, // Include for server-side idempotency
       });
 
       if (response.success) {
+        // Clear saved state on successful completion
+        clearQuizState(atom.id);
         onComplete(score);
       } else {
+        // Reset submission tracking on failure so user can retry
+        submissionIdRef.current = null;
         console.error('Error submitting quiz:', response.error);
       }
     } catch (error) {
+      // Reset submission tracking on error so user can retry
+      submissionIdRef.current = null;
       console.error('Error submitting quiz:', error);
+    } finally {
+      isSubmittingRef.current = false;
     }
   }, [atom.id, atom.lessonId, getTimeSpent, onComplete]);
 
@@ -374,55 +469,147 @@ export function QuizAtom({
   if (state.isComplete) {
     return (
       <motion.div
-        className="max-w-2xl mx-auto space-y-6"
-        initial={{ opacity: 0, scale: 0.9 }}
+        className="max-w-2xl mx-auto space-y-6 relative"
+        initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.3 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
       >
+        {/* Celebration particles for passed quiz */}
+        {passed && (
+          <>
+            {[...Array(12)].map((_, i) => (
+              <motion.div
+                key={i}
+                className="absolute w-2 h-2 rounded-full"
+                style={{
+                  background: i % 3 === 0 ? '#21A8B0' : i % 3 === 1 ? '#FFDE00' : '#88B644',
+                  left: '50%',
+                  top: '20%',
+                }}
+                initial={{ scale: 0, x: 0, y: 0 }}
+                animate={{
+                  scale: [0, 1, 0.8, 0],
+                  x: [0, Math.cos(i * 30 * Math.PI / 180) * 150],
+                  y: [0, Math.sin(i * 30 * Math.PI / 180) * 150 - 100],
+                  opacity: [0, 1, 1, 0],
+                }}
+                transition={{
+                  duration: 1.2,
+                  delay: i * 0.05,
+                  ease: 'easeOut',
+                }}
+              />
+            ))}
+          </>
+        )}
+
         {/* Final Score Card */}
-        <Card variant="gradient" padding="xl" className="text-center space-y-4">
-          <div className="flex justify-center">
-            {passed ? (
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2, type: 'spring', stiffness: 300, damping: 25 }}
+        >
+          <Card variant="gradient" padding="xl" className={cn(
+            "text-center space-y-4 relative overflow-hidden",
+            passed && "shadow-2xl shadow-success/20"
+          )}>
+            {/* Glow effect for passed quiz */}
+            {passed && (
               <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-              >
-                <CheckCircle size={64} className="text-success" />
-              </motion.div>
-            ) : (
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-              >
-                <AlertCircle size={64} className="text-error" />
-              </motion.div>
+                className="absolute inset-0 bg-gradient-to-b from-success/10 to-transparent"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0, 0.5, 0] }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+              />
             )}
-          </div>
 
-          <h2 className="text-3xl font-bold text-navy">
+            <div className="flex justify-center relative z-10">
+              {passed ? (
+                <motion.div
+                  initial={{ scale: 0, rotate: -180 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.3 }}
+                >
+                  <motion.div
+                    animate={{
+                      scale: [1, 1.1, 1],
+                      rotate: [0, 5, -5, 0],
+                    }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: 'easeInOut',
+                    }}
+                  >
+                    <CheckCircle size={64} className="text-success drop-shadow-lg" />
+                  </motion.div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ scale: 0, rotate: 0 }}
+                  animate={{ scale: 1, rotate: [0, -10, 10, -10, 10, 0] }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.3 }}
+                >
+                  <AlertCircle size={64} className="text-error drop-shadow-lg" />
+                </motion.div>
+              )}
+            </div>
+
+          <motion.h2
+            className="text-3xl font-bold text-navy relative z-10"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+          >
             {passed ? 'Quiz Passed!' : 'Quiz Not Passed'}
-          </h2>
+          </motion.h2>
 
-          <div className="space-y-2">
-            <p className="text-5xl font-bold">
-              <span className={passed ? 'text-success' : 'text-error'}>{state.score}%</span>
-            </p>
-            <p className="text-navy/70">
+          <div className="space-y-2 relative z-10">
+            <motion.p
+              className="text-5xl font-bold"
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.6 }}
+            >
+              <span className={cn(
+                "inline-block",
+                passed ? 'text-success' : 'text-error'
+              )}>
+                {state.score}%
+              </span>
+            </motion.p>
+            <motion.p
+              className="text-navy/70"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.8 }}
+            >
               {Object.values(state.answers).filter((ans, idx) => checkAnswer(questions[idx], ans))
                 .length}{' '}
               of {questions.length} correct
-            </p>
-            <p className="text-sm text-navy/60">Passing score: {passingScore}%</p>
+            </motion.p>
+            <motion.p
+              className="text-sm text-navy/60"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.9 }}
+            >
+              Passing score: {passingScore}%
+            </motion.p>
           </div>
 
           {!passed && allowRetakes && (
-            <p className="text-sm text-navy/70 bg-yellow-light/20 p-3 rounded-lg">
+            <motion.p
+              className="text-sm text-navy/70 bg-yellow-light/20 p-3 rounded-lg relative z-10"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 1.0 }}
+            >
               You can retake this quiz to improve your score.
-            </p>
+            </motion.p>
           )}
-        </Card>
+          </Card>
+        </motion.div>
 
         {/* Newly Mastered Skills Celebration */}
         {state.newlyMasteredSkills.length > 0 && (
@@ -438,7 +625,7 @@ export function QuizAtom({
                 </div>
                 <div>
                   <h3 className="font-bold text-navy">Skills Mastered!</h3>
-                  <p className="text-sm text-rich-black/60">You've reached 95%+ mastery</p>
+                  <p className="text-sm text-rich-black/60">You&apos;ve reached 95%+ mastery</p>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -499,6 +686,11 @@ export function QuizAtom({
             size="lg"
             fullWidth={true}
             onClick={() => {
+              // Reset submission tracking for new attempt
+              submissionIdRef.current = null;
+              isSubmittingRef.current = false;
+              // Clear saved state for fresh retake
+              clearQuizState(atom.id);
               setState({
                 currentQuestionIndex: 0,
                 answers: {},
@@ -541,11 +733,22 @@ export function QuizAtom({
       transition={{ duration: 0.3 }}
     >
       {/* Progress */}
-      <div className="space-y-2">
+      <motion.div
+        className="space-y-2"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
         <div className="flex justify-between items-center">
-          <h3 className="text-sm font-semibold text-navy">
+          <motion.h3
+            key={state.currentQuestionIndex}
+            className="text-sm font-semibold text-navy"
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.2 }}
+          >
             Question {state.currentQuestionIndex + 1} of {questions.length}
-          </h3>
+          </motion.h3>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1 text-sm text-rich-black/60">
               <Clock size={14} className={isActive ? 'text-teal' : 'text-grey'} />
@@ -580,7 +783,7 @@ export function QuizAtom({
           currentQuestion={state.currentQuestionIndex + 1}
           totalQuestions={questions.length}
         />
-      </div>
+      </motion.div>
 
       {/* Question Card */}
       <Card variant="elevated" padding="lg" className="space-y-6">
@@ -633,21 +836,46 @@ export function QuizAtom({
       <AnimatePresence>
         {state.showingFeedback && (
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{
+              opacity: 1,
+              y: 0,
+              scale: 1
+            }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            transition={{
+              type: 'spring',
+              stiffness: 400,
+              damping: 25
+            }}
           >
-            <Card
-              variant={isCorrect ? 'default' : 'outlined'}
-              padding="lg"
-              className={cn(
-                'border-2',
+            <motion.div
+              animate={
                 isCorrect
-                  ? 'border-success bg-success-light'
-                  : 'border-error bg-error-light'
-              )}
+                  ? {
+                      boxShadow: [
+                        '0 0 0 0 rgba(136, 182, 68, 0)',
+                        '0 0 0 8px rgba(136, 182, 68, 0.2)',
+                        '0 0 0 12px rgba(136, 182, 68, 0)',
+                      ],
+                      transition: {
+                        duration: 0.6,
+                        delay: 0.1
+                      }
+                    }
+                  : {}
+              }
             >
+              <Card
+                variant={isCorrect ? 'default' : 'outlined'}
+                padding="lg"
+                className={cn(
+                  'border-2',
+                  isCorrect
+                    ? 'border-success bg-success-light'
+                    : 'border-error bg-error-light'
+                )}
+              >
               <div className="space-y-3">
                 <h4
                   className={cn(
@@ -729,7 +957,8 @@ export function QuizAtom({
                   </div>
                 )}
               </div>
-            </Card>
+              </Card>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

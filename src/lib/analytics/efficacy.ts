@@ -424,8 +424,30 @@ function getEmptyMetrics(): EfficacyMetrics {
   };
 }
 
+interface AnalyticsEvent {
+  eventType: string;
+  timestamp?: { toDate?: () => Date };
+  sessionId?: string;
+  properties?: Record<string, unknown>;
+}
+
+interface SkillData {
+  pMastery: number;
+  masteredAt?: { toDate?: () => Date };
+  firstAttemptAt?: { toDate?: () => Date };
+}
+
+type RetentionTestData = {
+  results?: { overallRetention?: number };
+};
+
+interface ProgressData {
+  streak?: { longestStreak?: number };
+  totalTimeSpentMinutes?: number;
+}
+
 function calculateCompletionRateFromEvents(
-  events: any[],
+  events: AnalyticsEvent[],
   type: 'course' | 'lesson' | 'atom'
 ): number {
   const startEvents = events.filter(e => e.eventType === `${type}_start`);
@@ -435,7 +457,7 @@ function calculateCompletionRateFromEvents(
   return calculateCompletionRate(completeEvents.length, startEvents.length);
 }
 
-function calculateSessionCompletionRate(events: any[]): number {
+function calculateSessionCompletionRate(events: AnalyticsEvent[]): number {
   const sessionStarts = events.filter(e => e.eventType === 'session_start');
   const sessionEnds = events.filter(e => e.eventType === 'session_end');
 
@@ -449,8 +471,8 @@ function calculateSessionCompletionRate(events: any[]): number {
 }
 
 function calculateReturnRates(
-  events: any[],
-  dateRange: DateRange
+  events: AnalyticsEvent[],
+  _dateRange: DateRange
 ): { day1: number; day7: number; day30: number } {
   if (events.length === 0) {
     return { day1: 0, day7: 0, day30: 0 };
@@ -473,7 +495,7 @@ function calculateReturnRates(
   let returnedDay1 = 0;
   let returnedDay7 = 0;
   let returnedDay30 = 0;
-  let totalOpportunities = sortedDays.length - 1;
+  const totalOpportunities = sortedDays.length - 1;
 
   for (let i = 0; i < sortedDays.length - 1; i++) {
     const current = new Date(sortedDays[i]);
@@ -492,7 +514,7 @@ function calculateReturnRates(
   };
 }
 
-function calculateSessionFrequency(events: any[], dateRange: DateRange): number {
+function calculateSessionFrequency(events: AnalyticsEvent[], dateRange: DateRange): number {
   const sessionStarts = events.filter(e => e.eventType === 'session_start');
   const weeks = Math.max(
     1,
@@ -501,32 +523,32 @@ function calculateSessionFrequency(events: any[], dateRange: DateRange): number 
   return Math.round((sessionStarts.length / weeks) * 100) / 100;
 }
 
-function calculateAverageSessionLength(events: any[]): number {
+function calculateAverageSessionLength(events: AnalyticsEvent[]): number {
   const sessionEnds = events.filter(e =>
     e.eventType === 'session_end' && e.properties?.durationMinutes
   );
 
   if (sessionEnds.length === 0) return 0;
 
-  const durations = sessionEnds.map(e => e.properties.durationMinutes);
+  const durations = sessionEnds.map(e => e.properties?.durationMinutes as number);
   return calculateAverage(durations);
 }
 
-function calculateStreakMaintenance(progress: any): number {
+function calculateStreakMaintenance(progress: ProgressData | undefined): number {
   if (!progress?.streak) return 0;
 
   const longestStreak = progress.streak.longestStreak || 0;
   return longestStreak >= 7 ? 100 : (longestStreak / 7) * 100;
 }
 
-function calculateSkillMasteryRate(skills: any[]): number {
+function calculateSkillMasteryRate(skills: SkillData[]): number {
   if (skills.length === 0) return 0;
 
   const masteredSkills = skills.filter(s => s.pMastery >= 0.95).length;
   return calculateCompletionRate(masteredSkills, skills.length);
 }
 
-function calculateAverageTimeToMastery(skills: any[], events: any[]): number {
+function calculateAverageTimeToMastery(skills: SkillData[], _events: AnalyticsEvent[]): number {
   const masteredSkills = skills.filter(s =>
     s.pMastery >= 0.95 && s.masteredAt && s.firstAttemptAt
   );
@@ -542,14 +564,14 @@ function calculateAverageTimeToMastery(skills: any[], events: any[]): number {
   return calculateAverage(times);
 }
 
-function calculateRetentionRate(retentionTests: any[]): number {
+function calculateRetentionRate(retentionTests: RetentionTestData[]): number {
   if (retentionTests.length === 0) return 0;
 
   const retentionScores = retentionTests.map(t => t.results?.overallRetention || 0);
   return calculateAverage(retentionScores);
 }
 
-function calculateQuizAccuracy(events: any[]): number {
+function calculateQuizAccuracy(events: AnalyticsEvent[]): number {
   const quizAnswers = events.filter(e => e.eventType === 'quiz_answer');
 
   if (quizAnswers.length === 0) return 0;
@@ -558,7 +580,7 @@ function calculateQuizAccuracy(events: any[]): number {
   return calculateCompletionRate(correctAnswers, quizAnswers.length);
 }
 
-function calculateMasteryVelocity(skills: any[], progress: any): number {
+function calculateMasteryVelocity(skills: SkillData[], progress: ProgressData | undefined): number {
   const masteredSkills = skills.filter(s => s.pMastery >= 0.95).length;
   const totalHours = (progress?.totalTimeSpentMinutes || 0) / 60;
 
@@ -566,7 +588,7 @@ function calculateMasteryVelocity(skills: any[], progress: any): number {
   return Math.round((masteredSkills / totalHours) * 100) / 100;
 }
 
-function calculateContentSkipRate(events: any[]): number {
+function calculateContentSkipRate(events: AnalyticsEvent[]): number {
   const pretestCompletes = events.filter(e => e.eventType === 'pretest_complete');
   const contentSkips = events.filter(e => e.eventType === 'content_skipped');
 
@@ -574,7 +596,7 @@ function calculateContentSkipRate(events: any[]): number {
   return calculateCompletionRate(contentSkips.length, pretestCompletes.length);
 }
 
-function calculateReviewEfficiency(events: any[]): number {
+function calculateReviewEfficiency(events: AnalyticsEvent[]): number {
   const reviewCompletes = events.filter(e => e.eventType === 'review_complete');
 
   if (reviewCompletes.length === 0) return 0;
@@ -586,7 +608,7 @@ function calculateReviewEfficiency(events: any[]): number {
   return calculateCompletionRate(maintainedMastery, reviewCompletes.length);
 }
 
-function calculateInterventionSuccessRate(events: any[]): number {
+function calculateInterventionSuccessRate(events: AnalyticsEvent[]): number {
   const interventionsShown = events.filter(e => e.eventType === 'intervention_shown');
   const interventionsAccepted = events.filter(e => e.eventType === 'intervention_accepted');
 
@@ -600,7 +622,7 @@ function calculateInterventionSuccessRate(events: any[]): number {
   return calculateCompletionRate(successfulInterventions, interventionsShown.length);
 }
 
-function calculateCoachUtilization(events: any[]): number {
+function calculateCoachUtilization(events: AnalyticsEvent[]): number {
   const sessions = events.filter(e =>
     e.eventType === 'session_start' || e.eventType === 'session_end'
   );

@@ -8,7 +8,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, Sparkles, TrendingUp } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
@@ -91,6 +91,7 @@ export function LivePracticeFeedback({
           setLoading(false);
         }
       }, 3000),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [rubric, context]
   );
 
@@ -169,7 +170,7 @@ export function LivePracticeFeedback({
               <div className="flex items-start gap-3">
                 <Sparkles className="w-5 h-5 text-teal mt-0.5 flex-shrink-0" />
                 <div className="flex-1">
-                  <p className="text-xs font-semibold text-teal mb-1">Sage's Guidance:</p>
+                  <p className="text-xs font-semibold text-teal mb-1">Sage&apos;s Guidance:</p>
                   <p className="text-sm text-gray-700">{feedback.guidance}</p>
 
                   {feedback.nextStep && (

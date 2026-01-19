@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { InlineStreak } from '@/components/progress/StreakCounter';
 import { useUser } from '@/store/userProfileStore';
 import { useUIStore } from '@/store/uiStore';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 type NavItem = {
   label: string;
@@ -46,6 +47,7 @@ export function Sidebar() {
   const toggleSidebar = useUIStore((state) => state.toggleSidebar);
   const mobileMenuOpen = useUIStore((state) => state.mobileMenuOpen);
   const setMobileMenuOpen = useUIStore((state) => state.setMobileMenuOpen);
+  const prefersReducedMotion = useReducedMotion();
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -131,19 +133,38 @@ export function Sidebar() {
               <Link key={item.href} href={item.href}>
                 <motion.div
                   className={cn(
-                    'flex items-center gap-3 px-3 py-3 rounded-xl transition-colors',
+                    'relative flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200',
                     'hover:bg-white/10',
-                    isActive && 'bg-teal text-white'
+                    isActive && 'bg-teal text-white shadow-lg shadow-teal/20'
                   )}
-                  whileHover={{ x: 4 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={!prefersReducedMotion ? { x: isCollapsed ? 0 : 4 } : undefined}
+                  whileTap={!prefersReducedMotion ? { scale: 0.98 } : undefined}
+                  initial={false}
+                  animate={{
+                    backgroundColor: isActive ? 'rgb(32 201 151)' : 'transparent',
+                  }}
+                  transition={{ duration: 0.2 }}
                 >
-                  <Icon size={22} className={isActive ? 'text-white' : 'text-white/70'} />
+                  {/* Active indicator */}
+                  {isActive && (
+                    <motion.div
+                      className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full"
+                      layoutId="activeIndicator"
+                      transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                    />
+                  )}
+                  <Icon
+                    size={22}
+                    className={cn(
+                      'transition-all duration-200',
+                      isActive ? 'text-white scale-110' : 'text-white/70'
+                    )}
+                  />
                   <AnimatePresence>
                     {!isCollapsed && (
                       <motion.span
                         className={cn(
-                          'font-medium',
+                          'font-medium transition-colors',
                           isActive ? 'text-white' : 'text-white/70'
                         )}
                         initial={{ opacity: 0, x: -10 }}
@@ -166,15 +187,19 @@ export function Sidebar() {
           <motion.button
             onClick={() => setShowCoach(!showCoach)}
             className={cn(
-              'w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-colors',
-              'bg-light-teal/20 hover:bg-light-teal/30 text-teal'
+              'w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200',
+              'bg-light-teal/20 hover:bg-light-teal/30 active:bg-light-teal/25 text-teal shadow-lg shadow-teal/10'
             )}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={!prefersReducedMotion ? { scale: 1.02, y: -1 } : undefined}
+            whileTap={!prefersReducedMotion ? { scale: 0.98 } : undefined}
           >
             <div className="relative">
               <MessageCircle size={22} />
-              <span className="absolute -top-1 -right-1 w-3 h-3 bg-yellow rounded-full" />
+              <motion.span
+                className="absolute -top-1 -right-1 w-3 h-3 bg-yellow rounded-full"
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
+              />
             </div>
             <AnimatePresence>
               {!isCollapsed && (
@@ -206,8 +231,8 @@ export function Sidebar() {
                     'hover:bg-white/10',
                     isActive && 'bg-white/10'
                   )}
-                  whileHover={{ x: 4 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={!prefersReducedMotion ? { x: 4 } : undefined}
+                  whileTap={!prefersReducedMotion ? { scale: 0.98 } : undefined}
                 >
                   <Icon size={22} className="text-white/70" />
                   <AnimatePresence>
@@ -299,7 +324,7 @@ export function Sidebar() {
 
               {/* Navigation */}
               <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
-                {navItems.map((item) => {
+                {navItems.map((item, index) => {
                   const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
                   const Icon = item.icon;
 
@@ -307,14 +332,36 @@ export function Sidebar() {
                     <Link key={item.href} href={item.href}>
                       <motion.div
                         className={cn(
-                          'flex items-center gap-3 px-3 py-3 rounded-xl transition-colors',
-                          'hover:bg-white/10',
-                          isActive && 'bg-teal text-white'
+                          'relative flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200',
+                          'hover:bg-white/10 active:bg-white/5',
+                          isActive && 'bg-teal text-white shadow-lg shadow-teal/20'
                         )}
                         whileTap={{ scale: 0.98 }}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05, duration: 0.2 }}
                       >
-                        <Icon size={22} className={isActive ? 'text-white' : 'text-white/70'} />
-                        <span className={cn('font-medium', isActive ? 'text-white' : 'text-white/70')}>
+                        {/* Active indicator */}
+                        {isActive && (
+                          <motion.div
+                            className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full"
+                            layoutId="mobileActiveIndicator"
+                            transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                          />
+                        )}
+                        <Icon
+                          size={22}
+                          className={cn(
+                            'transition-all duration-200',
+                            isActive ? 'text-white scale-110' : 'text-white/70'
+                          )}
+                        />
+                        <span
+                          className={cn(
+                            'font-medium transition-colors',
+                            isActive ? 'text-white' : 'text-white/70'
+                          )}
+                        >
                           {item.label}
                         </span>
                       </motion.div>
@@ -328,14 +375,21 @@ export function Sidebar() {
                 <motion.button
                   onClick={() => setShowCoach(!showCoach)}
                   className={cn(
-                    'w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-colors',
-                    'bg-light-teal/20 hover:bg-light-teal/30 text-teal'
+                    'w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200',
+                    'bg-light-teal/20 hover:bg-light-teal/30 active:bg-light-teal/25 text-teal shadow-lg shadow-teal/10'
                   )}
                   whileTap={{ scale: 0.98 }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
                 >
                   <div className="relative">
                     <MessageCircle size={22} />
-                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-yellow rounded-full" />
+                    <motion.span
+                      className="absolute -top-1 -right-1 w-3 h-3 bg-yellow rounded-full"
+                      animate={{ scale: [1, 1.2, 1] }}
+                      transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
+                    />
                   </div>
                   <div className="flex-1 text-left">
                     <span className="font-medium block">Chat with Coach</span>

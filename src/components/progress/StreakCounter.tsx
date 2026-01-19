@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { Flame, Snowflake } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { SPRING } from '@/lib/design-tokens';
+import { SPRING } from '@/lib/motion/springs';
 
 type StreakCounterSize = 'sm' | 'md' | 'lg' | 'xl';
 

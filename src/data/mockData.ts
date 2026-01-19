@@ -1,4 +1,4 @@
-import type { Course, Module, Lesson, Atom, Badge, User, StreakData, UserProgress, UserPreferences } from '@/types';
+import type { Course, Module, Badge, User, StreakData, UserProgress, UserPreferences } from '@/types';
 
 // ============================================
 // BADGES

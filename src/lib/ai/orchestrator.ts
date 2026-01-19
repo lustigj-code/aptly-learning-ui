@@ -10,14 +10,14 @@
  * Upgrade: Add paid provider as primary, keep free as fallback
  */
 
-import type { AIProvider, AIMessage, GenerateOptions, GenerateResult, AIOrchestrator } from './providers/interfaces';
+import type { AIMessage, GenerateOptions, GenerateResult, AIOrchestrator } from './providers/interfaces';
 import { HuggingFaceProvider } from './providers/huggingface';
 import { ChromaDBVectorStore } from './vectordb/chroma';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export class SageAIOrchestrator implements AIOrchestrator {
   private huggingFace: HuggingFaceProvider;
-  private gemini: any;
+  private gemini: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null;
   private vectorDB: ChromaDBVectorStore;
   private requestLog: Map<string, number> = new Map();
 
@@ -132,7 +132,7 @@ export class SageAIOrchestrator implements AIOrchestrator {
    */
   private async generateWithGemini(
     messages: AIMessage[],
-    options?: GenerateOptions
+    _options?: GenerateOptions
   ): Promise<GenerateResult> {
     if (!this.gemini) {
       throw new Error('Gemini not configured - set GOOGLE_GENAI_API_KEY');

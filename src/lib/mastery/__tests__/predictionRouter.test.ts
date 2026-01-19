@@ -15,7 +15,7 @@ import {
   canUseHybrid,
   getDefaultFeatures,
 } from '../predictionRouter';
-import { DEFAULT_BKT_PARAMS, type SkillState } from '../bkt';
+import { type SkillState } from '../bkt';
 import { DEFAULT_HYBRID_CONFIG, type InteractionFeatures } from '../hybridTypes';
 
 // ============================================

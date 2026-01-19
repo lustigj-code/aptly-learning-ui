@@ -75,7 +75,7 @@ export async function checkDeploymentHealth(): Promise<DeploymentStatus> {
       errorRate: 0,
       lastHealthCheck: new Date(),
     };
-  } catch (error) {
+  } catch (_error) {
     return {
       healthy: false,
       provider: 'fallback',

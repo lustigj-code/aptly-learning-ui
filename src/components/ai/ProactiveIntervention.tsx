@@ -8,8 +8,8 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useCallback } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { Brain, X, ArrowRight } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
@@ -47,16 +47,7 @@ export function ProactiveIntervention({
   const [interventionType, setInterventionType] = useState<string | null>(null);
   const [lastInterventionTime, setLastInterventionTime] = useState<number | null>(null);
 
-  useEffect(() => {
-    // Check for struggle every 30 seconds
-    const interval = setInterval(() => {
-      checkForStruggle();
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [userBehavior]);
-
-  const checkForStruggle = () => {
+  const checkForStruggle = useCallback(() => {
     if (!userPreferences.proactiveAIEnabled) return;
 
     // Analyze struggle
@@ -76,7 +67,16 @@ export function ProactiveIntervention({
       // Log intervention for learning
       logIntervention(userId, currentAtomId, analysis.level, analysis.score);
     }
-  };
+  }, [userBehavior, userPreferences.proactiveAIEnabled, lastInterventionTime, userId, currentAtomId]);
+
+  useEffect(() => {
+    // Check for struggle every 30 seconds
+    const interval = setInterval(() => {
+      checkForStruggle();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [checkForStruggle]);
 
   const handleAccept = () => {
     // User accepted help - take action based on intervention type

@@ -11,7 +11,7 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { adminDb } from '@/lib/firebase/admin'
-import type { Question, Lesson, Module, Course } from '@/types'
+import type { Question, Lesson, Module } from '@/types'
 
 // Initialize Gemini
 const genAI = process.env.GOOGLE_GENAI_API_KEY
@@ -361,7 +361,7 @@ export async function processCourse(
     const modulesSnapshot = await courseRef.collection('modules').get()
 
     for (const moduleDoc of modulesSnapshot.docs) {
-      const moduleData = moduleDoc.data() as Module
+      const _moduleData = moduleDoc.data() as Module
       const lessonsSnapshot = await moduleDoc.ref.collection('lessons').get()
 
       for (const lessonDoc of lessonsSnapshot.docs) {

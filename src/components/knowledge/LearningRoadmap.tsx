@@ -16,7 +16,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { cn } from '@/lib/utils';
-import type { Course, Module, Lesson } from '@/types';
+import type { Course, Lesson } from '@/types';
 
 type LearningRoadmapProps = {
   course: Course;
@@ -33,7 +33,7 @@ type LearningRoadmapProps = {
 
 type LessonStatus = 'locked' | 'available' | 'in_progress' | 'complete';
 
-export function LearningRoadmap({ course, userProgress, userMastery }: LearningRoadmapProps) {
+export function LearningRoadmap({ course, userProgress, userMastery: _userMastery }: LearningRoadmapProps) {
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set([course.modules[0]?.id]));
 
   const toggleModule = (moduleId: string) => {
@@ -101,7 +101,7 @@ export function LearningRoadmap({ course, userProgress, userMastery }: LearningR
     };
   }, { total: 0, completed: 0 });
 
-  const overallPercentage =
+  const _overallPercentage =
     courseProgress.total > 0 ? Math.round((courseProgress.completed / courseProgress.total) * 100) : 0;
 
   return (

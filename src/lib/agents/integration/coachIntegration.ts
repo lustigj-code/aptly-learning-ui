@@ -74,7 +74,7 @@ export async function processCoachRequest(
   userId: string,
   message: string,
   context: CoachRequestContext,
-  conversationHistory: CoachMessage[] = [],
+  _conversationHistory: CoachMessage[] = [],
   config?: Partial<OrchestratorConfig>
 ): Promise<AgentCoachResponse> {
   const orchestrator = getOrchestrator(config);

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "code-index": {
+      "command": "uvx",
+      "args": ["code-index-mcp", "--project-path", "/Users/juleslustig/Projects/_Aptly/aptlylearning app/aptly-learning"]
+    }
+  }
+}

@@ -11,7 +11,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { adminDb } from '@/lib/firebase/admin';
 import { AI_AT_WORK_SKILL_MAP, getSkillName, getSkillsForLesson } from '@/data/skillMap';
-import { createInitialState, updateMastery, type SkillState, type BKTParameters } from '@/lib/mastery/bkt';
+import { type SkillState } from '@/lib/mastery/bkt';
 
 // ============================================
 // TYPES
@@ -265,7 +265,7 @@ export async function pretestLesson(
 ): Promise<LessonPretestResult> {
   const skillIds = getSkillsForLesson(lessonId);
   const skillResults: PretestResult[] = [];
-  let totalTime = 0;
+  const totalTime = 0;
 
   for (const skillId of skillIds) {
     // Generate pre-test for each skill
@@ -394,8 +394,7 @@ async function markSkillAsMastered(
   score: number
 ): Promise<void> {
   try {
-    const skill = AI_AT_WORK_SKILL_MAP.skills[skillId];
-    const bktParams = skill?.bktParams;
+    const _skill = AI_AT_WORK_SKILL_MAP.skills[skillId];
 
     // Create state with high mastery from pre-test success
     const state: SkillState = {

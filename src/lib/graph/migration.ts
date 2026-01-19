@@ -10,7 +10,6 @@ import {
   type Concept as LegacyConcept,
   type KnowledgeGraph as LegacyGraph,
   type ConceptEdge as LegacyEdge,
-  type ConceptCategory as LegacyCategory,
 } from '@/lib/mastery/knowledgeGraph';
 import {
   createGraph,
@@ -20,7 +19,7 @@ import {
   addCategory,
   getAllConcepts,
 } from './KnowledgeGraphService';
-import { Concept, ConceptEdge, ConceptCategory, EdgeRelationship } from './types';
+import { Concept, ConceptEdge, EdgeRelationship } from './types';
 
 // ============================================
 // MIGRATION RESULT
@@ -236,7 +235,7 @@ export async function verifyMigration(
  * Delete all data for a course (use with caution!)
  * For development/testing purposes
  */
-export async function rollbackMigration(courseId: string): Promise<{
+export async function rollbackMigration(_courseId: string): Promise<{
   success: boolean;
   message: string;
 }> {

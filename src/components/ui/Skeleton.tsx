@@ -2,13 +2,32 @@
 
 import { cn } from '@/lib/utils';
 
+/**
+ * Skeleton Component - Apple-level UI Quality
+ *
+ * Features:
+ * - iOS-style shimmer animation (2.5s sweep) with subtle light gradient
+ * - Colors match design system (light-grey base with white shimmer overlay)
+ * - Automatic reduced-motion support via globals.css
+ * - Comprehensive variants: default, circular, rounded, text, card, rectangle
+ * - Proper ARIA attributes for accessibility (role="status", aria-busy, aria-live)
+ * - Shape matching for content types
+ * - CSS-based animation for better performance
+ *
+ * Usage:
+ * <Skeleton variant="circular" width={40} height={40} /> // Avatar
+ * <Skeleton variant="text" width="100%" height={16} /> // Text line
+ * <SkeletonText lines={3} /> // Multiple text lines
+ * <SkeletonCard height={200} /> // Card placeholder
+ */
+
 // ============================================
 // BASE SKELETON
 // ============================================
 
 type SkeletonProps = {
   className?: string;
-  variant?: 'default' | 'circular' | 'rounded' | 'text';
+  variant?: 'default' | 'circular' | 'rounded' | 'text' | 'card' | 'rectangle';
   width?: string | number;
   height?: string | number;
   animate?: boolean;
@@ -25,14 +44,18 @@ export function Skeleton({
     default: 'rounded-md',
     circular: 'rounded-full',
     rounded: 'rounded-xl',
-    text: 'rounded h-4',
+    text: 'rounded-sm h-4',
+    card: 'rounded-xl',
+    rectangle: 'rounded-md',
   };
 
   return (
     <div
       className={cn(
-        'bg-grey/50',
-        animate && 'animate-pulse',
+        // Base colors matching design system
+        'bg-light-grey relative overflow-hidden',
+        // iOS-style shimmer animation (respects prefers-reduced-motion via globals.css)
+        animate && 'shimmer-enhanced',
         variantStyles[variant],
         className
       )}
@@ -40,6 +63,9 @@ export function Skeleton({
         width: typeof width === 'number' ? `${width}px` : width,
         height: typeof height === 'number' ? `${height}px` : height,
       }}
+      aria-busy="true"
+      aria-live="polite"
+      role="status"
     />
   );
 }
@@ -53,28 +79,46 @@ export function SkeletonAvatar({ size = 40 }: { size?: number }) {
   return <Skeleton variant="circular" width={size} height={size} />;
 }
 
-// Text line skeleton
+// Text line skeleton with natural variation
 export function SkeletonText({
   lines = 1,
   className,
-  lastLineWidth = '70%'
+  lastLineWidth = '70%',
+  lineHeight = 16,
+  gap = 8,
 }: {
   lines?: number;
   className?: string;
   lastLineWidth?: string;
+  lineHeight?: number;
+  gap?: number;
 }) {
   return (
-    <div className={cn('space-y-2', className)}>
+    <div
+      className={cn('flex flex-col', className)}
+      style={{ gap: `${gap}px` }}
+    >
       {Array.from({ length: lines }).map((_, i) => (
         <Skeleton
           key={i}
           variant="text"
-          className="h-4"
+          height={lineHeight}
           width={i === lines - 1 && lines > 1 ? lastLineWidth : '100%'}
         />
       ))}
     </div>
   );
+}
+
+// Generic card skeleton
+export function SkeletonCard({
+  height = 120,
+  className,
+}: {
+  height?: number;
+  className?: string;
+}) {
+  return <Skeleton variant="card" height={height} className={cn('w-full', className)} />;
 }
 
 // ============================================

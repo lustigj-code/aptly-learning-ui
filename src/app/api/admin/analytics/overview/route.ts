@@ -6,6 +6,7 @@ import {
   getMonthlyActiveUsers,
   getEventSummary,
 } from '@/lib/analytics';
+import { validateDateRange } from '@/lib/validation/apiParams';
 
 /**
  * POST /api/admin/analytics/overview
@@ -22,9 +23,18 @@ export async function POST(request: Request) {
     const token = authHeader.split('Bearer ')[1];
     await adminAuth.verifyIdToken(token);
 
+    // Validate request body
     const body = await request.json();
-    const startDate = new Date(body.startDate);
-    const endDate = new Date(body.endDate);
+
+    // Validate date range with bounds
+    const dateValidation = validateDateRange(body);
+    if ('error' in dateValidation) {
+      return NextResponse.json(
+        { error: dateValidation.error },
+        { status: 400 }
+      );
+    }
+    const { startDate, endDate } = dateValidation;
 
     // Get user counts
     const usersSnapshot = await adminDb.collection('users').count().get();
@@ -98,7 +108,7 @@ function calculateTrend(current: number, previous: number): number {
 async function generateDailyTrend(
   startDate: Date,
   endDate: Date,
-  eventType: string
+  _eventType: string
 ): Promise<{ date: string; value: number }[]> {
   const data: { date: string; value: number }[] = [];
   const current = new Date(startDate);

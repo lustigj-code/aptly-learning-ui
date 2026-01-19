@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
 
     const userId = auth.user.uid;
     const body: SyncPayload = await request.json();
-    const { type, atomId, lessonId, courseId, quizScore } = body;
+    const { type, atomId, lessonId, courseId: _courseId, quizScore } = body;
 
     // Validate required fields
     if (!type) {
@@ -287,7 +287,8 @@ export async function POST(request: NextRequest) {
             await userRef.update({
               'progress.modulesCompleted': arrayUnion(lessonModule.id),
             });
-            console.log(`[Progress Sync] Module ${lessonModule.id} completed for user ${userId}`);
+            // Log completion without exposing user ID
+            console.log(`[Progress Sync] Module ${lessonModule.id} completed`);
 
             // Check if all modules in course are complete
             const updatedModulesCompleted = [...modulesCompleted, lessonModule.id];
@@ -300,7 +301,8 @@ export async function POST(request: NextRequest) {
                 await userRef.update({
                   'progress.coursesCompleted': arrayUnion(course.id),
                 });
-                console.log(`[Progress Sync] Course ${course.id} completed for user ${userId}`);
+                // Log completion without exposing user ID
+                console.log(`[Progress Sync] Course ${course.id} completed`);
               }
             }
           }

@@ -9,7 +9,6 @@ import { confirmPasswordReset, AuthError, verifyPasswordResetCode } from 'fireba
 import { auth } from '@/lib/firebase'
 import { resetPasswordSchema } from '@/lib/auth/validation'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
 import { Lock, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react'
 

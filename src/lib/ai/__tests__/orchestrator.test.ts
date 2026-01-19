@@ -4,7 +4,10 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { SageAIOrchestrator } from '../orchestrator';
+
+// Import for side effects (module is mocked below)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type { SageAIOrchestrator } from '../orchestrator';
 
 // Mock providers
 vi.mock('../providers/huggingface', () => ({
@@ -45,8 +48,6 @@ vi.mock('../vectordb/chroma', () => ({
 }));
 
 describe('SageAIOrchestrator', () => {
-  let orchestrator: SageAIOrchestrator;
-
   beforeEach(() => {
     vi.clearAllMocks();
     // Would create new instance, but mocks make it complex

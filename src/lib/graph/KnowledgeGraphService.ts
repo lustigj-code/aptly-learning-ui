@@ -15,8 +15,6 @@ import {
   deleteDoc,
   query,
   where,
-  orderBy,
-  limit,
   writeBatch,
   serverTimestamp,
   Timestamp,
@@ -564,7 +562,7 @@ export async function getConceptMastery(
     id: snapshot.id,
     lastReviewedAt: (data.lastReviewedAt as Timestamp)?.toDate() || new Date(),
     nextReviewAt: (data.nextReviewAt as Timestamp)?.toDate() || new Date(),
-    history: (data.history || []).map((event: any) => ({
+    history: (data.history || []).map((event: { timestamp: Timestamp; correct?: boolean; score?: number }) => ({
       ...event,
       timestamp: (event.timestamp as Timestamp)?.toDate() || new Date(),
     })),
@@ -588,7 +586,7 @@ export async function getUserMastery(userId: string): Promise<ConceptMastery[]> 
       id: doc.id,
       lastReviewedAt: (data.lastReviewedAt as Timestamp)?.toDate() || new Date(),
       nextReviewAt: (data.nextReviewAt as Timestamp)?.toDate() || new Date(),
-      history: (data.history || []).map((event: any) => ({
+      history: (data.history || []).map((event: { timestamp: Timestamp; correct?: boolean; score?: number }) => ({
         ...event,
         timestamp: (event.timestamp as Timestamp)?.toDate() || new Date(),
       })),
@@ -747,7 +745,7 @@ export function generateConceptId(name: string): string {
 /**
  * Convert Firestore snapshot to Concept
  */
-function snapshotToConcept(snapshot: any): Concept {
+function snapshotToConcept(snapshot: { id: string; data: () => Record<string, unknown> }): Concept {
   const data = snapshot.data();
   return {
     ...data,
@@ -760,7 +758,7 @@ function snapshotToConcept(snapshot: any): Concept {
 /**
  * Convert Firestore snapshot to Edge
  */
-function snapshotToEdge(snapshot: any): ConceptEdge {
+function snapshotToEdge(snapshot: { id: string; data: () => Record<string, unknown> }): ConceptEdge {
   const data = snapshot.data();
   return {
     ...data,

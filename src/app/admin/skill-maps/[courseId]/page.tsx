@@ -72,7 +72,8 @@ export default function SkillMapDetailPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [courseId, user]);
+   
+  }, [courseId]);
 
   useEffect(() => {
     if (!userLoading && (!user || user.role !== 'admin')) {

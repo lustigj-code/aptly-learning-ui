@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { z } from 'zod';
+import { verifyBearerToken } from '@/lib/auth/apiAuth';
 
 const { arrayUnion } = FieldValue;
 
@@ -20,16 +21,12 @@ const useFreezeSchema = z.object({
  */
 export async function POST(request: NextRequest) {
   try {
-    // Get user ID from auth header
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    // SECURITY: Verify Bearer token and get authenticated userId
+    const auth = await verifyBearerToken(request);
+    if (!auth.authenticated) {
+      return auth.error;
     }
-
-    const userId = authHeader.slice(7);
+    const userId = auth.userId;
 
     // Validate input
     const body = await request.json();

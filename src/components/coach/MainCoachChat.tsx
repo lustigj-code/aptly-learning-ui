@@ -10,11 +10,14 @@ import {
   History,
   X,
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/Button';
 import { InlineQuiz, type QuizQuestion, type Answer } from '@/components/coach/InlineQuiz';
 import { ConversationHistoryPanel } from '@/components/coach/ConversationHistoryPanel';
 import { AIFeedbackInline } from '@/components/ai/AIFeedbackWidget';
 import { useCoach } from '@/hooks/useCoach';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { cn } from '@/lib/utils';
 import { type CoachAction, getActionButtonStyle } from '@/types/coachActions';
 import {
@@ -101,7 +104,8 @@ export function MainCoachChat({
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
   const hasLoadedInitialRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const prefersReducedMotion = useReducedMotion();
 
   // Handle quiz answer submission
   const handleQuizAnswer = useCallback(async (messageId: string, answer: Answer) => {
@@ -205,6 +209,12 @@ export function MainCoachChat({
 
     const message = input.trim();
     setInput('');
+
+    // Reset textarea height
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+    }
+
     onMessageSent?.();
 
     // Phase 2: Include immediate context in the message
@@ -214,7 +224,7 @@ export function MainCoachChat({
     });
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -231,17 +241,25 @@ export function MainCoachChat({
   return (
     <div className="flex flex-col h-full min-h-screen relative">
       {/* Header */}
-      <header className="flex-shrink-0 flex items-center justify-between p-4 border-b border-grey/20 bg-gradient-to-r from-teal/10 to-purple/10">
-        <div className="flex items-center gap-3">
+      <header className="flex-shrink-0 flex items-center justify-between p-5 border-b border-grey/20 bg-gradient-to-r from-teal/10 via-purple/5 to-teal/10">
+        <div className="flex items-center gap-4">
           <div className="relative">
-            <div className="w-12 h-12 bg-gradient-to-br from-teal to-purple rounded-xl flex items-center justify-center text-2xl">
+            <motion.div
+              className="w-14 h-14 bg-gradient-to-br from-teal via-purple to-teal-dark rounded-2xl flex items-center justify-center text-3xl shadow-lg"
+              whileHover={!prefersReducedMotion ? { scale: 1.05, rotate: 5 } : undefined}
+              transition={{ type: 'spring', stiffness: 300 }}
+            >
               🦉
-            </div>
-            <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-success rounded-full border-2 border-white" />
+            </motion.div>
+            <motion.div
+              className="absolute -bottom-1 -right-1 w-4 h-4 bg-success rounded-full border-2 border-white shadow-sm"
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            />
           </div>
           <div>
-            <h1 className="font-semibold text-navy text-lg">Sage</h1>
-            <p className="text-sm text-rich-black/60">Your AI learning coach</p>
+            <h1 className="font-bold text-navy text-xl">Sage</h1>
+            <p className="text-sm text-rich-black/70 font-medium">Your AI learning coach</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -249,12 +267,13 @@ export function MainCoachChat({
           <button
             onClick={() => setShowHistoryPanel(!showHistoryPanel)}
             className={cn(
-              'p-2 rounded-lg transition-colors',
+              'p-2 rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center',
               showHistoryPanel
                 ? 'bg-teal/10 text-teal'
                 : 'text-rich-black/40 hover:text-rich-black hover:bg-light-grey'
             )}
-            title="Chat history"
+            aria-label={showHistoryPanel ? 'Close chat history' : 'Open chat history'}
+            title={showHistoryPanel ? 'Close chat history' : 'Open chat history'}
           >
             {showHistoryPanel ? <X size={20} /> : <History size={20} />}
           </button>
@@ -263,7 +282,8 @@ export function MainCoachChat({
           {messages.length > 1 && (
             <button
               onClick={clearMessages}
-              className="p-2 rounded-lg text-rich-black/40 hover:text-rich-black hover:bg-light-grey transition-colors"
+              className="p-2 rounded-lg text-rich-black/40 hover:text-rich-black hover:bg-light-grey transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+              aria-label="Clear chat history"
               title="Clear chat"
             >
               <Trash2 size={20} />
@@ -291,8 +311,8 @@ export function MainCoachChat({
       )}
 
       {/* Messages */}
-      <main className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => {
+      <main className="flex-1 overflow-y-auto p-6 space-y-5">
+        {messages.map((message, index) => {
           // Check if this message has quiz content (from quizMessages state or content block)
           const quizData = quizMessages[message.id];
           const hasQuiz = quizData?.contentBlock?.type === 'quiz';
@@ -301,29 +321,90 @@ export function MainCoachChat({
           return (
             <motion.div
               key={message.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: 12, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{
+                duration: 0.3,
+                delay: index * 0.05,
+                ease: [0.34, 1.56, 0.64, 1]
+              }}
               className={cn(
-                'flex gap-3',
+                'flex gap-3 items-end',
                 message.role === 'user' ? 'flex-row-reverse' : ''
               )}
             >
               {message.role === 'assistant' && (
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-teal to-purple flex items-center justify-center">
+                <motion.div
+                  className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-teal to-purple flex items-center justify-center shadow-sm"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{
+                    type: 'spring',
+                    stiffness: 260,
+                    damping: 20,
+                    delay: index * 0.05 + 0.1
+                  }}
+                >
                   <Sparkles size={18} className="text-white" />
-                </div>
+                </motion.div>
               )}
               <div className="max-w-[80%]">
-                <div
+                <motion.div
                   className={cn(
-                    'rounded-2xl px-4 py-3',
+                    'rounded-2xl px-4 py-3 shadow-sm',
                     message.role === 'user'
-                      ? 'bg-teal text-white rounded-br-md'
-                      : 'bg-light-grey text-rich-black rounded-bl-md'
+                      ? 'bg-gradient-to-br from-teal to-teal/90 text-white rounded-br-md'
+                      : 'bg-white border border-grey/20 text-rich-black rounded-bl-md'
                   )}
+                  whileHover={!prefersReducedMotion ? { scale: 1.01 } : undefined}
+                  transition={{ duration: 0.2 }}
                 >
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                </div>
+                  {message.role === 'assistant' ? (
+                    <div className="text-sm leading-relaxed prose prose-sm max-w-none prose-p:my-2 prose-pre:my-2 prose-code:text-xs">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          code: ({ inline, children, ...props }) => (
+                            inline ? (
+                              <code className="px-1.5 py-0.5 bg-navy/10 text-navy rounded text-xs font-mono" {...props}>
+                                {children}
+                              </code>
+                            ) : (
+                              <pre className="p-3 bg-navy/5 rounded-lg overflow-x-auto my-2" {...props}>
+                                <code className="text-xs font-mono">{children}</code>
+                              </pre>
+                            )
+                          ),
+                          p: ({ children, ...props }) => (
+                            <p className="my-1.5" {...props}>{children}</p>
+                          ),
+                          ul: ({ children, ...props }) => (
+                            <ul className="my-2 ml-4 list-disc" {...props}>{children}</ul>
+                          ),
+                          ol: ({ children, ...props }) => (
+                            <ol className="my-2 ml-4 list-decimal" {...props}>{children}</ol>
+                          ),
+                          li: ({ children, ...props }) => (
+                            <li className="my-1" {...props}>{children}</li>
+                          ),
+                          strong: ({ children, ...props }) => (
+                            <strong className="font-semibold text-navy" {...props}>{children}</strong>
+                          ),
+                          em: ({ children, ...props }) => (
+                            <em className="italic" {...props}>{children}</em>
+                          ),
+                          a: ({ children, ...props }) => (
+                            <a className="text-teal underline hover:text-teal/80" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
+                          ),
+                        }}
+                      >
+                        {message.content}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                  )}
+                </motion.div>
                 {/* Render InlineQuiz if message contains quiz content */}
                 {hasQuiz && quizData.contentBlock && (
                   <InlineQuiz
@@ -360,29 +441,59 @@ export function MainCoachChat({
 
         {isLoading && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex gap-3"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.3, ease: [0.34, 1.56, 0.64, 1] }}
+            className="flex gap-3 items-end"
           >
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal to-purple flex items-center justify-center">
+            <motion.div
+              className="w-10 h-10 rounded-full bg-gradient-to-br from-teal to-purple flex items-center justify-center shadow-sm"
+              animate={{ scale: [1, 1.05, 1] }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+            >
               <Sparkles size={18} className="text-white" />
-            </div>
-            <div className="bg-light-grey rounded-2xl rounded-bl-md px-4 py-3">
-              <div className="flex gap-1">
+            </motion.div>
+            <div className="bg-white border border-grey/20 rounded-2xl rounded-bl-md px-5 py-3 shadow-sm">
+              <div className="flex gap-1.5 items-center h-5">
                 <motion.div
-                  className="w-2 h-2 bg-grey rounded-full"
-                  animate={{ y: [0, -5, 0] }}
-                  transition={{ duration: 0.5, repeat: Infinity, delay: 0 }}
+                  className="w-2 h-2 bg-gradient-to-br from-teal to-purple rounded-full"
+                  animate={{
+                    scale: [1, 1.3, 1],
+                    opacity: [0.5, 1, 0.5]
+                  }}
+                  transition={{
+                    duration: 1.4,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    delay: 0
+                  }}
                 />
                 <motion.div
-                  className="w-2 h-2 bg-grey rounded-full"
-                  animate={{ y: [0, -5, 0] }}
-                  transition={{ duration: 0.5, repeat: Infinity, delay: 0.1 }}
+                  className="w-2 h-2 bg-gradient-to-br from-teal to-purple rounded-full"
+                  animate={{
+                    scale: [1, 1.3, 1],
+                    opacity: [0.5, 1, 0.5]
+                  }}
+                  transition={{
+                    duration: 1.4,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    delay: 0.2
+                  }}
                 />
                 <motion.div
-                  className="w-2 h-2 bg-grey rounded-full"
-                  animate={{ y: [0, -5, 0] }}
-                  transition={{ duration: 0.5, repeat: Infinity, delay: 0.2 }}
+                  className="w-2 h-2 bg-gradient-to-br from-teal to-purple rounded-full"
+                  animate={{
+                    scale: [1, 1.3, 1],
+                    opacity: [0.5, 1, 0.5]
+                  }}
+                  transition={{
+                    duration: 1.4,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    delay: 0.4
+                  }}
                 />
               </div>
             </div>
@@ -407,47 +518,69 @@ export function MainCoachChat({
 
       {/* Quick Prompts */}
       {messages.length <= 1 && (
-        <div className="flex-shrink-0 px-4 pb-2">
-          <p className="text-xs text-rich-black/40 mb-2">Try asking:</p>
+        <motion.div
+          className="flex-shrink-0 px-6 pb-3"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <p className="text-xs text-rich-black/60 font-medium mb-3">Try asking:</p>
           <div className="flex flex-wrap gap-2">
-            {quickPrompts.map((prompt) => (
-              <button
+            {quickPrompts.map((prompt, index) => (
+              <motion.button
                 key={prompt}
                 onClick={() => setInput(prompt)}
-                className="text-xs px-3 py-1.5 rounded-full bg-light-grey text-rich-black/70 hover:bg-grey/50 transition-colors"
+                className="text-xs px-4 py-2 rounded-full bg-gradient-to-br from-light-grey to-grey/20 text-rich-black/80 hover:from-teal/10 hover:to-purple/10 hover:text-navy border border-grey/20 hover:border-teal/30 font-medium transition-all shadow-sm hover:shadow min-h-[44px]"
+                aria-label={`Quick prompt: ${prompt}`}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.4 + index * 0.1 }}
+                whileHover={!prefersReducedMotion ? { scale: 1.05 } : undefined}
+                whileTap={!prefersReducedMotion ? { scale: 0.95 } : undefined}
               >
                 {prompt}
-              </button>
+              </motion.button>
             ))}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Input */}
-      <footer className="flex-shrink-0 p-4 border-t border-grey/20 bg-white/80 backdrop-blur-sm">
-        <div className="flex gap-2 max-w-4xl mx-auto">
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask Sage anything..."
-            disabled={isLoading}
-            className="flex-1 px-4 py-3 rounded-xl border border-grey bg-light-grey/50 focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal placeholder:text-grey text-sm disabled:opacity-50"
-          />
-          <Button
-            onClick={handleSend}
-            disabled={!input.trim() || isLoading}
-            variant="primary"
-            className="px-4"
-          >
-            {isLoading ? (
-              <Loader2 size={20} className="animate-spin" />
-            ) : (
-              <Send size={20} />
-            )}
-          </Button>
+      <footer className="flex-shrink-0 p-5 border-t border-grey/20 bg-gradient-to-t from-white to-white/95">
+        <div className="flex gap-3 max-w-4xl mx-auto items-end">
+          <div className="flex-1 relative">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onInput={(e) => {
+                const target = e.currentTarget;
+                target.style.height = 'auto';
+                target.style.height = `${Math.min(target.scrollHeight, 120)}px`;
+              }}
+              placeholder="Ask Sage anything... (Shift+Enter for new line)"
+              aria-label="Message Sage AI coach"
+              disabled={isLoading}
+              rows={1}
+              className="w-full px-5 py-4 rounded-xl border border-grey/30 bg-white focus:outline-none focus:ring-2 focus:ring-teal/20 focus:border-teal/50 placeholder:text-grey/60 text-sm disabled:opacity-50 shadow-sm transition-all resize-none min-h-[52px] max-h-[120px] overflow-y-auto"
+            />
+          </div>
+          <motion.div whileHover={!prefersReducedMotion ? { scale: 1.05 } : undefined} whileTap={!prefersReducedMotion ? { scale: 0.95 } : undefined}>
+            <Button
+              onClick={handleSend}
+              disabled={!input.trim() || isLoading}
+              variant="primary"
+              className="px-5 py-4 shadow-md h-[52px]"
+              aria-label={isLoading ? 'Sending message' : 'Send message'}
+            >
+              {isLoading ? (
+                <Loader2 size={22} className="animate-spin" aria-hidden="true" />
+              ) : (
+                <Send size={22} aria-hidden="true" />
+              )}
+            </Button>
+          </motion.div>
         </div>
       </footer>
     </div>

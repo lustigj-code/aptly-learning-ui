@@ -8,7 +8,6 @@ import {
   Bell,
   Volume2,
   Moon,
-  Clock,
   Target,
   Shield,
   HelpCircle,
@@ -209,17 +208,17 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-8 max-w-2xl mx-auto">
+    <div className="space-y-6 md:space-y-8 max-w-3xl mx-auto">
       {/* Header */}
-      <Section delay={0}>
+      <Section delay={0} spacing="tight">
         <h1 className="h2 text-navy">Settings</h1>
-        <p className="text-rich-black/60 mt-1">
+        <p className="text-rich-black/60 mt-2">
           Customize your learning experience
         </p>
       </Section>
 
       {/* Profile Section */}
-      <Section delay={0.1}>
+      <Section delay={0.1} spacing="normal">
         <Card variant="elevated" padding="lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -247,7 +246,7 @@ export default function SettingsPage() {
       </Section>
 
       {/* Learning Preferences */}
-      <Section delay={0.2}>
+      <Section delay={0.2} spacing="normal">
         <Card variant="elevated" padding="lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -317,7 +316,7 @@ export default function SettingsPage() {
       </Section>
 
       {/* Exam Mode Settings */}
-      <Section delay={0.25}>
+      <Section delay={0.25} spacing="normal">
         <ExamModeSettings
           userId={user.id}
           examDate={user.preferences.certificationExamDate || null}
@@ -328,7 +327,7 @@ export default function SettingsPage() {
       </Section>
 
       {/* Review Interleaving Settings (Phase 13) */}
-      <Section delay={0.27}>
+      <Section delay={0.27} spacing="normal">
         <Card variant="elevated" padding="lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -396,7 +395,7 @@ export default function SettingsPage() {
       </Section>
 
       {/* Sound & Accessibility */}
-      <Section delay={0.3}>
+      <Section delay={0.3} spacing="normal">
         <Card variant="elevated" padding="lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -431,7 +430,7 @@ export default function SettingsPage() {
       </Section>
 
       {/* Coach Prompts Settings */}
-      <Section delay={0.35}>
+      <Section delay={0.35} spacing="normal">
         <Card variant="elevated" padding="lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -469,7 +468,7 @@ export default function SettingsPage() {
       </Section>
 
       {/* Account Actions */}
-      <Section delay={0.4}>
+      <Section delay={0.4} spacing="normal">
         <Card variant="outlined" padding="lg">
           <CardContent className="space-y-2">
             <button
@@ -511,8 +510,8 @@ export default function SettingsPage() {
       </Section>
 
       {/* Version Info */}
-      <Section delay={0.5}>
-        <p className="text-center text-sm text-rich-black/40">
+      <Section delay={0.5} spacing="tight">
+        <p className="text-center text-sm text-rich-black/40 py-4">
           Aptly v1.0.0 • Made for learners
         </p>
       </Section>
@@ -531,6 +530,7 @@ export default function SettingsPage() {
             onChange={(e) => setEditName(e.target.value)}
             placeholder="Your name"
             leftIcon={<User size={18} />}
+            required
           />
           <Input
             label="Email"

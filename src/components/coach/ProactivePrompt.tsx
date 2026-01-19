@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, ArrowRight, AlertCircle, BookOpen, Coffee, Lightbulb, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import type { ProactivePrompt as ProactivePromptType, Intervention } from '@/hooks/useProactiveCoach';
 import type { StruggleState, InterventionType as StruggleInterventionType } from '@/lib/coach/struggleDetector';
 import {
@@ -114,6 +115,8 @@ export function ProactivePrompt({
   onInterventionAccept,
   className,
 }: ProactivePromptProps) {
+  const prefersReducedMotion = useReducedMotion();
+
   if (!prompt) return null;
 
   const handleAction = () => {
@@ -141,67 +144,107 @@ export function ProactivePrompt({
             'fixed bottom-24 right-4 z-30 max-w-sm',
             className
           )}
-          initial={{ opacity: 0, y: 20, scale: 0.95 }}
+          initial={{ opacity: 0, y: 30, scale: 0.92 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 10, scale: 0.95 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+          exit={{ opacity: 0, y: 20, scale: 0.9 }}
+          transition={{
+            type: 'spring',
+            stiffness: 280,
+            damping: 24,
+            mass: 0.8
+          }}
         >
-          <div className="bg-white rounded-2xl shadow-xl border border-grey/20 overflow-hidden">
+          <motion.div
+            className="bg-white rounded-2xl shadow-2xl border border-grey/20 overflow-hidden backdrop-blur-sm"
+            whileHover={!prefersReducedMotion ? { scale: 1.02, y: -2 } : undefined}
+            transition={{ duration: 0.2 }}
+          >
             {/* Header */}
-            <div className={cn("flex items-center justify-between px-4 py-3", headerStyle)}>
-              <div className="flex items-center gap-2">
-                <div className={cn(
-                  "w-8 h-8 rounded-lg flex items-center justify-center",
-                  isIntervention ? "bg-amber-500" : "bg-teal"
-                )}>
+            <div className={cn("flex items-center justify-between px-5 py-4", headerStyle)}>
+              <div className="flex items-center gap-3">
+                <motion.div
+                  className={cn(
+                    "w-10 h-10 rounded-xl flex items-center justify-center shadow-sm",
+                    isIntervention ? "bg-gradient-to-br from-amber-500 to-amber-600" : "bg-gradient-to-br from-teal to-purple"
+                  )}
+                  initial={{ scale: 0, rotate: -180 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{
+                    type: 'spring',
+                    stiffness: 260,
+                    damping: 20,
+                    delay: 0.1
+                  }}
+                >
                   {getInterventionIcon(prompt.intervention)}
+                </motion.div>
+                <div>
+                  <span className="font-bold text-navy text-sm block">
+                    {isIntervention ? 'Sage noticed something' : 'Your Coach'}
+                  </span>
+                  <span className="text-xs text-rich-black/50">
+                    {isIntervention ? 'Let me help' : 'Here to support you'}
+                  </span>
                 </div>
-                <span className="font-semibold text-navy text-sm">
-                  {isIntervention ? 'Sage noticed something' : 'Coach'}
-                </span>
               </div>
-              <button
+              <motion.button
                 onClick={onDismiss}
-                className="p-1 rounded-lg hover:bg-teal/10 transition-colors"
+                className="p-2 rounded-lg hover:bg-grey/10 transition-colors"
                 aria-label="Dismiss"
+                whileHover={!prefersReducedMotion ? { scale: 1.1 } : undefined}
+                whileTap={!prefersReducedMotion ? { scale: 0.9 } : undefined}
               >
-                <X size={16} className="text-rich-black/60" />
-              </button>
+                <X size={18} className="text-rich-black/60" />
+              </motion.button>
             </div>
 
             {/* Message */}
-            <div className="px-4 py-3">
-              <p className="text-rich-black/80 text-sm leading-relaxed">
+            <motion.div
+              className="px-5 py-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              <p className="text-rich-black/90 text-sm leading-relaxed font-medium">
                 {prompt.message}
               </p>
-            </div>
+            </motion.div>
 
             {/* Action Buttons */}
             {prompt.suggestedAction && (
-              <div className="px-4 pb-4 space-y-2">
-                <Button
-                  variant={isIntervention ? "primary" : "secondary"}
-                  size="sm"
-                  fullWidth
-                  rightIcon={<ArrowRight size={14} />}
-                  onClick={handleAction}
-                  className="text-sm"
-                >
-                  {prompt.suggestedAction}
-                </Button>
+              <motion.div
+                className="px-5 pb-5 space-y-2.5"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+              >
+                <motion.div whileHover={!prefersReducedMotion ? { scale: 1.02 } : undefined} whileTap={!prefersReducedMotion ? { scale: 0.98 } : undefined}>
+                  <Button
+                    variant={isIntervention ? "primary" : "secondary"}
+                    size="sm"
+                    fullWidth
+                    rightIcon={<ArrowRight size={14} />}
+                    onClick={handleAction}
+                    className="text-sm font-semibold shadow-sm"
+                  >
+                    {prompt.suggestedAction}
+                  </Button>
+                </motion.div>
 
                 {/* Secondary dismiss for interventions */}
                 {isIntervention && (
-                  <button
+                  <motion.button
                     onClick={onDismiss}
-                    className="w-full text-center text-xs text-grey hover:text-rich-black transition-colors py-1"
+                    className="w-full text-center text-xs text-grey/80 hover:text-rich-black transition-colors py-2 font-medium"
+                    whileHover={!prefersReducedMotion ? { scale: 1.02 } : undefined}
+                    whileTap={!prefersReducedMotion ? { scale: 0.98 } : undefined}
                   >
                     I&apos;ll keep trying
-                  </button>
+                  </motion.button>
                 )}
-              </div>
+              </motion.div>
             )}
-          </div>
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
@@ -224,6 +267,7 @@ export function StrugglePrompt({
   className,
   showDelay = 2000,
 }: StrugglePromptProps) {
+  const prefersReducedMotion = useReducedMotion();
   const [isVisible, setIsVisible] = useState(false);
   const [dismissedForSession, setDismissedForSession] = useState(false);
 
@@ -264,7 +308,7 @@ export function StrugglePrompt({
     if (prevIsStruggling.current && !struggleState?.isStruggling) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setDismissedForSession(false);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setIsVisible(false);
     }
     prevIsStruggling.current = struggleState?.isStruggling;
@@ -299,73 +343,113 @@ export function StrugglePrompt({
           'fixed bottom-24 right-4 z-30 max-w-sm',
           className
         )}
-        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+        initial={{ opacity: 0, y: 30, scale: 0.92 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 10, scale: 0.95 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.1 }}
+        exit={{ opacity: 0, y: 20, scale: 0.9 }}
+        transition={{
+          type: 'spring',
+          stiffness: 280,
+          damping: 24,
+          mass: 0.8,
+          delay: 0.1
+        }}
       >
-        <div className="bg-white rounded-2xl shadow-xl border border-grey/20 overflow-hidden">
+        <motion.div
+          className="bg-white rounded-2xl shadow-2xl border border-grey/20 overflow-hidden backdrop-blur-sm"
+          whileHover={!prefersReducedMotion ? { scale: 1.02, y: -2 } : undefined}
+          transition={{ duration: 0.2 }}
+        >
           {/* Header with Sage Avatar */}
-          <div className={cn("flex items-center justify-between px-4 py-3", headerStyle)}>
-            <div className="flex items-center gap-2">
+          <div className={cn("flex items-center justify-between px-5 py-4", headerStyle)}>
+            <div className="flex items-center gap-3">
               {/* Sage Avatar */}
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal to-teal-dark flex items-center justify-center flex-shrink-0">
-                <span className="text-lg">🦉</span>
-              </div>
+              <motion.div
+                className="w-12 h-12 rounded-full bg-gradient-to-br from-teal to-teal-dark flex items-center justify-center flex-shrink-0 shadow-lg"
+                initial={{ scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{
+                  type: 'spring',
+                  stiffness: 260,
+                  damping: 20,
+                  delay: 0.15
+                }}
+              >
+                <span className="text-xl">🦉</span>
+              </motion.div>
               <div>
-                <span className="font-semibold text-navy text-sm block">
+                <span className="font-bold text-navy text-sm block">
                   Sage noticed something
                 </span>
-                {overallSeverity === 'severe' && (
-                  <span className="text-xs text-orange-600">
+                {overallSeverity === 'severe' ? (
+                  <span className="text-xs text-orange-600 font-semibold">
                     Let me help!
+                  </span>
+                ) : (
+                  <span className="text-xs text-rich-black/50">
+                    Here to support you
                   </span>
                 )}
               </div>
             </div>
-            <button
+            <motion.button
               onClick={handleDismiss}
-              className="p-1 rounded-lg hover:bg-grey/10 transition-colors"
+              className="p-2 rounded-lg hover:bg-grey/10 transition-colors"
               aria-label="Dismiss"
+              whileHover={!prefersReducedMotion ? { scale: 1.1 } : undefined}
+              whileTap={!prefersReducedMotion ? { scale: 0.9 } : undefined}
             >
-              <X size={16} className="text-rich-black/60" />
-            </button>
+              <X size={18} className="text-rich-black/60" />
+            </motion.button>
           </div>
 
           {/* Message */}
-          <div className="px-4 py-3">
-            <p className="text-rich-black/80 text-sm leading-relaxed">
+          <motion.div
+            className="px-5 py-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.25 }}
+          >
+            <p className="text-rich-black/90 text-sm leading-relaxed font-medium">
               {message}
             </p>
-          </div>
+          </motion.div>
 
           {/* Action Buttons */}
-          <div className="px-4 pb-4 space-y-2">
-            <Button
-              variant="primary"
-              size="sm"
-              fullWidth
-              rightIcon={<ArrowRight size={14} />}
-              onClick={handleAccept}
-              className="text-sm"
-            >
-              <span className="flex items-center gap-2">
-                <span className={cn("w-5 h-5 rounded flex items-center justify-center", iconBgColor)}>
-                  {getStruggleInterventionIcon(suggestedIntervention)}
+          <motion.div
+            className="px-5 pb-5 space-y-2.5"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+          >
+            <motion.div whileHover={!prefersReducedMotion ? { scale: 1.02 } : undefined} whileTap={!prefersReducedMotion ? { scale: 0.98 } : undefined}>
+              <Button
+                variant="primary"
+                size="sm"
+                fullWidth
+                rightIcon={<ArrowRight size={14} />}
+                onClick={handleAccept}
+                className="text-sm font-semibold shadow-sm"
+              >
+                <span className="flex items-center gap-2">
+                  <span className={cn("w-5 h-5 rounded-lg flex items-center justify-center shadow-sm", iconBgColor)}>
+                    {getStruggleInterventionIcon(suggestedIntervention)}
+                  </span>
+                  {actionText}
                 </span>
-                {actionText}
-              </span>
-            </Button>
+              </Button>
+            </motion.div>
 
             {/* Secondary dismiss option */}
-            <button
+            <motion.button
               onClick={handleDismiss}
-              className="w-full text-center text-xs text-grey hover:text-rich-black transition-colors py-1"
+              className="w-full text-center text-xs text-grey/80 hover:text-rich-black transition-colors py-2 font-medium"
+              whileHover={!prefersReducedMotion ? { scale: 1.02 } : undefined}
+              whileTap={!prefersReducedMotion ? { scale: 0.98 } : undefined}
             >
               I&apos;ll keep trying
-            </button>
-          </div>
-        </div>
+            </motion.button>
+          </motion.div>
+        </motion.div>
       </motion.div>
     </AnimatePresence>
   );

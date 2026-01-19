@@ -144,7 +144,7 @@ export function createFocusTrap(element: HTMLElement): () => void {
  * Debounce keyboard events for better accessibility
  * Prevents rapid-fire actions from keyboard navigation
  */
-export function debounceA11y<T extends (...args: any[]) => void>(
+export function debounceA11y<T extends (...args: unknown[]) => void>(
   func: T,
   wait: number = 150
 ): T {

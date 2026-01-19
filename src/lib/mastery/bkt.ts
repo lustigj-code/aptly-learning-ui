@@ -11,6 +11,14 @@
  * - P(T): Probability of learning on each attempt (0.1-0.4)
  * - P(G): Probability of guessing correctly despite not knowing (0.0-0.3)
  * - P(S): Probability of slipping (wrong despite knowing) (0.0-0.2)
+ *
+ * SCALE CONVENTIONS (ALL VALUES ARE 0-1 PROBABILITIES):
+ * - pMastery: 0-1 scale (probability of mastery, e.g., 0.95 = 95% likely mastered)
+ * - pL0, pT, pG, pS: 0-1 scale (BKT parameters as probabilities)
+ * - threshold: 0-1 scale (mastery threshold, default 0.95)
+ *
+ * NOTE: BKT uses 0-1 scale while FSRS masteryLevel uses 0-100 scale.
+ * Convert with: bktValue * 100 = fsrsScale, or fsrsValue / 100 = bktScale
  */
 
 // ============================================
@@ -457,6 +465,11 @@ export function getSkillsByPriority(
 /**
  * Calculate how many more correct answers needed to reach mastery
  * This is an approximation based on BKT dynamics
+ *
+ * @param currentPMastery - Current mastery probability (0-1 scale)
+ * @param params - BKT parameters
+ * @param threshold - Mastery threshold (0-1 scale, default 0.95)
+ * @returns Estimated number of correct attempts needed
  */
 export function estimateAttemptsToMastery(
   currentPMastery: number,
@@ -472,6 +485,11 @@ export function estimateAttemptsToMastery(
   while (pMastery < threshold && attempts < maxIterations) {
     // Simulate a correct answer
     const pCorrect = pMastery * (1 - params.pS) + (1 - pMastery) * params.pG;
+    // Guard against division by zero (can happen with extreme params)
+    if (pCorrect <= 0) {
+      // Cannot make progress with these parameters
+      return maxIterations;
+    }
     const pLGivenCorrect = (pMastery * (1 - params.pS)) / pCorrect;
     pMastery = pLGivenCorrect + (1 - pLGivenCorrect) * params.pT;
     attempts++;

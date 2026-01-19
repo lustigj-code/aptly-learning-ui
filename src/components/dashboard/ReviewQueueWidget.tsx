@@ -13,6 +13,7 @@ import {
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useReviewQueue, type DueReviewItem } from '@/hooks/useReviewQueue';
 
 type ReviewQueueWidgetProps = {
@@ -90,9 +91,10 @@ function formatDueDate(dueDate: string | null): string {
 }
 
 /**
- * Single review item row
+ * Single review item row - Enhanced with better hover interactions
  */
 function ReviewItemRow({ item }: { item: DueReviewItem }) {
+  const prefersReducedMotion = useReducedMotion();
   const urgency = getUrgencyLevel(item.dueDate);
   const config = getUrgencyConfig(urgency);
   const UrgencyIcon = config.icon;
@@ -101,45 +103,67 @@ function ReviewItemRow({ item }: { item: DueReviewItem }) {
     <motion.div
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
+      whileHover={!prefersReducedMotion ? { scale: 1.01, y: -1 } : undefined}
+      transition={{ duration: 0.2 }}
       className={cn(
-        'flex items-center gap-3 p-3 rounded-lg border transition-all',
+        'group relative flex items-center gap-3 p-3 rounded-lg border transition-all cursor-default',
         config.bgColor,
         config.borderColor,
-        'hover:shadow-sm'
+        'hover:shadow-md hover:border-opacity-60'
       )}
     >
-      {/* Urgency Indicator */}
-      <div
-        className={cn(
-          'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
-          urgency === 'overdue' ? 'bg-error/20' : urgency === 'due_today' ? 'bg-yellow/20' : 'bg-success/20'
-        )}
-      >
-        <UrgencyIcon size={16} className={config.textColor} />
+      {/* Urgency Indicator with tooltip */}
+      <div className="relative group/icon">
+        <div
+          className={cn(
+            'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110',
+            urgency === 'overdue' ? 'bg-error/20' : urgency === 'due_today' ? 'bg-yellow/20' : 'bg-success/20'
+          )}
+        >
+          <UrgencyIcon size={16} className={config.textColor} />
+        </div>
+        {/* Tooltip */}
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-navy text-white text-xs rounded whitespace-nowrap opacity-0 group-hover/icon:opacity-100 transition-opacity pointer-events-none z-10">
+          {config.label}
+        </div>
       </div>
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-navy truncate">{item.conceptName}</p>
+        <p className="text-sm font-medium text-navy truncate group-hover:text-teal transition-colors">
+          {item.conceptName}
+        </p>
         <div className="flex items-center gap-2 mt-0.5">
           <span className="text-xs text-rich-black/60 capitalize">{item.category}</span>
-          <span className="text-xs text-rich-black/40">|</span>
-          <span className={cn('text-xs', config.textColor)}>{formatDueDate(item.dueDate)}</span>
+          <span className="text-xs text-rich-black/40">•</span>
+          <span className={cn('text-xs font-medium', config.textColor)}>{formatDueDate(item.dueDate)}</span>
         </div>
       </div>
 
-      {/* Mastery Level */}
-      <div className="text-right flex-shrink-0">
-        <p
-          className={cn(
-            'text-sm font-semibold',
-            item.masteryLevel >= 80 ? 'text-success' : item.masteryLevel >= 50 ? 'text-yellow-dark' : 'text-error'
-          )}
-        >
-          {Math.round(item.masteryLevel)}%
-        </p>
-        <p className="text-xs text-rich-black/50">mastery</p>
+      {/* Mastery Level with enhanced styling */}
+      <div className="relative group/mastery text-right flex-shrink-0">
+        <div className="relative">
+          <p
+            className={cn(
+              'text-sm font-bold tabular-nums',
+              item.masteryLevel >= 80 ? 'text-success' : item.masteryLevel >= 50 ? 'text-yellow-dark' : 'text-error'
+            )}
+          >
+            {Math.round(item.masteryLevel)}%
+          </p>
+          <p className="text-xs text-rich-black/50">mastery</p>
+        </div>
+        {/* Mastery tooltip */}
+        <div className="absolute bottom-full right-0 mb-2 px-2 py-1 bg-navy text-white text-xs rounded whitespace-nowrap opacity-0 group-hover/mastery:opacity-100 transition-opacity pointer-events-none z-10">
+          {item.masteryLevel >= 80 ? 'Strong' : item.masteryLevel >= 50 ? 'Developing' : 'Needs Practice'}
+        </div>
       </div>
+
+      {/* Hover accent bar */}
+      <div className={cn(
+        'absolute left-0 top-0 bottom-0 w-1 rounded-l-lg transition-opacity opacity-0 group-hover:opacity-100',
+        urgency === 'overdue' ? 'bg-error' : urgency === 'due_today' ? 'bg-yellow' : 'bg-success'
+      )} />
     </motion.div>
   );
 }
@@ -160,15 +184,62 @@ export function ReviewQueueWidget({ userId, maxItems = 5 }: ReviewQueueWidgetPro
   // Don't render if no user
   if (!userId) return null;
 
-  // Loading state
+  // Loading state - Enhanced skeleton with shimmer effect
   if (isLoading) {
     return (
-      <Card variant="elevated" padding="lg" className="animate-pulse">
+      <Card variant="elevated" padding="lg" className="relative overflow-hidden">
         <div className="space-y-4">
-          <div className="h-6 w-40 bg-grey/20 rounded" />
-          <div className="h-16 bg-grey/20 rounded-lg" />
-          <div className="h-16 bg-grey/20 rounded-lg" />
+          {/* Header skeleton */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-grey/10 rounded-lg animate-pulse" />
+              <div className="h-6 w-40 bg-grey/10 rounded animate-pulse" />
+            </div>
+            <div className="h-5 w-20 bg-grey/10 rounded-full animate-pulse" />
+          </div>
+
+          {/* Description skeleton */}
+          <div className="h-4 w-48 bg-grey/10 rounded animate-pulse" />
+
+          {/* Item skeletons */}
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="flex items-center gap-3 p-3 rounded-lg bg-grey/5 animate-pulse"
+              >
+                <div className="w-8 h-8 rounded-lg bg-grey/10" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-3/4 bg-grey/10 rounded" />
+                  <div className="h-3 w-1/2 bg-grey/10 rounded" />
+                </div>
+                <div className="w-12 text-right space-y-1">
+                  <div className="h-4 w-12 bg-grey/10 rounded ml-auto" />
+                  <div className="h-3 w-12 bg-grey/10 rounded ml-auto" />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Buttons skeleton */}
+          <div className="flex gap-2 pt-2">
+            <div className="flex-1 h-10 bg-grey/10 rounded-lg animate-pulse" />
+            <div className="h-10 w-24 bg-grey/10 rounded-lg animate-pulse" />
+          </div>
         </div>
+
+        {/* Shimmer overlay */}
+        <motion.div
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent"
+          animate={{
+            x: ['-100%', '100%'],
+          }}
+          transition={{
+            repeat: Infinity,
+            duration: 1.5,
+            ease: 'linear',
+          }}
+        />
       </Card>
     );
   }
@@ -321,13 +392,21 @@ export function ReviewQueueWidget({ userId, maxItems = 5 }: ReviewQueueWidgetPro
             </Button>
           </div>
 
-          {/* Tip */}
-          <div className="mt-2 p-3 bg-light-grey/50 rounded-lg">
-            <p className="text-xs text-rich-black/60">
-              <span className="font-medium text-navy">Tip:</span> Reviewing now strengthens long-term memory.
-              The best time to review is right before you forget!
-            </p>
-          </div>
+          {/* Tip - Enhanced with icon */}
+          <motion.div
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="mt-2 p-3 bg-gradient-to-r from-teal/5 to-purple/5 rounded-lg border border-teal/10"
+          >
+            <div className="flex items-start gap-2">
+              <Brain size={14} className="text-teal mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-rich-black/70 leading-relaxed">
+                <span className="font-semibold text-navy">Science-backed tip:</span> Reviewing now strengthens long-term memory.
+                The best time to review is right before you forget!
+              </p>
+            </div>
+          </motion.div>
         </CardContent>
       </Card>
     </motion.div>

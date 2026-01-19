@@ -257,8 +257,9 @@ export async function GET(request: NextRequest) {
 /**
  * Clear course metadata cache
  * Call when course content changes
+ * Note: Kept internal to route file - move to @/lib/cache/courseCache.ts if needed elsewhere
  */
-export function clearCourseCache(courseId?: string): void {
+function _clearCourseCache(courseId?: string): void {
   if (courseId) {
     courseMetaCache.delete(courseId);
   } else {

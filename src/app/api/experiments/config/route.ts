@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { getIdToken } from '@/lib/firebase';
 import { adminAuth } from '@/lib/firebase/admin';
 import { getUserExperimentConfig, getUserExperiments } from '@/lib/experiments';
 

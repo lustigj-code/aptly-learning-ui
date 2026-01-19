@@ -105,8 +105,9 @@ export function MasteryMap({
           viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
           className="select-none"
         >
-          {/* Arrow marker definition */}
+          {/* Arrow marker and gradient definitions */}
           <defs>
+            {/* Inactive arrow marker */}
             <marker
               id="arrowhead"
               markerWidth="10"
@@ -115,8 +116,10 @@ export function MasteryMap({
               refY="3.5"
               orient="auto"
             >
-              <polygon points="0 0, 10 3.5, 0 7" fill="#9ca3af" />
+              <polygon points="0 0, 10 3.5, 0 7" fill="#d1d5db" />
             </marker>
+
+            {/* Active arrow marker */}
             <marker
               id="arrowhead-active"
               markerWidth="10"
@@ -127,6 +130,33 @@ export function MasteryMap({
             >
               <polygon points="0 0, 10 3.5, 0 7" fill="#14b8a6" />
             </marker>
+
+            {/* Gradient for active connections */}
+            <linearGradient id="connection-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#14b8a6" stopOpacity="0.4" />
+              <stop offset="100%" stopColor="#14b8a6" stopOpacity="1" />
+            </linearGradient>
+
+            {/* Animated flow gradient */}
+            <linearGradient id="flow-gradient">
+              <stop offset="0%" stopColor="#14b8a6" stopOpacity="0">
+                <animate
+                  attributeName="stop-opacity"
+                  values="0;0.8;0"
+                  dur="2s"
+                  repeatCount="indefinite"
+                />
+              </stop>
+              <stop offset="50%" stopColor="#14b8a6" stopOpacity="0.8">
+                <animate
+                  attributeName="offset"
+                  values="0;1"
+                  dur="2s"
+                  repeatCount="indefinite"
+                />
+              </stop>
+              <stop offset="100%" stopColor="#14b8a6" stopOpacity="0" />
+            </linearGradient>
           </defs>
 
           {/* Edges (draw first so they appear behind nodes) */}
@@ -137,20 +167,62 @@ export function MasteryMap({
               if (!fromNode || !toNode) return null;
 
               const isActive = toNode.status !== 'locked';
+              const isCurrentPath = fromNode.id === data.currentSkillId || toNode.id === data.currentSkillId;
+
+              // Calculate control points for smoother S-curve
+              const startX = fromNode.position.x;
+              const startY = fromNode.position.y + config.nodeHeight / 2;
+              const endX = toNode.position.x;
+              const endY = toNode.position.y - config.nodeHeight / 2;
+
+              const verticalDist = endY - startY;
+              const controlPointOffset = Math.abs(verticalDist) * 0.4;
+
+              const pathData = `M ${startX} ${startY}
+                                C ${startX} ${startY + controlPointOffset},
+                                  ${endX} ${endY - controlPointOffset},
+                                  ${endX} ${endY}`;
 
               return (
-                <path
-                  key={`edge-${i}`}
-                  d={`M ${fromNode.position.x} ${fromNode.position.y + config.nodeHeight / 2}
-                      C ${fromNode.position.x} ${fromNode.position.y + config.nodeHeight / 2 + 40},
-                        ${toNode.position.x} ${toNode.position.y - config.nodeHeight / 2 - 40},
-                        ${toNode.position.x} ${toNode.position.y - config.nodeHeight / 2}`}
-                  fill="none"
-                  stroke={isActive ? '#14b8a6' : '#d1d5db'}
-                  strokeWidth={2}
-                  strokeDasharray={toNode.status === 'locked' ? '4 4' : 'none'}
-                  markerEnd={isActive ? 'url(#arrowhead-active)' : 'url(#arrowhead)'}
-                />
+                <g key={`edge-${i}`}>
+                  {/* Shadow/glow layer for active paths */}
+                  {isActive && (
+                    <path
+                      d={pathData}
+                      fill="none"
+                      stroke={isCurrentPath ? '#14b8a6' : 'url(#connection-gradient)'}
+                      strokeWidth={isCurrentPath ? 6 : 4}
+                      opacity={isCurrentPath ? 0.3 : 0.2}
+                      strokeLinecap="round"
+                    />
+                  )}
+
+                  {/* Main path */}
+                  <path
+                    d={pathData}
+                    fill="none"
+                    stroke={isActive ? '#14b8a6' : '#e5e7eb'}
+                    strokeWidth={isCurrentPath ? 3 : 2}
+                    strokeDasharray={toNode.status === 'locked' ? '6 4' : 'none'}
+                    strokeLinecap="round"
+                    markerEnd={isActive ? 'url(#arrowhead-active)' : 'url(#arrowhead)'}
+                    style={{
+                      transition: 'stroke-width 0.3s ease, stroke 0.3s ease',
+                    }}
+                  />
+
+                  {/* Animated flow for current path */}
+                  {isCurrentPath && isActive && (
+                    <path
+                      d={pathData}
+                      fill="none"
+                      stroke="url(#flow-gradient)"
+                      strokeWidth={3}
+                      strokeLinecap="round"
+                      opacity={0.6}
+                    />
+                  )}
+                </g>
               );
             })}
           </g>

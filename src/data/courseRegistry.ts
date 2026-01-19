@@ -6,7 +6,7 @@
  */
 
 import type { Course, Module, Lesson, Atom } from '@/types';
-import { FSM_COURSE, FSM_MODULE_1 } from './fsmCourse';
+import { FSM_COURSE } from './fsmCourse';
 import {
   getDomainConfig,
   getDomainFromCourse,
@@ -119,8 +119,8 @@ export function getCourseModules(courseId: string): Module[] {
  */
 export function getModule(moduleId: string): Module | undefined {
   for (const course of ALL_COURSES) {
-    const module = course.modules?.find(m => m.id === moduleId);
-    if (module) return module;
+    const foundModule = course.modules?.find(m => m.id === moduleId);
+    if (foundModule) return foundModule;
   }
   return undefined;
 }
@@ -130,8 +130,8 @@ export function getModule(moduleId: string): Module | undefined {
  */
 export function getModuleWithCourse(moduleId: string): { module: Module; courseId: string } | undefined {
   for (const course of ALL_COURSES) {
-    const module = course.modules?.find(m => m.id === moduleId);
-    if (module) return { module, courseId: course.id };
+    const foundModule = course.modules?.find(m => m.id === moduleId);
+    if (foundModule) return { module: foundModule, courseId: course.id };
   }
   return undefined;
 }
@@ -144,8 +144,8 @@ export function getModuleWithCourse(moduleId: string): { module: Module; courseI
  * Get all lessons for a module
  */
 export function getModuleLessons(moduleId: string): Lesson[] {
-  const module = getModule(moduleId);
-  return module?.lessons ?? [];
+  const foundModule = getModule(moduleId);
+  return foundModule?.lessons ?? [];
 }
 
 /**
@@ -153,8 +153,8 @@ export function getModuleLessons(moduleId: string): Lesson[] {
  */
 export function getLesson(lessonId: string): Lesson | undefined {
   for (const course of ALL_COURSES) {
-    for (const module of course.modules ?? []) {
-      const lesson = module.lessons?.find(l => l.id === lessonId);
+    for (const mod of course.modules ?? []) {
+      const lesson = mod.lessons?.find(l => l.id === lessonId);
       if (lesson) return lesson;
     }
   }
@@ -170,12 +170,12 @@ export function getLessonWithContext(lessonId: string): {
   courseId: string;
 } | undefined {
   for (const course of ALL_COURSES) {
-    for (const module of course.modules ?? []) {
-      const lesson = module.lessons?.find(l => l.id === lessonId);
+    for (const mod of course.modules ?? []) {
+      const lesson = mod.lessons?.find(l => l.id === lessonId);
       if (lesson) {
         return {
           lesson,
-          moduleId: module.id,
+          moduleId: mod.id,
           courseId: course.id,
         };
       }
@@ -201,8 +201,8 @@ export function getLessonAtoms(lessonId: string): Atom[] {
  */
 export function getAtom(atomId: string): Atom | undefined {
   for (const course of ALL_COURSES) {
-    for (const module of course.modules ?? []) {
-      for (const lesson of module.lessons ?? []) {
+    for (const mod of course.modules ?? []) {
+      for (const lesson of mod.lessons ?? []) {
         const atom = lesson.atoms?.find(a => a.id === atomId);
         if (atom) return atom;
       }
@@ -221,14 +221,14 @@ export function getAtomWithContext(atomId: string): {
   courseId: string;
 } | undefined {
   for (const course of ALL_COURSES) {
-    for (const module of course.modules ?? []) {
-      for (const lesson of module.lessons ?? []) {
+    for (const mod of course.modules ?? []) {
+      for (const lesson of mod.lessons ?? []) {
         const atom = lesson.atoms?.find(a => a.id === atomId);
         if (atom) {
           return {
             atom,
             lessonId: lesson.id,
-            moduleId: module.id,
+            moduleId: mod.id,
             courseId: course.id,
           };
         }
@@ -261,10 +261,10 @@ export function getBreadcrumbs(
   }
 
   if (moduleId) {
-    const module = getModule(moduleId);
-    if (module) {
+    const mod = getModule(moduleId);
+    if (mod) {
       breadcrumbs.push({
-        label: `Module ${module.number}: ${module.title}`,
+        label: `Module ${mod.number}: ${mod.title}`,
         href: `/learn?module=${moduleId}`,
       });
     }
@@ -300,8 +300,8 @@ export function calculateCourseProgress(
   let totalAtoms = 0;
   let completedAtoms = 0;
 
-  for (const module of course.modules ?? []) {
-    for (const lesson of module.lessons ?? []) {
+  for (const mod of course.modules ?? []) {
+    for (const lesson of mod.lessons ?? []) {
       for (const atom of lesson.atoms ?? []) {
         totalAtoms++;
         if (completedAtomIds.includes(atom.id)) {
@@ -324,8 +324,8 @@ export function getNextAtom(
   const course = getCourse(courseId);
   if (!course) return undefined;
 
-  for (const module of course.modules ?? []) {
-    for (const lesson of module.lessons ?? []) {
+  for (const mod of course.modules ?? []) {
+    for (const lesson of mod.lessons ?? []) {
       for (const atom of lesson.atoms ?? []) {
         if (!completedAtomIds.includes(atom.id)) {
           return atom;

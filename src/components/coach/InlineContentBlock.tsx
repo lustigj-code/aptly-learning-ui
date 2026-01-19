@@ -11,12 +11,11 @@ import {
   BookOpen,
   FileText,
   HelpCircle,
-  Loader2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import ReactMarkdown from 'react-markdown'
-import type { Atom, VideoContent, ReadingContent, QuizContent, Question } from '@/types'
+import type { Atom, VideoContent, ReadingContent, QuizContent } from '@/types'
 
 // ============================================
 // TYPES
@@ -104,7 +103,7 @@ function VideoBlock({
   isActive: boolean
 }) {
   const [isPlaying, setIsPlaying] = useState(false)
-  const [progress, setProgress] = useState(0)
+  const [_progress, _setProgress] = useState(0)
   const [showTranscript, setShowTranscript] = useState(false)
 
   const handleComplete = useCallback(() => {
@@ -273,7 +272,7 @@ function ReadingBlock({
                   onClick={() => onComplete(atom.id)}
                 >
                   <CheckCircle className="w-4 h-4 mr-2" />
-                  I've Read This
+                  I&apos;ve Read This
                 </Button>
               </div>
             )}

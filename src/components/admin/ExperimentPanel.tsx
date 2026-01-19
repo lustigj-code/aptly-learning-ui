@@ -42,54 +42,54 @@ export function ExperimentPanel() {
   const TARGET_INTERACTIONS = 100000; // Target for hybrid model training
 
   useEffect(() => {
+    async function fetchInteractionCount() {
+      try {
+        setInteractionCountLoading(true);
+        const response = await fetch('/api/interactions/log');
+        if (response.ok) {
+          const data = await response.json();
+          setInteractionCount(data.stats?.totalCount || 0);
+        }
+      } catch (err) {
+        console.error('Error fetching interaction count:', err);
+        // Leave at 0 if error
+      } finally {
+        setInteractionCountLoading(false);
+      }
+    }
+
+    async function fetchExperiments() {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/admin/experiments');
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch experiments');
+        }
+
+        const data = await response.json();
+        setExperiments(data.experiments || []);
+
+        // Select first experiment by default
+        if (data.experiments?.length > 0) {
+          setSelectedExperiment(data.experiments[0].id);
+        }
+      } catch (err) {
+        console.error('Error fetching experiments:', err);
+        // Use mock data for demo
+        const mockExperiments = getMockExperiments();
+        setExperiments(mockExperiments);
+        if (mockExperiments.length > 0) {
+          setSelectedExperiment(mockExperiments[0].id);
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+
     fetchExperiments();
     fetchInteractionCount();
   }, []);
-
-  async function fetchInteractionCount() {
-    try {
-      setInteractionCountLoading(true);
-      const response = await fetch('/api/interactions/log');
-      if (response.ok) {
-        const data = await response.json();
-        setInteractionCount(data.stats?.totalCount || 0);
-      }
-    } catch (err) {
-      console.error('Error fetching interaction count:', err);
-      // Leave at 0 if error
-    } finally {
-      setInteractionCountLoading(false);
-    }
-  }
-
-  async function fetchExperiments() {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/admin/experiments');
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch experiments');
-      }
-
-      const data = await response.json();
-      setExperiments(data.experiments || []);
-
-      // Select first experiment by default
-      if (data.experiments?.length > 0 && !selectedExperiment) {
-        setSelectedExperiment(data.experiments[0].id);
-      }
-    } catch (err) {
-      console.error('Error fetching experiments:', err);
-      // Use mock data for demo
-      const mockExperiments = getMockExperiments();
-      setExperiments(mockExperiments);
-      if (mockExperiments.length > 0) {
-        setSelectedExperiment(mockExperiments[0].id);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function handleExperimentAction(
     experimentId: string,

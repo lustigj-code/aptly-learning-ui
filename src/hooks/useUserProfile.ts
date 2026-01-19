@@ -8,7 +8,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { queryKeys, invalidateQueries } from '@/lib/api/queryClient';
+import { queryKeys } from '@/lib/api/queryClient';
 import type { User, UserPreferences } from '@/types';
 
 /**

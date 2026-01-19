@@ -92,7 +92,7 @@ const DEFAULT_CONFIG: AdaptiveConfig = {
 export function useAdaptiveQuiz(
   config: Partial<AdaptiveConfig> = {}
 ) {
-  const mergedConfig = { ...DEFAULT_CONFIG, ...config };
+  const mergedConfig = useMemo(() => ({ ...DEFAULT_CONFIG, ...config }), [config]);
 
   const [state, setState] = useState<AdaptiveState>({
     correctStreak: 0,

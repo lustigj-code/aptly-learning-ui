@@ -31,39 +31,38 @@ export function CohortAnalysis({ dateRange }: CohortAnalysisProps) {
   const [selectedCohorts, setSelectedCohorts] = useState<string[]>([]);
 
   useEffect(() => {
+    async function fetchCohorts() {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/admin/analytics/cohorts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cohortType,
+            startDate: dateRange.start.toISOString(),
+            endDate: dateRange.end.toISOString(),
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch cohorts');
+        }
+
+        const data = await response.json();
+        setCohorts(data.cohorts || []);
+        setSelectedCohorts(data.cohorts?.slice(0, 2).map((c: CohortData) => c.id) || []);
+      } catch (err) {
+        console.error('Error fetching cohorts:', err);
+        // Use mock data
+        const mockCohorts = getMockCohorts(cohortType);
+        setCohorts(mockCohorts);
+        setSelectedCohorts(mockCohorts.slice(0, 2).map((c) => c.id));
+      } finally {
+        setLoading(false);
+      }
+    }
     fetchCohorts();
   }, [cohortType, dateRange]);
-
-  async function fetchCohorts() {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/admin/analytics/cohorts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cohortType,
-          startDate: dateRange.start.toISOString(),
-          endDate: dateRange.end.toISOString(),
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch cohorts');
-      }
-
-      const data = await response.json();
-      setCohorts(data.cohorts || []);
-      setSelectedCohorts(data.cohorts?.slice(0, 2).map((c: CohortData) => c.id) || []);
-    } catch (err) {
-      console.error('Error fetching cohorts:', err);
-      // Use mock data
-      const mockCohorts = getMockCohorts(cohortType);
-      setCohorts(mockCohorts);
-      setSelectedCohorts(mockCohorts.slice(0, 2).map((c) => c.id));
-    } finally {
-      setLoading(false);
-    }
-  }
 
   const toggleCohort = (cohortId: string) => {
     setSelectedCohorts((prev) =>

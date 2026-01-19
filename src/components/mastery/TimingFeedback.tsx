@@ -32,7 +32,7 @@ export function TimingFeedback({
   actualTime = new Date(),
   className,
 }: TimingFeedbackProps) {
-  const { status, message, hoursOverdue, hoursEarly } = useMemo(() => {
+  const { status, message } = useMemo(() => {
     if (!scheduledTime) {
       return {
         status: 'perfect' as TimingStatus,

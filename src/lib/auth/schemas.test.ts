@@ -12,8 +12,8 @@ describe('signUpSchema', () => {
       const validData = {
         name: 'John Doe',
         email: 'john@example.com',
-        password: 'Password1',
-        confirmPassword: 'Password1',
+        password: 'Password123!@#',
+        confirmPassword: 'Password123!@#',
       }
       const result = signUpSchema.safeParse(validData)
       expect(result.success).toBe(true)
@@ -25,8 +25,8 @@ describe('signUpSchema', () => {
       const data = {
         name: 'J',
         email: 'john@example.com',
-        password: 'Password1',
-        confirmPassword: 'Password1',
+        password: 'Password123!@#',
+        confirmPassword: 'Password123!@#',
       }
       const result = signUpSchema.safeParse(data)
       expect(result.success).toBe(false)
@@ -39,8 +39,8 @@ describe('signUpSchema', () => {
       const data = {
         name: 'A'.repeat(101),
         email: 'john@example.com',
-        password: 'Password1',
-        confirmPassword: 'Password1',
+        password: 'Password123!@#',
+        confirmPassword: 'Password123!@#',
       }
       const result = signUpSchema.safeParse(data)
       expect(result.success).toBe(false)
@@ -52,8 +52,8 @@ describe('signUpSchema', () => {
       const data = {
         name: 'John Doe',
         email: 'notanemail',
-        password: 'Password1',
-        confirmPassword: 'Password1',
+        password: 'Password123!@#',
+        confirmPassword: 'Password123!@#',
       }
       const result = signUpSchema.safeParse(data)
       expect(result.success).toBe(false)
@@ -65,8 +65,8 @@ describe('signUpSchema', () => {
         const data = {
           name: 'John Doe',
           email,
-          password: 'Password1',
-          confirmPassword: 'Password1',
+          password: 'Password123!@#',
+          confirmPassword: 'Password123!@#',
         }
         const result = signUpSchema.safeParse(data)
         expect(result.success).toBe(true)
@@ -114,8 +114,8 @@ describe('signUpSchema', () => {
       const data = {
         name: 'John Doe',
         email: 'john@example.com',
-        password: 'Password1',
-        confirmPassword: 'Password2',
+        password: 'Password123!@#',
+        confirmPassword: 'Password123!@$',
       }
       const result = signUpSchema.safeParse(data)
       expect(result.success).toBe(false)
@@ -172,8 +172,8 @@ describe('forgotPasswordSchema', () => {
 describe('resetPasswordSchema', () => {
   it('accepts valid reset data', () => {
     const result = resetPasswordSchema.safeParse({
-      password: 'NewPassword1',
-      confirmPassword: 'NewPassword1',
+      password: 'NewPassword1!@#',
+      confirmPassword: 'NewPassword1!@#',
     })
     expect(result.success).toBe(true)
   })
@@ -188,8 +188,8 @@ describe('resetPasswordSchema', () => {
 
   it('rejects mismatched passwords', () => {
     const result = resetPasswordSchema.safeParse({
-      password: 'Password1',
-      confirmPassword: 'Password2',
+      password: 'Password123!@#',
+      confirmPassword: 'Password123!@$',
     })
     expect(result.success).toBe(false)
   })

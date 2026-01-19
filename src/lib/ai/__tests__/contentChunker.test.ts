@@ -8,7 +8,6 @@ import {
   chunkLesson,
   estimateTokens,
   getChunkingConfig,
-  type ContentChunk,
 } from '../contentChunker';
 import type { Atom, Lesson, ReadingContent, VideoContent, QuizContent, PracticeContent } from '@/types';
 

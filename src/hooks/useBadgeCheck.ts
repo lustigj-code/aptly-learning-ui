@@ -12,7 +12,7 @@ import type { Badge } from '@/types';
  * to check if the user earned any new badges and show celebration toasts.
  */
 export function useBadgeCheck() {
-  const { celebrateBadge, celebrate } = useCelebration();
+  const { celebrateBadge } = useCelebration();
 
   /**
    * Check badge criteria for user and trigger celebrations for new badges

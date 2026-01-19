@@ -28,8 +28,9 @@ const queryConfig: DefaultOptions = {
   },
   mutations: {
     // Retry mutations only for network errors
-    retry: (failureCount, error: any) => {
-      if (error?.status && error.status >= 400 && error.status < 500) {
+    retry: (failureCount, error: unknown) => {
+      const err = error as { status?: number };
+      if (err?.status && err.status >= 400 && err.status < 500) {
         return false; // Don't retry client errors
       }
       return failureCount < 2; // Retry network errors twice
@@ -122,11 +123,12 @@ export const invalidateQueries = {
    * Invalidate progress queries after atom completion
    */
   progress: (uid: string, courseId?: string) => {
-    const queries: any[] = [queryKeys.userProgress(uid), queryKeys.reviewQueue(uid)];
+    const queries: readonly (readonly string[])[] = [queryKeys.userProgress(uid), queryKeys.reviewQueue(uid)];
+    const result = [...queries];
     if (courseId) {
-      queries.push(queryKeys.courseProgress(uid, courseId));
+      result.push(queryKeys.courseProgress(uid, courseId));
     }
-    return queries;
+    return result;
   },
 
   /**

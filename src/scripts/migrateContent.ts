@@ -13,6 +13,7 @@
 
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { readFileSync } from 'fs';
 import {
   COURSES,
   COURSE_1_MODULE_1,
@@ -24,8 +25,10 @@ import {
 function initializeFirebase() {
   if (getApps().length === 0) {
     // For local development, use service account
+
+
     const serviceAccount = process.env.GOOGLE_APPLICATION_CREDENTIALS
-      ? require(process.env.GOOGLE_APPLICATION_CREDENTIALS)
+      ? JSON.parse(readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf-8'))
       : null;
 
     if (serviceAccount) {
@@ -97,30 +100,30 @@ async function migrateContent(): Promise<MigrationResult> {
 
     // 2. Migrate Modules
     console.log('\nMigrating modules...');
-    for (const module of allModules) {
-      const moduleRef = db.collection('modules').doc(module.id);
+    for (const mod of allModules) {
+      const moduleRef = db.collection('modules').doc(mod.id);
 
       // Extract lesson IDs
-      const lessonIds = module.lessons.map(l => l.id);
+      const lessonIds = mod.lessons.map(l => l.id);
 
       batch.set(moduleRef, {
-        id: module.id,
-        courseId: module.courseId,
-        number: module.number,
-        title: module.title,
-        objectives: module.objectives,
-        estimatedMinutes: module.estimatedMinutes,
-        isLocked: module.isLocked,
+        id: mod.id,
+        courseId: mod.courseId,
+        number: mod.number,
+        title: mod.title,
+        objectives: mod.objectives,
+        estimatedMinutes: mod.estimatedMinutes,
+        isLocked: mod.isLocked,
         lessonIds: lessonIds,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       });
 
       result.modules++;
-      console.log(`  - ${module.title}`);
+      console.log(`  - ${mod.title}`);
 
       // 3. Migrate Lessons
-      for (const lesson of module.lessons) {
+      for (const lesson of mod.lessons) {
         const lessonRef = db.collection('lessons').doc(lesson.id);
 
         // Extract atom IDs

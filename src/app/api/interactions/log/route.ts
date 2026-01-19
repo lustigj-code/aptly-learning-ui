@@ -135,12 +135,12 @@ export async function GET(request: NextRequest) {
     }
 
     const idToken = authHeader.slice(7);
-    let userId: string;
+    let _userId: string;
 
     try {
       const decodedToken = await adminAuth.verifyIdToken(idToken);
-      userId = decodedToken.uid;
-    } catch (error) {
+      _userId = decodedToken.uid;
+    } catch {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 

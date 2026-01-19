@@ -97,7 +97,7 @@ describe('Badge Service', () => {
           }),
         },
       ],
-      forEach: function(callback: (doc: any) => void) {
+      forEach: function(callback: (doc: { id: string; data: () => Record<string, unknown> }) => void) {
         this.docs.forEach(callback);
       },
     });
@@ -174,7 +174,7 @@ describe('Badge Service', () => {
     });
 
     it('throws error with invalid UID', async () => {
-      await expect(getUserBadges('')).rejects.toThrow('Invalid UID');
+      await expect(getUserBadges('')).rejects.toThrow('Invalid uid');
     });
   });
 
@@ -277,7 +277,7 @@ describe('Badge Service', () => {
     });
 
     it('throws error with invalid UID', async () => {
-      await expect(checkBadgeCriteria('')).rejects.toThrow('Invalid UID');
+      await expect(checkBadgeCriteria('')).rejects.toThrow('Invalid uid');
     });
   });
 
@@ -300,7 +300,7 @@ describe('Badge Service', () => {
     });
 
     it('throws error with invalid UID', async () => {
-      await expect(getUserBadgeCount('')).rejects.toThrow('Invalid UID');
+      await expect(getUserBadgeCount('')).rejects.toThrow('Invalid uid');
     });
   });
 });

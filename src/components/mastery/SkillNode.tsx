@@ -1,6 +1,6 @@
 'use client';
 
-import { Lock, Play, CheckCircle, AlertTriangle, Star, Award } from 'lucide-react';
+import { Lock, Play, CheckCircle, AlertTriangle, Star } from 'lucide-react';
 import type { SkillNodeData, SkillNodeStatus } from './types';
 
 interface SkillNodeProps {
@@ -105,46 +105,137 @@ export function SkillNode({ node, isSelected, onClick, config }: SkillNodeProps)
   const x = node.position.x - config.nodeWidth / 2;
   const y = node.position.y - config.nodeHeight / 2;
 
+  // Check for high-stability mastery
+  const isStableMastery = node.status === 'mastered' && node.pMastery >= 0.98;
+  const displayColors = isStableMastery ? STATUS_STYLES.mastered_stable : colors;
+
   return (
     <g
       style={{ cursor: onClick && node.status !== 'locked' ? 'pointer' : 'default' }}
       onClick={() => onClick?.(node)}
-      className="skill-node"
+      className="skill-node transition-transform hover:translate-y-[-2px]"
     >
-      {/* Node background */}
+      {/* Shadow layer */}
+      <rect
+        x={x + 2}
+        y={y + 2}
+        width={config.nodeWidth}
+        height={config.nodeHeight}
+        rx={10}
+        fill="black"
+        opacity={0.1}
+        style={{
+          transition: 'opacity 0.2s ease',
+        }}
+      />
+
+      {/* Node background with gradient */}
+      <defs>
+        <linearGradient id={`node-gradient-${node.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor={displayColors.fill} stopOpacity="1" />
+          <stop offset="100%" stopColor={displayColors.fill} stopOpacity="0.9" />
+        </linearGradient>
+        {isStableMastery && (
+          <filter id={`gold-glow-${node.id}`}>
+            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+            <feFlood floodColor="#f59e0b" floodOpacity="0.4" />
+            <feComposite in2="coloredBlur" operator="in" />
+            <feMerge>
+              <feMergeNode />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        )}
+      </defs>
+
       <rect
         x={x}
         y={y}
         width={config.nodeWidth}
         height={config.nodeHeight}
-        rx={8}
-        fill={colors.fill}
-        stroke={isSelected ? '#1e3a5f' : colors.stroke}
+        rx={10}
+        fill={`url(#node-gradient-${node.id})`}
+        stroke={isSelected ? '#0A004A' : displayColors.stroke}
         strokeWidth={isSelected ? 3 : 2}
+        filter={isStableMastery ? `url(#gold-glow-${node.id})` : undefined}
+        style={{
+          transition: 'stroke-width 0.2s ease, stroke 0.2s ease',
+        }}
       />
 
-      {/* Progress bar (for available/active nodes) */}
-      {(node.status === 'available' || node.status === 'active') && node.pMastery > 0 && (
+      {/* Progress bar background track */}
+      {(node.status === 'available' || node.status === 'active' || node.status === 'decaying') && (
         <rect
-          x={x + 4}
-          y={y + config.nodeHeight - 8}
-          width={(config.nodeWidth - 8) * Math.min(node.pMastery, 1)}
-          height={4}
-          rx={2}
-          fill="#14b8a6"
+          x={x + 6}
+          y={y + config.nodeHeight - 10}
+          width={config.nodeWidth - 12}
+          height={6}
+          rx={3}
+          fill={displayColors.fill}
+          opacity={0.3}
         />
       )}
 
-      {/* Decay indicator bar */}
+      {/* Progress bar (for available/active nodes) */}
+      {(node.status === 'available' || node.status === 'active') && node.pMastery > 0 && (
+        <g>
+          <rect
+            x={x + 6}
+            y={y + config.nodeHeight - 10}
+            width={(config.nodeWidth - 12) * Math.min(node.pMastery, 1)}
+            height={6}
+            rx={3}
+            fill="#14b8a6"
+          >
+            <animate
+              attributeName="width"
+              from="0"
+              to={`${(config.nodeWidth - 12) * Math.min(node.pMastery, 1)}`}
+              dur="0.8s"
+              fill="freeze"
+              calcMode="spline"
+              keySplines="0.4 0 0.2 1"
+            />
+          </rect>
+          {/* Shimmer effect */}
+          <rect
+            x={x + 6}
+            y={y + config.nodeHeight - 10}
+            width={(config.nodeWidth - 12) * Math.min(node.pMastery, 1)}
+            height={6}
+            rx={3}
+            fill="white"
+            opacity={0.3}
+          >
+            <animate
+              attributeName="opacity"
+              values="0;0.3;0"
+              dur="2s"
+              repeatCount="indefinite"
+            />
+          </rect>
+        </g>
+      )}
+
+      {/* Decay indicator bar with warning pulse */}
       {node.status === 'decaying' && node.retrievability !== undefined && (
-        <rect
-          x={x + 4}
-          y={y + config.nodeHeight - 8}
-          width={(config.nodeWidth - 8) * node.retrievability}
-          height={4}
-          rx={2}
-          fill="#f97316"
-        />
+        <g>
+          <rect
+            x={x + 6}
+            y={y + config.nodeHeight - 10}
+            width={(config.nodeWidth - 12) * node.retrievability}
+            height={6}
+            rx={3}
+            fill="#f97316"
+          >
+            <animate
+              attributeName="opacity"
+              values="1;0.6;1"
+              dur="1.5s"
+              repeatCount="indefinite"
+            />
+          </rect>
+        </g>
       )}
 
       {/* Icon */}

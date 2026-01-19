@@ -9,7 +9,6 @@
  */
 
 import { adminDb } from '@/lib/firebase/admin';
-import { getSkillName } from '@/data/skillMap';
 
 // ============================================
 // TYPES
@@ -59,7 +58,8 @@ export async function applyCoachModification(
   modification: PathModification
 ): Promise<{ success: boolean; message: string }> {
   try {
-    const path = await getLearningPath(userId);
+    // Get learning path to verify it exists (path used in switch cases via helper functions)
+    await getLearningPath(userId);
 
     switch (modification.type) {
       case 'insert':
@@ -132,7 +132,8 @@ export async function insertRemediation(
     lastModified: new Date(),
   });
 
-  console.log(`[PathModifier] Inserted remediation ${contentId} for user ${userId}`);
+  // Log without exposing user ID
+  console.log(`[PathModifier] Inserted remediation ${contentId}`);
 }
 
 /**
@@ -169,7 +170,8 @@ export async function skipAhead(
     lastModified: new Date(),
   });
 
-  console.log(`[PathModifier] Skipped skills ${skillIds.join(', ')} for user ${userId}`);
+  // Log without exposing user ID
+  console.log(`[PathModifier] Skipped skills ${skillIds.join(', ')}`);
 }
 
 /**
@@ -205,7 +207,8 @@ export async function replaceWithSimpler(
     lastModified: new Date(),
   });
 
-  console.log(`[PathModifier] Replaced ${currentId} with ${simplerId} for user ${userId}`);
+  // Log without exposing user ID
+  console.log(`[PathModifier] Replaced ${currentId} with ${simplerId}`);
 }
 
 // ============================================

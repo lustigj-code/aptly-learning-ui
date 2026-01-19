@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     }
 
     const token = authHeader.split('Bearer ')[1];
-    const decodedToken = await adminAuth.verifyIdToken(token);
+    await adminAuth.verifyIdToken(token);
 
     // Check if user is admin (you may want to check a custom claim)
     // For now, we just check if they're authenticated

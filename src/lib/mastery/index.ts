@@ -36,4 +36,5 @@ export {
   getDueForReview,
   calculateOverallRetention,
   predictMasteryDecay,
+  predictIntervalsForRatings,
 } from './fsrs';

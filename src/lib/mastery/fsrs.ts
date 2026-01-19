@@ -5,6 +5,13 @@
  * https://github.com/open-spaced-repetition/fsrs4anki
  *
  * This is a simplified implementation adapted for concept mastery tracking
+ *
+ * SCALE CONVENTIONS:
+ * - masteryLevel: 0-100 scale (percentage, e.g., 85 = 85% mastery)
+ * - retrievability: 0-1 scale (probability, e.g., 0.9 = 90% recall probability)
+ * - stability: days (positive number, minimum 0.1)
+ * - difficulty: 1-10 scale (FSRS standard)
+ * - score (input): 0-100 scale (quiz/practice score percentage)
  */
 
 import type { FSRSState, ConceptMastery } from './knowledgeGraph';
@@ -60,10 +67,13 @@ export const DEFAULT_PARAMETERS: FSRSParameters = {
 
 /**
  * Create initial FSRS state for a new concept
+ *
+ * NOTE: stability must be > 0 to avoid division by zero in calculateRetrievability.
+ * Using 0.1 as minimum safe value per FSRS research.
  */
 export function createInitialFSRSState(): FSRSState {
   return {
-    stability: 0,
+    stability: 0.1, // Must be > 0 to avoid division by zero in retrievability calc
     difficulty: 0,
     elapsedDays: 0,
     scheduledDays: 0,
@@ -244,8 +254,7 @@ function calculateNextStability(
   rating: ReviewRating,
   w: number[]
 ): number {
-  // Stability increase factor based on rating
-  const ratingFactor = rating === 4 ? w[15] : rating === 3 ? 1 : w[14];
+  // Note: Rating factor (w[14]/w[15]) is applied via hardPenalty/easyBonus below
 
   // Calculate retrievability at this point
   const elapsedDays = stability; // Assume reviewing at optimal time
@@ -286,8 +295,16 @@ function calculateForgetStability(
  * where t = elapsed days, S = stability
  *
  * Exported for use by interleaving algorithm (Phase 13)
+ *
+ * @param stability - Memory stability in days (must be > 0)
+ * @param elapsedDays - Days since last review
+ * @returns Retrievability as a value between 0 and 1 (0-100% scale)
  */
 export function calculateRetrievability(stability: number, elapsedDays: number): number {
+  // Guard against division by zero from legacy data or invalid state
+  if (stability <= 0) {
+    return 0;
+  }
   return Math.pow(1 + elapsedDays / (9 * stability), -1);
 }
 
@@ -735,6 +752,43 @@ export function updateDifficultyWithMeanReversion(
 
   // Additional mean reversion toward center (research enhancement)
   return newD + REVERSION_RATE * (MEAN_DIFFICULTY - newD);
+}
+
+/**
+ * Predict intervals for all 4 FSRS ratings
+ *
+ * Returns human-readable intervals for UI display (e.g., "1d", "3d", "1w", "2w")
+ * Used by ReviewQueue to show predicted intervals on rating buttons.
+ */
+export function predictIntervalsForRatings(
+  currentState: FSRSState,
+  params: FSRSParameters = DEFAULT_PARAMETERS
+): { again: string; hard: string; good: string; easy: string } {
+  const formatInterval = (days: number): string => {
+    if (days === 0) return '<1d';
+    if (days === 1) return '1d';
+    if (days < 7) return `${days}d`;
+    if (days < 14) return '1w';
+    if (days < 21) return '2w';
+    if (days < 30) return '3w';
+    if (days < 60) return '1mo';
+    if (days < 90) return '2mo';
+    if (days < 180) return '3mo';
+    if (days < 365) return '6mo';
+    return '1y+';
+  };
+
+  const { interval: againInterval } = calculateNextState(currentState, 1, params);
+  const { interval: hardInterval } = calculateNextState(currentState, 2, params);
+  const { interval: goodInterval } = calculateNextState(currentState, 3, params);
+  const { interval: easyInterval } = calculateNextState(currentState, 4, params);
+
+  return {
+    again: formatInterval(againInterval),
+    hard: formatInterval(hardInterval),
+    good: formatInterval(goodInterval),
+    easy: formatInterval(easyInterval),
+  };
 }
 
 /**

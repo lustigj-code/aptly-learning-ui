@@ -222,7 +222,7 @@ function determineIntervention(
 /**
  * Hook for React components to use struggle detection
  */
-export function useStruggleDetection(userId: string) {
+export function useStruggleDetection(_userId: string) {
   // In a real hook, this would:
   // 1. Subscribe to user behavior events
   // 2. Continuously analyze for struggle

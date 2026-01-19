@@ -80,9 +80,9 @@ const defaultPreferences: UserPreferences = {
 
 const defaultProgress: UserProgress = {
   currentCourseId: DEFAULT_COURSE_ID,
-  currentModuleId: 'ai-m1',
-  currentLessonId: '1.1',
-  currentAtomId: '1.1-intro',
+  currentModuleId: 'fsm-m1',
+  currentLessonId: 'fsm-l1',
+  currentAtomId: 'fsm-l1-video',
   overallPercentage: 0,
   coursesCompleted: [],
   modulesCompleted: [],
@@ -631,7 +631,18 @@ export const useUserProfileStore = create<UserProfileState>()(
                   userError: null,
                 });
               } else {
-                set({ isUserLoading: false });
+                // User doc doesn't exist - create default user
+                const authState = useAuthStore.getState();
+                if (authState.authUser) {
+                  const newUser = createNewUser(
+                    authState.authUser.displayName || 'User',
+                    authState.authUser.email || '',
+                    authState.authUser.uid
+                  );
+                  set({ user: newUser, isUserLoading: false, userError: null });
+                } else {
+                  set({ isUserLoading: false });
+                }
               }
             },
             (error) => {

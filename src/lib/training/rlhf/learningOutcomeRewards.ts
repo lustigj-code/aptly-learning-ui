@@ -13,7 +13,7 @@
  * 5. Long-term retention signals
  */
 
-import type { FSRSState, ConceptMastery } from '@/lib/mastery';
+import type { FSRSState } from '@/lib/mastery';
 import type { ReviewRating } from '@/lib/mastery/fsrs';
 import type { TutoringSession } from '../schema';
 

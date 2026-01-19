@@ -19,8 +19,6 @@ import {
 import '@xyflow/react/dist/style.css';
 import {
   SOCIAL_MEDIA_MARKETING_GRAPH,
-  type Concept,
-  type ConceptEdge,
   type ConceptCategory,
 } from '@/lib/mastery/knowledgeGraph';
 import { Search, User, RefreshCw, Info } from 'lucide-react';

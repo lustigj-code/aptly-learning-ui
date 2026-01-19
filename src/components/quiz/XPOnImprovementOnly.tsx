@@ -97,7 +97,7 @@ export function calculateQuizXP(
  */
 export function QuizImprovementDisplay({
   attempts,
-  currentScore,
+  currentScore: _currentScore,
   xpResult,
 }: {
   attempts: QuizAttempt[];
@@ -189,7 +189,7 @@ export function QuizImprovementDisplay({
       {/* Encouragement for Retakes */}
       {xpResult.improvement <= 0 && (
         <p className="text-xs text-gray-500 mt-4 italic">
-          Tip: Review the material and try again. You'll earn XP when you improve your score!
+          Tip: Review the material and try again. You&apos;ll earn XP when you improve your score!
         </p>
       )}
     </Card>

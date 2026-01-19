@@ -8,7 +8,13 @@
  * Upgrade Path: Same interface, can switch to Claude Vision or other providers
  */
 
-import type { AIMessage } from './providers/interfaces';
+// Analysis context type for vision functions
+type AnalysisContext = {
+  objective: string;
+  targetAudience: string;
+  platform: string;
+  industry: string;
+};
 
 export type AdCreativeAnalysis = {
   strengths: string[];
@@ -98,7 +104,7 @@ export async function analyzeAdCreative(
  */
 async function analyzeWithGPT4Vision(
   imageUrl: string,
-  context: any
+  context: AnalysisContext
 ): Promise<AdCreativeAnalysis> {
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -149,7 +155,7 @@ Be Socratic - ask questions that make them think, don't just tell them what to f
  */
 async function analyzeWithGeminiVision(
   imageUrl: string,
-  context: any
+  context: AnalysisContext
 ): Promise<AdCreativeAnalysis> {
   const { GoogleGenerativeAI } = await import('@google/generative-ai');
   const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENAI_API_KEY!);
@@ -181,7 +187,7 @@ Provide Socratic analysis: strengths, improvements as questions, target audience
 /**
  * Parse analysis text into structured format
  */
-function parseAnalysisText(text: string, context: any): AdCreativeAnalysis {
+function parseAnalysisText(text: string, context: AnalysisContext): AdCreativeAnalysis {
   // Simplified parsing - in production, would use structured output
   return {
     strengths: extractListItems(text, 'strength'),
@@ -224,14 +230,14 @@ function extractScore(text: string): number | null {
 /**
  * Evaluate complete campaign plan (multi-input)
  */
-export async function evaluateCampaignPlan(plan: {
+export async function evaluateCampaignPlan(_plan: {
   audienceDescription: string;
   budgetBreakdown: string;
   adImages?: string[];
   contentCalendar?: string;
 }): Promise<CampaignPlanAnalysis> {
   // This would use multi-modal AI to evaluate the complete plan
-  // For now, return placeholder structure
+  // For now, return placeholder structure (TODO: implement with _plan)
 
   return {
     audienceStrategy: {

@@ -466,8 +466,8 @@ export async function POST(request: NextRequest) {
 
     const { dataSource, dataPath, config } = validation.data;
 
-    // Create training job record
-    const trainingId = `train_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    // Create training job record with cryptographically secure ID
+    const trainingId = `train_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
     const initialProgress: TrainingProgress = {
       status: 'pending',
       progress: 0,

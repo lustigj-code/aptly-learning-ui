@@ -37,7 +37,7 @@ import { parseCoachActions } from '@/types/coachActions';
 import { getOrchestrator } from '@/lib/agents/orchestrator';
 
 // Phase 4: Memory system integration
-import { getMemory, buildMemorySummary } from '@/lib/services/userMemoryService';
+import { buildMemorySummary } from '@/lib/services/userMemoryService';
 import { analyzeConversation, quickExtract } from '@/lib/coach/memoryExtractor';
 
 // ============================================
@@ -106,8 +106,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'userId is required' }, { status: 400 });
     }
 
-    // Check rate limit
-    const rateLimitResult = await checkRateLimit(userId).catch(() => ({ hasMessages: true }));
+    // Check rate limit - FAIL CLOSED: if rate limiting fails, deny the request
+    const rateLimitResult = await checkRateLimit(userId).catch((error) => {
+      console.error('[Coach API] Rate limit check failed:', error);
+      return { hasMessages: false, error: 'Rate limit service unavailable' };
+    });
     if (!rateLimitResult.hasMessages) {
       return NextResponse.json(
         { error: 'Rate limit exceeded', message: `You've reached the limit. Please wait a moment.`, messagesRemaining: 0 },
@@ -137,10 +140,11 @@ export async function POST(request: NextRequest) {
     try {
       memorySummary = await buildMemorySummary(userId);
       if (memorySummary) {
-        console.log('[Coach API] User memory loaded:', memorySummary.substring(0, 100));
+        // Log memory load without exposing user-specific content
+        console.log('[Coach API] User memory loaded successfully');
       }
-    } catch (memError) {
-      console.warn('[Coach API] Could not fetch user memory:', memError);
+    } catch {
+      console.warn('[Coach API] Could not fetch user memory');
     }
 
     // Quick extract facts from user message in real-time (non-blocking)
@@ -355,8 +359,8 @@ async function logTrainingData(
   await addTurnToSession(sessionId, 'tutor', assistantMessage);
 
   const metrics = analyzeTutorResponse(assistantMessage);
+  // Log training metrics without exposing session or user identifiers
   console.log('[Training] Response metrics:', {
-    sessionId,
     isSocratic: metrics.isSocratic,
     askedQuestion: metrics.askedQuestion,
     gaveDirectAnswer: metrics.gaveDirectAnswer,

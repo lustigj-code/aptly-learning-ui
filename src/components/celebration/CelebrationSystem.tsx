@@ -3,8 +3,10 @@
 import { createContext, useContext, useCallback, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
-import { Star, Trophy, Sparkles, Award, Zap, Flame } from 'lucide-react';
+import { Star, Trophy, Sparkles, Zap, Flame } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { SPRING, getMotionSafeTransition } from '@/lib/motion/springs';
 import type { CelebrationTier, CharacterMood, CharacterName, Badge } from '@/types';
 
 // Celebration configuration for each tier
@@ -143,6 +145,7 @@ export function CelebrationProvider({ children }: CelebrationProviderProps) {
   const [floatingXPs, setFloatingXPs] = useState<{ id: string; xp: number; x: number; y: number }[]>([]);
   const [showStreakCelebration, setShowStreakCelebration] = useState(false);
   const [streakDays, setStreakDays] = useState(0);
+  const prefersReducedMotion = useReducedMotion();
 
   const addFloatingXP = useCallback((xp: number) => {
     const xpId = `xp-${Date.now()}`;
@@ -174,13 +177,15 @@ export function CelebrationProvider({ children }: CelebrationProviderProps) {
       badgeId,
     };
 
-    // Fire confetti if configured
-    if (config.confetti) {
+    // Fire confetti if configured (skip for reduced motion)
+    if (config.confetti && !prefersReducedMotion) {
       fireConfetti(config.confetti, tier);
     }
 
-    // Add floating XP
-    addFloatingXP(xp);
+    // Add floating XP (skip for reduced motion)
+    if (!prefersReducedMotion) {
+      addFloatingXP(xp);
+    }
 
     // Show overlay for tier 2+
     if (config.showOverlay) {
@@ -191,7 +196,7 @@ export function CelebrationProvider({ children }: CelebrationProviderProps) {
         setActiveEvent(null);
       }, config.duration);
     }
-  }, [addFloatingXP]);
+  }, [addFloatingXP, prefersReducedMotion]);
 
   // Badge celebration with specific badge info
   const celebrateBadge = useCallback((badge: Badge, xp: number = 75) => {
@@ -205,11 +210,15 @@ export function CelebrationProvider({ children }: CelebrationProviderProps) {
       type: 'achievement',
     };
 
-    // Fire confetti
-    fireConfetti(CELEBRATION_CONFIGS[3].confetti, 3);
+    // Fire confetti (skip for reduced motion)
+    if (!prefersReducedMotion) {
+      fireConfetti(CELEBRATION_CONFIGS[3].confetti, 3);
+    }
 
-    // Add floating XP
-    addFloatingXP(xp);
+    // Add floating XP (skip for reduced motion)
+    if (!prefersReducedMotion) {
+      addFloatingXP(xp);
+    }
 
     // Show overlay
     setActiveEvent(event);
@@ -218,29 +227,34 @@ export function CelebrationProvider({ children }: CelebrationProviderProps) {
     setTimeout(() => {
       setActiveEvent(null);
     }, 4000);
-  }, [addFloatingXP]);
+  }, [addFloatingXP, prefersReducedMotion]);
 
   // Streak celebration
   const celebrateStreak = useCallback((days: number) => {
     setStreakDays(days);
     setShowStreakCelebration(true);
 
-    // Fire confetti (positioned to content area)
-    confetti({
-      particleCount: 100,
-      spread: 70,
-      origin: { x: getContentCenterX(), y: 0.6 },
-      colors: ['#FFDE00', '#21A8B0', '#88B644'],
-      zIndex: 9999,
-    });
-  }, []);
+    // Fire confetti (positioned to content area) - skip for reduced motion
+    if (!prefersReducedMotion) {
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { x: getContentCenterX(), y: 0.6 },
+        colors: ['#FFDE00', '#21A8B0', '#88B644'],
+        zIndex: 9999,
+      });
+    }
+  }, [prefersReducedMotion]);
 
   // Simple XP celebration (no overlay)
   const celebrateXP = useCallback((amount: number) => {
-    addFloatingXP(amount);
+    // Skip floating XP for reduced motion
+    if (!prefersReducedMotion) {
+      addFloatingXP(amount);
+    }
 
-    // Small confetti burst for larger XP gains
-    if (amount >= 50) {
+    // Small confetti burst for larger XP gains - skip for reduced motion
+    if (amount >= 50 && !prefersReducedMotion) {
       confetti({
         particleCount: 30,
         spread: 45,
@@ -249,7 +263,7 @@ export function CelebrationProvider({ children }: CelebrationProviderProps) {
         zIndex: 9999,
       });
     }
-  }, [addFloatingXP]);
+  }, [addFloatingXP, prefersReducedMotion]);
 
   const isActive = !!activeEvent || showStreakCelebration;
 
@@ -263,10 +277,10 @@ export function CelebrationProvider({ children }: CelebrationProviderProps) {
           {floatingXPs.map((floatingXP) => (
             <motion.div
               key={floatingXP.id}
-              initial={{ opacity: 0, y: 20, scale: 0.5 }}
+              initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20, scale: 0.5 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -50 }}
-              transition={{ duration: 1, ease: 'easeOut' }}
+              exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -50 }}
+              transition={getMotionSafeTransition(SPRING.gentle, prefersReducedMotion)}
               className="absolute text-teal font-bold text-2xl"
               style={{
                 left: `${floatingXP.x}%`,
@@ -285,6 +299,7 @@ export function CelebrationProvider({ children }: CelebrationProviderProps) {
           <CelebrationOverlay
             event={activeEvent}
             onDismiss={() => setActiveEvent(null)}
+            prefersReducedMotion={prefersReducedMotion}
           />
         )}
       </AnimatePresence>
@@ -294,6 +309,7 @@ export function CelebrationProvider({ children }: CelebrationProviderProps) {
         show={showStreakCelebration}
         days={streakDays}
         onDismiss={() => setShowStreakCelebration(false)}
+        prefersReducedMotion={prefersReducedMotion}
       />
     </CelebrationContext.Provider>
   );
@@ -364,9 +380,10 @@ function fireConfetti(config: CelebrationConfig['confetti'], tier: CelebrationTi
 type CelebrationOverlayProps = {
   event: CelebrationEvent;
   onDismiss: () => void;
+  prefersReducedMotion: boolean;
 };
 
-function CelebrationOverlay({ event, onDismiss }: CelebrationOverlayProps) {
+function CelebrationOverlay({ event, onDismiss, prefersReducedMotion }: CelebrationOverlayProps) {
   const config = CELEBRATION_CONFIGS[event.tier];
   const isBadgeCelebration = event.type === 'achievement' && event.badge;
 
@@ -375,6 +392,7 @@ function CelebrationOverlay({ event, onDismiss }: CelebrationOverlayProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      transition={getMotionSafeTransition(SPRING.modal, prefersReducedMotion)}
       className="fixed inset-0 z-[90] flex items-center justify-center p-4"
       onClick={onDismiss}
     >
@@ -383,24 +401,28 @@ function CelebrationOverlay({ event, onDismiss }: CelebrationOverlayProps) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
+        transition={getMotionSafeTransition(SPRING.modal, prefersReducedMotion)}
         className="absolute inset-0 bg-navy/70 backdrop-blur-sm"
       />
 
       {/* Content */}
       <motion.div
-        initial={{ scale: 0.8, opacity: 0 }}
+        initial={prefersReducedMotion ? { opacity: 0 } : { scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.8, opacity: 0 }}
-        transition={{ type: 'spring', bounce: 0.4 }}
+        exit={prefersReducedMotion ? { opacity: 0 } : { scale: 0.9, opacity: 0 }}
+        transition={getMotionSafeTransition(SPRING.bouncy, prefersReducedMotion)}
         className="relative bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Badge Icon for badge celebrations */}
         {isBadgeCelebration ? (
           <motion.div
-            initial={{ scale: 0, rotate: -180 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ delay: 0.2, type: 'spring', bounce: 0.5 }}
+            initial={prefersReducedMotion ? { opacity: 0 } : { scale: 0, rotate: -180 }}
+            animate={{ scale: 1, rotate: 0, opacity: 1 }}
+            transition={getMotionSafeTransition(
+              { delay: 0.1, type: 'spring', bounce: 0.4, damping: 25 },
+              prefersReducedMotion
+            )}
             className="w-24 h-24 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-yellow to-teal flex items-center justify-center"
           >
             <Trophy size={48} className="text-white" />
@@ -408,9 +430,12 @@ function CelebrationOverlay({ event, onDismiss }: CelebrationOverlayProps) {
         ) : (
           /* Icon for non-badge celebrations */
           <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: 'spring', bounce: 0.5 }}
+            initial={prefersReducedMotion ? { opacity: 0 } : { scale: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={getMotionSafeTransition(
+              { delay: 0.1, type: 'spring', bounce: 0.4, damping: 25 },
+              prefersReducedMotion
+            )}
             className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-teal to-purple flex items-center justify-center"
           >
             <Sparkles size={40} className="text-white" />
@@ -419,9 +444,9 @@ function CelebrationOverlay({ event, onDismiss }: CelebrationOverlayProps) {
 
         {/* Title */}
         <motion.h2
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={getMotionSafeTransition({ delay: 0.15 }, prefersReducedMotion)}
           className="h2 text-navy mb-2"
         >
           {isBadgeCelebration ? 'Badge Earned!' : (event.message || config.title)}
@@ -432,7 +457,7 @@ function CelebrationOverlay({ event, onDismiss }: CelebrationOverlayProps) {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
+            transition={getMotionSafeTransition({ delay: 0.2 }, prefersReducedMotion)}
             className="mb-6"
           >
             <p className="text-xl font-semibold text-teal mb-1">{event.badge.title}</p>
@@ -442,7 +467,7 @@ function CelebrationOverlay({ event, onDismiss }: CelebrationOverlayProps) {
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
+            transition={getMotionSafeTransition({ delay: 0.2 }, prefersReducedMotion)}
             className="text-rich-black/60 mb-6"
           >
             {config.subtitle}
@@ -451,9 +476,12 @@ function CelebrationOverlay({ event, onDismiss }: CelebrationOverlayProps) {
 
         {/* XP earned */}
         <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.5, type: 'spring', bounce: 0.5 }}
+          initial={prefersReducedMotion ? { opacity: 0 } : { scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={getMotionSafeTransition(
+            { delay: 0.25, type: 'spring', bounce: 0.3, damping: 25 },
+            prefersReducedMotion
+          )}
           className={cn(
             'inline-flex items-center gap-2 px-6 py-3 rounded-full font-bold text-xl',
             event.tier >= 4 || isBadgeCelebration
@@ -468,9 +496,9 @@ function CelebrationOverlay({ event, onDismiss }: CelebrationOverlayProps) {
         {/* Achievement badge display for tier 5 (non-badge celebrations) */}
         {event.tier === 5 && event.badgeId && !isBadgeCelebration && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
+            transition={getMotionSafeTransition({ delay: 0.3 }, prefersReducedMotion)}
             className="mt-6 p-4 bg-gradient-to-r from-purple/10 to-navy/10 rounded-2xl"
           >
             <div className="flex items-center justify-center gap-3">
@@ -489,7 +517,7 @@ function CelebrationOverlay({ event, onDismiss }: CelebrationOverlayProps) {
         <motion.button
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
+          transition={getMotionSafeTransition({ delay: 0.35 }, prefersReducedMotion)}
           onClick={onDismiss}
           className="mt-6 w-full py-3 px-6 bg-navy text-white font-medium rounded-xl hover:bg-navy-light transition-colors"
         >
@@ -509,13 +537,16 @@ type QuickCelebrationProps = {
 };
 
 export function QuickCelebration({ show, isCorrect, xp = 10, className }: QuickCelebrationProps) {
+  const prefersReducedMotion = useReducedMotion();
+
   return (
     <AnimatePresence>
       {show && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.5, y: 20 }}
+          initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.8, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.5, y: -20 }}
+          exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.8, y: -10 }}
+          transition={getMotionSafeTransition(SPRING.snappy, prefersReducedMotion)}
           className={cn(
             'flex items-center gap-2 px-4 py-2 rounded-full font-medium',
             isCorrect ? 'bg-success/20 text-success' : 'bg-error/20 text-error',
@@ -544,11 +575,13 @@ type StreakCelebrationProps = {
   show: boolean;
   days: number;
   onDismiss: () => void;
+  prefersReducedMotion: boolean;
 };
 
-export function StreakCelebration({ show, days, onDismiss }: StreakCelebrationProps) {
+export function StreakCelebration({ show, days, onDismiss, prefersReducedMotion }: StreakCelebrationProps) {
   useEffect(() => {
-    if (show) {
+    // Skip confetti for reduced motion
+    if (show && !prefersReducedMotion) {
       confetti({
         particleCount: 100,
         spread: 70,
@@ -556,7 +589,7 @@ export function StreakCelebration({ show, days, onDismiss }: StreakCelebrationPr
         colors: ['#FFDE00', '#21A8B0', '#88B644'],
       });
     }
-  }, [show]);
+  }, [show, prefersReducedMotion]);
 
   return (
     <AnimatePresence>
@@ -565,6 +598,7 @@ export function StreakCelebration({ show, days, onDismiss }: StreakCelebrationPr
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          transition={getMotionSafeTransition(SPRING.modal, prefersReducedMotion)}
           className="fixed inset-0 z-[90] flex items-center justify-center p-4"
           onClick={onDismiss}
         >
@@ -573,16 +607,16 @@ export function StreakCelebration({ show, days, onDismiss }: StreakCelebrationPr
           />
 
           <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
+            initial={prefersReducedMotion ? { opacity: 0 } : { scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.8, opacity: 0 }}
-            transition={{ type: 'spring', bounce: 0.4 }}
+            exit={prefersReducedMotion ? { opacity: 0 } : { scale: 0.9, opacity: 0 }}
+            transition={getMotionSafeTransition(SPRING.bouncy, prefersReducedMotion)}
             className="relative bg-gradient-to-br from-yellow to-teal rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <motion.div
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ repeat: 2, duration: 0.5 }}
+              animate={prefersReducedMotion ? {} : { scale: [1, 1.15, 1] }}
+              transition={prefersReducedMotion ? {} : { repeat: 2, duration: 0.5 }}
               className="w-16 h-16 mx-auto mb-4 bg-yellow rounded-2xl flex items-center justify-center"
             >
               <Flame size={32} className="text-white" />

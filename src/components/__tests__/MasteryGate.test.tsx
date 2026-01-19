@@ -5,21 +5,82 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MasteryGate } from '../mastery/MasteryGate';
 
-const mockConceptMastery = [
-  { conceptId: 'social-media-basics', masteryLevel: 85, lastReviewed: new Date(), state: 'mastered' as const },
-  { conceptId: 'audience-targeting', masteryLevel: 92, lastReviewed: new Date(), state: 'mastered' as const },
-  { conceptId: 'ad-formats', masteryLevel: 45, lastReviewed: new Date(), state: 'learning' as const },
-];
+// Mock the mastery module
+vi.mock('@/lib/mastery', () => ({
+  SOCIAL_MEDIA_MARKETING_GRAPH: {
+    concepts: {
+      'smm-fundamentals': {
+        id: 'smm-fundamentals',
+        name: 'Social Media Marketing Fundamentals',
+        description: 'Core understanding of social media',
+        category: 'fundamentals',
+        difficulty: 1,
+        prerequisites: [],
+        relatedConcepts: [],
+        masteryThreshold: 70,
+        decayRate: 60,
+        atomIds: [],
+        keyTerms: [],
+      },
+      'platform-overview': {
+        id: 'platform-overview',
+        name: 'Platform Overview',
+        description: 'Understanding of major social platforms',
+        category: 'fundamentals',
+        difficulty: 1,
+        prerequisites: ['smm-fundamentals'],
+        relatedConcepts: [],
+        masteryThreshold: 70,
+        decayRate: 45,
+        atomIds: [],
+        keyTerms: [],
+      },
+      'advanced-targeting': {
+        id: 'advanced-targeting',
+        name: 'Advanced Targeting',
+        description: 'Advanced audience targeting techniques',
+        category: 'targeting',
+        difficulty: 3,
+        prerequisites: ['smm-fundamentals', 'platform-overview'],
+        relatedConcepts: [],
+        masteryThreshold: 80,
+        decayRate: 30,
+        atomIds: [],
+        keyTerms: [],
+      },
+    },
+    edges: [],
+    categories: [],
+  },
+  isConceptUnlocked: vi.fn((graph, conceptId, masteryLevels) => {
+    const concept = graph.concepts[conceptId];
+    if (!concept) return false;
+    return concept.prerequisites.every(
+      (prereqId: string) => (masteryLevels[prereqId] || 0) >= (graph.concepts[prereqId]?.masteryThreshold || 70)
+    );
+  }),
+  getAllPrerequisites: vi.fn(),
+  getLearningPath: vi.fn(),
+}));
 
 describe('MasteryGate', () => {
-  it('renders children when prerequisites are met', () => {
+  const mockOnReviewPrerequisite = vi.fn();
+  const mockOnProceed = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders children when no prerequisites needed', () => {
     render(
       <MasteryGate
-        prerequisites={['social-media-basics']}
-        userMastery={mockConceptMastery}
-        threshold={70}
+        conceptId="smm-fundamentals"
+        masteryLevels={{}}
+        onReviewPrerequisite={mockOnReviewPrerequisite}
+        onProceed={mockOnProceed}
       >
         <div>Protected Content</div>
       </MasteryGate>
@@ -28,77 +89,70 @@ describe('MasteryGate', () => {
     expect(screen.getByText('Protected Content')).toBeInTheDocument();
   });
 
-  it('shows locked message when prerequisites not met', () => {
+  it('renders children when all prerequisites are mastered', () => {
     render(
       <MasteryGate
-        prerequisites={['ad-formats']} // User only has 45% mastery, needs 70%
-        userMastery={mockConceptMastery}
-        threshold={70}
+        conceptId="platform-overview"
+        masteryLevels={{ 'smm-fundamentals': 85 }}
+        onReviewPrerequisite={mockOnReviewPrerequisite}
+        onProceed={mockOnProceed}
+      >
+        <div>Platform Content</div>
+      </MasteryGate>
+    );
+
+    expect(screen.getByText('Platform Content')).toBeInTheDocument();
+  });
+
+  it('shows locked state when prerequisites not met', () => {
+    render(
+      <MasteryGate
+        conceptId="platform-overview"
+        masteryLevels={{ 'smm-fundamentals': 50 }}
+        onReviewPrerequisite={mockOnReviewPrerequisite}
+        onProceed={mockOnProceed}
       >
         <div>Protected Content</div>
       </MasteryGate>
     );
 
     expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
-    expect(screen.getByText(/unlock this content/i)).toBeInTheDocument();
+    expect(screen.getByText(/Master the prerequisite concepts/i)).toBeInTheDocument();
   });
 
-  it('shows which prerequisites are missing', () => {
+  it('shows prerequisite progress', () => {
     render(
       <MasteryGate
-        prerequisites={['ad-formats', 'non-existent-concept']}
-        userMastery={mockConceptMastery}
-        threshold={70}
+        conceptId="platform-overview"
+        masteryLevels={{ 'smm-fundamentals': 50 }}
+        onReviewPrerequisite={mockOnReviewPrerequisite}
+        onProceed={mockOnProceed}
       >
         <div>Protected Content</div>
       </MasteryGate>
     );
 
-    expect(screen.getByText(/master these concepts first/i)).toBeInTheDocument();
-    expect(screen.getByText(/ad-formats/i)).toBeInTheDocument();
+    expect(screen.getByText('Prerequisites Progress')).toBeInTheDocument();
   });
 
-  it('passes when all prerequisites meet threshold', () => {
+  it('calls onReviewPrerequisite when clicking on unmastered prerequisite', async () => {
+    const user = userEvent.setup();
+
     render(
       <MasteryGate
-        prerequisites={['social-media-basics', 'audience-targeting']}
-        userMastery={mockConceptMastery}
-        threshold={80}
-      >
-        <div>Advanced Content</div>
-      </MasteryGate>
-    );
-
-    expect(screen.getByText('Advanced Content')).toBeInTheDocument();
-  });
-
-  it('shows progress toward each prerequisite', () => {
-    render(
-      <MasteryGate
-        prerequisites={['ad-formats']}
-        userMastery={mockConceptMastery}
-        threshold={70}
-        showProgress
+        conceptId="platform-overview"
+        masteryLevels={{ 'smm-fundamentals': 50 }}
+        onReviewPrerequisite={mockOnReviewPrerequisite}
+        onProceed={mockOnProceed}
       >
         <div>Protected Content</div>
       </MasteryGate>
     );
 
-    // Should show current mastery level
-    expect(screen.getByText(/45%/)).toBeInTheDocument();
-    expect(screen.getByText(/70% required/i)).toBeInTheDocument();
-  });
+    // Click on the Continue Learning button
+    const continueButton = screen.getByRole('button', { name: /Continue Learning/i });
+    await user.click(continueButton);
 
-  it('uses default threshold of 80% if not specified', () => {
-    render(
-      <MasteryGate
-        prerequisites={['social-media-basics']} // User has 85%, meets default 80%
-        userMastery={mockConceptMastery}
-      >
-        <div>Content</div>
-      </MasteryGate>
-    );
-
-    expect(screen.getByText('Content')).toBeInTheDocument();
+    expect(mockOnReviewPrerequisite).toHaveBeenCalledWith('smm-fundamentals');
   });
 });

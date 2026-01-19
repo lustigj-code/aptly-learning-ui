@@ -1,6 +1,6 @@
 'use client';
 
-import { useReducer, useCallback } from 'react';
+import { useReducer, useCallback, useEffect } from 'react';
 import { useUser } from '@/store/userProfileStore';
 import type { CoachAction } from '@/types/coachActions';
 
@@ -86,10 +86,77 @@ type CoachReducerAction =
   | { type: 'SET_CURRENT_LESSON'; payload: string | null };
 
 // ============================================
+// SESSION STORAGE FOR COACH STATE
+// ============================================
+
+const COACH_SESSION_KEY = 'aptly_coach_session';
+
+// Only store conversation ID and lesson ID - not messages (those come from server)
+type CoachSessionCache = {
+  conversationId: string | null;
+  currentLessonId: string | null;
+};
+
+function loadCoachSession(): CoachSessionCache | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const saved = sessionStorage.getItem(COACH_SESSION_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Validate structure
+      if (typeof parsed === 'object' && parsed !== null) {
+        return {
+          conversationId: typeof parsed.conversationId === 'string' ? parsed.conversationId : null,
+          currentLessonId: typeof parsed.currentLessonId === 'string' ? parsed.currentLessonId : null,
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('[useCoach] Failed to load session cache:', e);
+    sessionStorage.removeItem(COACH_SESSION_KEY);
+  }
+  return null;
+}
+
+function saveCoachSession(cache: CoachSessionCache) {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(COACH_SESSION_KEY, JSON.stringify(cache));
+  } catch (e) {
+    console.warn('[useCoach] Failed to save session cache:', e);
+  }
+}
+
+// Uncomment if needed for clearing session:
+// function clearCoachSession() {
+//   if (typeof window === 'undefined') return;
+//   sessionStorage.removeItem(COACH_SESSION_KEY);
+// }
+
+// ============================================
 // REDUCER
 // ============================================
 
-const initialState: CoachState = {
+// Initialize from sessionStorage if available
+function getInitialState(): CoachState {
+  const cached = loadCoachSession();
+  return {
+    messages: [],
+    isLoading: false,
+    error: null,
+    conversationId: cached?.conversationId ?? null,
+    conversationLoaded: false,
+    showLoadIndicator: false,
+    // Phase 1: History
+    conversationHistory: [],
+    historyLoading: false,
+    currentLessonId: cached?.currentLessonId ?? null,
+  };
+}
+
+// Note: initialState kept for reference but getInitialState() is used instead
+// to support session restoration from sessionStorage
+const _initialState: CoachState = {
   messages: [],
   isLoading: false,
   error: null,
@@ -173,7 +240,15 @@ function coachReducer(state: CoachState, action: CoachReducerAction): CoachState
 
 export function useCoach() {
   const { user } = useUser();
-  const [state, dispatch] = useReducer(coachReducer, initialState);
+  const [state, dispatch] = useReducer(coachReducer, undefined, getInitialState);
+
+  // Persist conversationId and currentLessonId to sessionStorage when they change
+  useEffect(() => {
+    saveCoachSession({
+      conversationId: state.conversationId,
+      currentLessonId: state.currentLessonId,
+    });
+  }, [state.conversationId, state.currentLessonId]);
 
   const {
     messages,
@@ -229,6 +304,16 @@ export function useCoach() {
       dispatch({ type: 'LOADING_END' });
     }
   }, []);
+
+  // Auto-load conversation if we have a cached conversationId but no messages
+  // This restores the conversation after a page refresh
+  useEffect(() => {
+    if (conversationId && messages.length === 0 && !conversationLoaded && !isLoading) {
+      // We have a cached conversation ID, try to load it
+      loadConversation(conversationId);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
 
   /**
    * Create a new conversation if none exists

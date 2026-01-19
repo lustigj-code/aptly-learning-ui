@@ -10,7 +10,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { auth } from '@/lib/firebase/config';
-import type { AtomType, ResumeState } from '@/lib/firebase/schema';
+import type { ResumeState } from '@/lib/firebase/schema';
 
 // Debounce delay for saving resume state (ms)
 const SAVE_DEBOUNCE_MS = 1000;

@@ -111,7 +111,7 @@ export async function deleteMultipleFiles(paths: string[]): Promise<void> {
   try {
     await Promise.all(
       paths.map((path) => {
-        const storageRef = ref(storage as any, path);
+        const storageRef = ref(storage!, path);
         return deleteObject(storageRef);
       })
     );

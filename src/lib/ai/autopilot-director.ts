@@ -8,7 +8,7 @@
  * - Integrates with FSRS/BKT for mastery-aware decisions
  */
 
-import type { Atom, Lesson } from '@/types'
+import type { Atom } from '@/types'
 import type { SessionItem, LearningSession } from '@/lib/adaptive/sessionBuilder'
 import type { StruggleAnalysis } from './struggle-detection'
 
@@ -66,7 +66,6 @@ export function decideNextAction(context: AutopilotContext): AutopilotAction {
   const {
     session,
     currentIndex,
-    completedItems,
     struggleAnalysis,
     sessionDurationSeconds,
     recentPerformance,
@@ -115,7 +114,7 @@ export function generateContentIntro(
   item: SessionItem,
   context: AutopilotContext
 ): string {
-  const { currentIndex, session, userMastery, recentPerformance } = context
+  const { currentIndex, session, recentPerformance } = context
   const totalItems = session.items.length
   const progress = (currentIndex / totalItems) * 100
 
@@ -260,7 +259,7 @@ function shouldSuggestBreak(
 
 function checkForCelebration(
   context: AutopilotContext,
-  nextItem: SessionItem
+  _nextItem: SessionItem
 ): AutopilotAction | null {
   const { completedItems, recentPerformance } = context
 
@@ -354,7 +353,7 @@ function createSessionComplete(context: AutopilotContext): AutopilotAction {
 }
 
 function generateNextRecommendation(context: AutopilotContext): string {
-  const { recentPerformance, session } = context
+  const { recentPerformance } = context
 
   const avgScore = recentPerformance.length > 0
     ? recentPerformance.reduce((a, b) => a + b, 0) / recentPerformance.length
@@ -456,7 +455,7 @@ export function getReviewRecommendations(
   limit: number = 3
 ): string[] {
   return Object.entries(mastery)
-    .filter(([_, level]) => level < 0.7) // Below 70% mastery
+    .filter(([, level]) => level < 0.7) // Below 70% mastery
     .sort((a, b) => a[1] - b[1]) // Sort by lowest mastery first
     .slice(0, limit)
     .map(([skillId]) => skillId)

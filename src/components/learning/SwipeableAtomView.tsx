@@ -39,7 +39,7 @@ export function SwipeableAtomView({
   totalCount,
   disabled = false,
 }: SwipeableAtomViewProps) {
-  const [isDragging, setIsDragging] = useState(false);
+  const [_isDragging, _setIsDragging] = useState(false);
   // Lazy initial state to check if hint should be shown
   const [showSwipeHint, setShowSwipeHint] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -48,14 +48,14 @@ export function SwipeableAtomView({
   });
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Motion values for drag tracking
-  const x = useMotionValue(0);
-  const opacity = useTransform(x, [-200, 0, 200], [0.5, 1, 0.5]);
-  const scale = useTransform(x, [-200, 0, 200], [0.95, 1, 0.95]);
+  // Motion values for drag tracking (currently disabled but kept for future use)
+  const _x = useMotionValue(0);
+  const _opacity = useTransform(_x, [-200, 0, 200], [0.5, 1, 0.5]);
+  const _scale = useTransform(_x, [-200, 0, 200], [0.95, 1, 0.95]);
 
   // Edge glow opacity transforms (must be at top level per React hooks rules)
-  const leftGlowOpacity = useTransform(x, [0, 100], [0, canSwipePrevious ? 1 : 0]);
-  const rightGlowOpacity = useTransform(x, [-100, 0], [canSwipeNext ? 1 : 0, 0]);
+  const _leftGlowOpacity = useTransform(_x, [0, 100], [0, canSwipePrevious ? 1 : 0]);
+  const _rightGlowOpacity = useTransform(_x, [-100, 0], [canSwipeNext ? 1 : 0, 0]);
 
   // Auto-hide swipe hint after 3 seconds (if shown)
   useEffect(() => {
@@ -103,8 +103,8 @@ export function SwipeableAtomView({
     };
   }, [handleKeyDown]);
 
-  const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    setIsDragging(false);
+  const _handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    _setIsDragging(false);
 
     const { offset, velocity } = info;
     const swipeDistance = Math.abs(offset.x);
@@ -122,15 +122,15 @@ export function SwipeableAtomView({
     }
 
     // Reset position
-    x.set(0);
+    _x.set(0);
   };
 
-  const handleDragStart = () => {
-    setIsDragging(true);
+  const _handleDragStart = () => {
+    _setIsDragging(true);
   };
 
-  // Prevent swipe if disabled
-  const dragConstraints = disabled
+  // Prevent swipe if disabled (kept for future use when swipe is re-enabled)
+  const _dragConstraints = disabled
     ? { left: 0, right: 0 }
     : {
         left: canSwipeNext ? -100 : 0,

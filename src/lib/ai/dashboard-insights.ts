@@ -112,24 +112,26 @@ function parseInsightsFromAI(text: string): Partial<DashboardInsights> {
 /**
  * Identify learning patterns from data
  */
-function identifyLearningPatterns(userData: any): string[] {
+function identifyLearningPatterns(userData: Record<string, unknown>): string[] {
   const patterns: string[] = [];
 
   // Time-of-day pattern
-  const bestTime = userData.preferredStudyTime.reduce((best: any, current: any) =>
+  const preferredStudyTime = userData.preferredStudyTime as Array<{ hour: number; avgScore: number }>;
+  const bestTime = preferredStudyTime.reduce((best, current) =>
     current.avgScore > (best?.avgScore || 0) ? current : best
   );
 
-  if (bestTime && bestTime.avgScore > userData.avgQuizScore + 10) {
+  if (bestTime && bestTime.avgScore > (userData.avgQuizScore as number) + 10) {
     patterns.push(
       `You learn best in the ${getTimeOfDay(bestTime.hour)} (${bestTime.avgScore}% avg score)`
     );
   }
 
   // Score trend
-  if (userData.recentScores.length >= 5) {
-    const recent3 = userData.recentScores.slice(-3).reduce((a: number, b: number) => a + b, 0) / 3;
-    const previous3 = userData.recentScores.slice(-6, -3).reduce((a: number, b: number) => a + b, 0) / 3;
+  const recentScores = userData.recentScores as number[];
+  if (recentScores.length >= 5) {
+    const recent3 = recentScores.slice(-3).reduce((a: number, b: number) => a + b, 0) / 3;
+    const previous3 = recentScores.slice(-6, -3).reduce((a: number, b: number) => a + b, 0) / 3;
 
     if (recent3 > previous3 + 5) {
       patterns.push(`Your scores are improving! Recent average: ${Math.round(recent3)}% (up from ${Math.round(previous3)}%)`);
@@ -137,8 +139,9 @@ function identifyLearningPatterns(userData: any): string[] {
   }
 
   // Streak pattern
-  if (userData.streakDays >= 7) {
-    patterns.push(`${userData.streakDays}-day streak shows excellent consistency`);
+  const streakDays = userData.streakDays as number;
+  if (streakDays >= 7) {
+    patterns.push(`${streakDays}-day streak shows excellent consistency`);
   }
 
   return patterns;
@@ -147,11 +150,12 @@ function identifyLearningPatterns(userData: any): string[] {
 /**
  * Generate optimization suggestions
  */
-function generateOptimizationSuggestions(userData: any): string[] {
+function generateOptimizationSuggestions(userData: Record<string, unknown>): string[] {
   const suggestions: string[] = [];
 
   // Study time optimization
-  const bestTime = userData.preferredStudyTime.reduce((best: any, current: any) =>
+  const preferredStudyTime = userData.preferredStudyTime as Array<{ hour: number; avgScore: number }>;
+  const bestTime = preferredStudyTime.reduce((best, current) =>
     current.avgScore > (best?.avgScore || 0) ? current : best
   );
 
@@ -160,9 +164,11 @@ function generateOptimizationSuggestions(userData: any): string[] {
   }
 
   // Pace optimization
-  if (userData.currentPace < 2) {
+  const currentPace = userData.currentPace as number;
+  const avgQuizScore = userData.avgQuizScore as number;
+  if (currentPace < 2) {
     suggestions.push('Try increasing to 2-3 lessons/week for better momentum');
-  } else if (userData.currentPace > 5 && userData.avgQuizScore < 75) {
+  } else if (currentPace > 5 && avgQuizScore < 75) {
     suggestions.push('Consider slowing pace to 3-4 lessons/week to deepen understanding');
   }
 
@@ -188,31 +194,37 @@ function narrateMasteryMap(masteryLevels: Record<string, number>): string {
 /**
  * Calculate timeline to certification readiness
  */
-function calculateCertificationTimeline(userData: any): {
+function calculateCertificationTimeline(userData: Record<string, unknown>): {
   certificationReady: string;
   confidence: number;
   requirements: string[];
 } {
   // Simple calculation based on current pace and avg score
-  const lessonsRemaining = 50 - (userData.lessonsCompletedThisWeek * 4); // Assume ~50 total lessons
-  const weeksNeeded = Math.ceil(lessonsRemaining / userData.currentPace);
+  const lessonsCompletedThisWeek = userData.lessonsCompletedThisWeek as number;
+  const currentPace = userData.currentPace as number;
+  const avgQuizScore = userData.avgQuizScore as number;
+  const streakDays = userData.streakDays as number;
+  const masteryLevels = userData.masteryLevels as Record<string, number>;
+
+  const lessonsRemaining = 50 - (lessonsCompletedThisWeek * 4); // Assume ~50 total lessons
+  const weeksNeeded = Math.ceil(lessonsRemaining / currentPace);
 
   // Confidence based on current performance
   let confidence = 50;
 
-  if (userData.avgQuizScore >= 80) confidence += 30;
-  else if (userData.avgQuizScore >= 70) confidence += 15;
+  if (avgQuizScore >= 80) confidence += 30;
+  else if (avgQuizScore >= 70) confidence += 15;
 
-  if (userData.streakDays >= 14) confidence += 15;
-  else if (userData.streakDays >= 7) confidence += 10;
+  if (streakDays >= 14) confidence += 15;
+  else if (streakDays >= 7) confidence += 10;
 
   const requirements: string[] = [];
 
-  if (userData.avgQuizScore < 80) {
+  if (avgQuizScore < 80) {
     requirements.push('Increase avg quiz score to 80%+');
   }
 
-  if (Object.values(userData.masteryLevels).some((m: any) => m < 70)) {
+  if (Object.values(masteryLevels).some((m: number) => m < 70)) {
     requirements.push('Master all concepts to 70%+ (some are below threshold)');
   }
 

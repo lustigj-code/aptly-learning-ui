@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CheckCircle,
@@ -14,6 +14,8 @@ import {
   Star,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { SPRING, getMotionSafeTransition } from '@/lib/motion/springs';
 
 // ============================================
 // TYPES
@@ -28,6 +30,7 @@ type Toast = {
   description?: string;
   duration?: number;
   icon?: ReactNode;
+  showProgress?: boolean;
 };
 
 type ToastContextType = {
@@ -163,10 +166,20 @@ function ToastContainer({
   onRemove: (id: string) => void;
 }) {
   return (
-    <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-3 max-w-sm w-full pointer-events-none">
+    <div
+      className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0 safe-area-bottom"
+      role="region"
+      aria-label="Notifications"
+      aria-live="polite"
+    >
       <AnimatePresence mode="popLayout">
-        {toasts.map((toast) => (
-          <ToastItem key={toast.id} toast={toast} onRemove={() => onRemove(toast.id)} />
+        {toasts.map((toast, index) => (
+          <ToastItem
+            key={toast.id}
+            toast={toast}
+            onRemove={() => onRemove(toast.id)}
+            index={index}
+          />
         ))}
       </AnimatePresence>
     </div>
@@ -177,114 +190,262 @@ function ToastContainer({
 // TOAST ITEM
 // ============================================
 
-const toastStyles: Record<ToastType, { bg: string; border: string; icon: ReactNode; iconBg: string }> = {
+const toastStyles: Record<
+  ToastType,
+  {
+    bg: string;
+    border: string;
+    icon: ReactNode;
+    iconBg: string;
+    progressBg: string;
+  }
+> = {
   success: {
-    bg: 'bg-white',
-    border: 'border-success/30',
+    bg: 'bg-white dark:bg-gray-800',
+    border: 'border-success/20',
     icon: <CheckCircle className="w-5 h-5 text-success" />,
     iconBg: 'bg-success/10',
+    progressBg: 'bg-success',
   },
   error: {
-    bg: 'bg-white',
-    border: 'border-error/30',
+    bg: 'bg-white dark:bg-gray-800',
+    border: 'border-error/20',
     icon: <XCircle className="w-5 h-5 text-error" />,
     iconBg: 'bg-error/10',
+    progressBg: 'bg-error',
   },
   warning: {
-    bg: 'bg-white',
-    border: 'border-warning/30',
+    bg: 'bg-white dark:bg-gray-800',
+    border: 'border-warning/20',
     icon: <AlertCircle className="w-5 h-5 text-warning" />,
     iconBg: 'bg-warning/10',
+    progressBg: 'bg-warning',
   },
   info: {
-    bg: 'bg-white',
-    border: 'border-teal/30',
+    bg: 'bg-white dark:bg-gray-800',
+    border: 'border-teal/20',
     icon: <Info className="w-5 h-5 text-teal" />,
     iconBg: 'bg-teal/10',
+    progressBg: 'bg-teal',
   },
   badge: {
-    bg: 'bg-gradient-to-r from-purple/5 to-yellow/5',
-    border: 'border-purple/30',
+    bg: 'bg-gradient-to-br from-purple/5 via-white to-yellow/5 dark:from-purple/10 dark:via-gray-800 dark:to-yellow/10',
+    border: 'border-purple/20',
     icon: <Trophy className="w-5 h-5 text-yellow-dark" />,
-    iconBg: 'bg-yellow/20',
+    iconBg: 'bg-gradient-to-br from-yellow/20 to-purple/10',
+    progressBg: 'bg-gradient-to-r from-purple to-yellow',
   },
   streak: {
-    bg: 'bg-gradient-to-r from-orange-50 to-yellow-50',
-    border: 'border-orange-300/30',
+    bg: 'bg-gradient-to-br from-orange-50 via-white to-yellow-50 dark:from-orange-900/20 dark:via-gray-800 dark:to-yellow-900/20',
+    border: 'border-orange-300/20',
     icon: <Flame className="w-5 h-5 text-orange-500" />,
-    iconBg: 'bg-orange-100',
+    iconBg: 'bg-gradient-to-br from-orange-100 to-yellow-100 dark:from-orange-900/30 dark:to-yellow-900/30',
+    progressBg: 'bg-gradient-to-r from-orange-500 to-yellow-500',
   },
   xp: {
-    bg: 'bg-gradient-to-r from-teal/5 to-purple/5',
-    border: 'border-teal/30',
+    bg: 'bg-gradient-to-br from-teal/5 via-white to-purple/5 dark:from-teal/10 dark:via-gray-800 dark:to-purple/10',
+    border: 'border-teal/20',
     icon: <Zap className="w-5 h-5 text-teal" />,
-    iconBg: 'bg-teal/10',
+    iconBg: 'bg-gradient-to-br from-teal/10 to-purple/10',
+    progressBg: 'bg-gradient-to-r from-teal to-purple',
   },
 };
 
-function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: () => void }) {
+function ToastItem({
+  toast,
+  onRemove,
+  index,
+}: {
+  toast: Toast;
+  onRemove: () => void;
+  index: number;
+}) {
   const styles = toastStyles[toast.type];
+  const [progress, setProgress] = useState(100);
+  const startTimeRef = useRef<number>(0);
+  const prefersReducedMotion = useReducedMotion();
+
+  // Calculate if we should show progress bar
+  const showProgress = toast.showProgress !== false && (toast.duration ?? 0) > 0;
+
+  // Progress bar animation
+  useEffect(() => {
+    if (!showProgress) return;
+
+    const duration = toast.duration ?? 4000;
+    startTimeRef.current = Date.now();
+
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTimeRef.current;
+      const remaining = Math.max(0, 100 - (elapsed / duration) * 100);
+      setProgress(remaining);
+
+      if (remaining <= 0) {
+        clearInterval(interval);
+      }
+    }, 16); // ~60fps
+
+    return () => clearInterval(interval);
+  }, [toast.duration, showProgress]);
+
+  // Stagger delay for multiple toasts appearing together (100ms per toast)
+  const staggerDelay = index * 0.1;
 
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 50, scale: 0.9, x: 20 }}
-      animate={{ opacity: 1, y: 0, scale: 1, x: 0 }}
-      exit={{ opacity: 0, x: 100, scale: 0.9 }}
-      transition={{
-        type: 'spring',
-        stiffness: 350,
-        damping: 25,
-        mass: 0.8,
+      initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 50, scale: 0.95, x: 20 }}
+      animate={{
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        x: 0,
       }}
+      exit={
+        prefersReducedMotion
+          ? { opacity: 0 }
+          : {
+              opacity: 0,
+              x: 100,
+              scale: 0.95,
+            }
+      }
+      transition={{
+        ...getMotionSafeTransition(SPRING.toast, prefersReducedMotion),
+        delay: staggerDelay,
+      }}
+      whileHover={
+        !prefersReducedMotion
+          ? {
+              scale: 1.02,
+              transition: { duration: 0.15 },
+            }
+          : undefined
+      }
       className={cn(
-        'relative rounded-xl border shadow-lg p-4 pointer-events-auto',
+        'relative overflow-hidden rounded-2xl border shadow-lg backdrop-blur-sm pointer-events-auto',
+        'transition-shadow duration-200 hover:shadow-xl',
         styles.bg,
         styles.border
       )}
+      role="alert"
+      aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
+      aria-atomic="true"
+      style={{
+        // Subtle stacking effect for multiple toasts
+        transform: `translateY(${index * -2}px)`,
+      }}
     >
-      <div className="flex items-start gap-3">
-        {/* Icon */}
-        <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0', styles.iconBg)}>
-          {toast.icon || styles.icon}
-        </div>
+      {/* Main content */}
+      <div className="relative z-10 p-4">
+        <div className="flex items-start gap-3">
+          {/* Icon with subtle animation */}
+          <motion.div
+            className={cn(
+              'w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm',
+              styles.iconBg
+            )}
+            initial={{ scale: 0.8, rotate: -10 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{
+              type: 'spring',
+              stiffness: 500,
+              damping: 25,
+              delay: 0.05,
+            }}
+          >
+            {toast.icon || styles.icon}
+          </motion.div>
 
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-navy text-sm">{toast.title}</p>
-          {toast.description && (
-            <p className="text-rich-black/60 text-sm mt-0.5 line-clamp-2">{toast.description}</p>
-          )}
-        </div>
+          {/* Content */}
+          <div className="flex-1 min-w-0 pt-0.5">
+            <motion.p
+              className="font-semibold text-navy dark:text-white text-sm leading-snug"
+              initial={{ opacity: 0, y: -5 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              {toast.title}
+            </motion.p>
+            {toast.description && (
+              <motion.p
+                className="text-rich-black/60 dark:text-gray-300 text-sm mt-1 line-clamp-2 leading-relaxed"
+                initial={{ opacity: 0, y: -3 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+              >
+                {toast.description}
+              </motion.p>
+            )}
+          </div>
 
-        {/* Close button */}
-        <button
-          onClick={onRemove}
-          className="text-rich-black/40 hover:text-rich-black transition-colors p-1 -mr-1 -mt-1"
-        >
-          <X size={16} />
-        </button>
+          {/* Close button */}
+          <motion.button
+            onClick={onRemove}
+            className={cn(
+              'text-rich-black/40 hover:text-rich-black dark:text-gray-400 dark:hover:text-white',
+              'transition-colors duration-150 p-1.5 -mr-1 -mt-1 rounded-lg',
+              'hover:bg-black/5 dark:hover:bg-white/10 active:scale-95'
+            )}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            whileHover={!prefersReducedMotion ? { scale: 1.1 } : undefined}
+            whileTap={!prefersReducedMotion ? { scale: 0.9 } : undefined}
+            aria-label="Dismiss notification"
+          >
+            <X size={16} strokeWidth={2.5} />
+          </motion.button>
+        </div>
       </div>
+
+      {/* Progress bar */}
+      {showProgress && (
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/5 dark:bg-white/5 overflow-hidden">
+          <motion.div
+            className={cn('h-full', styles.progressBg)}
+            initial={{ width: '100%' }}
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: 0.016, ease: 'linear' }}
+          />
+        </div>
+      )}
 
       {/* Special decorations for badge/streak */}
       {toast.type === 'badge' && (
         <motion.div
-          className="absolute -top-1 -right-1"
-          initial={{ scale: 0, rotate: -45 }}
+          className="absolute -top-1 -right-1 z-20 drop-shadow-lg"
+          initial={{ scale: 0, rotate: -180 }}
           animate={{ scale: 1, rotate: 0 }}
-          transition={{ delay: 0.2, type: 'spring' }}
+          transition={{
+            delay: 0.3,
+            type: 'spring',
+            stiffness: 300,
+            damping: 15,
+          }}
         >
-          <Star className="w-6 h-6 text-yellow fill-yellow" />
+          <Star className="w-7 h-7 text-yellow fill-yellow animate-pulse" />
         </motion.div>
       )}
 
       {toast.type === 'streak' && (
         <motion.div
-          className="absolute inset-0 rounded-xl overflow-hidden pointer-events-none"
+          className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-orange-200/20 to-transparent animate-shimmer" />
+          <motion.div
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-orange-200/30 to-transparent"
+            animate={{
+              x: ['-100%', '100%'],
+            }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              ease: 'linear',
+            }}
+          />
         </motion.div>
       )}
     </motion.div>

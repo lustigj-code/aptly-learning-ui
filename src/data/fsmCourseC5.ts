@@ -15,13 +15,12 @@ const m1l0Atoms: Atom[] = [
   {
     id: 'fsm-c5-m1-l0-a2',
     lessonId: 'fsm-c5-m1-l0',
-    type: 'video',
+    type: 'reading',
     title: 'Course Introduction Video',
     content: {
-      videoUrl: '', // TODO: Add video URL when available
-      transcript: `-Program: Facebook Social Media Marketing Professional Certificate 
+      body: `-Program: Facebook Social Media Marketing Professional Certificate
 
-Course 5: Optimize Your Marketing 
+Course 5: Optimize Your Marketing
 Module 1: Evaluate Your Marketing Results Against Goals
 Lesson 0: Welcome to Optimize Your Marketing
 
@@ -29,25 +28,20 @@ Course Objectives:
 
 Understand different techniques used to optimize marketing campaigns (basic attribution, mixed model, attribution)
 
-Implement a Split Test to optimize your campaign 
+Implement a Split Test to optimize your campaign
 
-Analyze dashboards and evaluate ROI from your social media marketing efforts 
+Analyze dashboards and evaluate ROI from your social media marketing efforts
 
 Optimize your campaign
 
 Pres...`,
-      duration: 420,
-      chapters: [
-        { time: 0, title: 'Introduction' },
-        { time: 120, title: 'Main Content' },
-        { time: 300, title: 'Summary' },
-      ],
-      keyTakeaways: [
+      highlights: [
         '-Program: Facebook Social Media Marketing Professional Certificate',
         'Course 5: Optimize Your Marketing',
         'Module 1: Evaluate Your Marketing Results Against Goals',
         'Lesson 0: Welcome to Optimize Your Marketing',
       ],
+      relatedResources: [],
     },
     estimatedMinutes: 7,
     isRequired: true,
@@ -56,13 +50,12 @@ Pres...`,
   {
     id: 'fsm-c5-m1-l0-a2',
     lessonId: 'fsm-c5-m1-l0',
-    type: 'video',
+    type: 'reading',
     title: 'Course Introduction Video',
     content: {
-      videoUrl: '', // TODO: Add video URL when available
-      transcript: `-Program: Facebook Social Media Marketing Professional Certificate 
+      body: `-Program: Facebook Social Media Marketing Professional Certificate
 
-Course 5: Optimize Your Marketing 
+Course 5: Optimize Your Marketing
 Module 1: Evaluate Your Marketing Results Against Goals
 Lesson 0: Welcome to Optimize Your Marketing
 
@@ -70,25 +63,20 @@ Course Objectives:
 
 Understand different techniques used to optimize marketing campaigns (basic attribution, mixed model, attribution)
 
-Implement a Split Test to optimize your campaign 
+Implement a Split Test to optimize your campaign
 
-Analyze dashboards and evaluate ROI from your social media marketing efforts 
+Analyze dashboards and evaluate ROI from your social media marketing efforts
 
 Optimize your campaign
 
 Pres...`,
-      duration: 420,
-      chapters: [
-        { time: 0, title: 'Introduction' },
-        { time: 120, title: 'Main Content' },
-        { time: 300, title: 'Summary' },
-      ],
-      keyTakeaways: [
+      highlights: [
         '-Program: Facebook Social Media Marketing Professional Certificate',
         'Course 5: Optimize Your Marketing',
         'Module 1: Evaluate Your Marketing Results Against Goals',
         'Lesson 0: Welcome to Optimize Your Marketing',
       ],
+      relatedResources: [],
     },
     estimatedMinutes: 7,
     isRequired: true,
@@ -336,13 +324,12 @@ const m1l1Atoms: Atom[] = [
   {
     id: 'fsm-c5-m1-l1-a1',
     lessonId: 'fsm-c5-m1-l1',
-    type: 'video',
+    type: 'reading',
     title: 'Evaluate Your Marketing Results Against Goals Overview',
     content: {
-      videoUrl: '', // TODO: Add video URL when available
-      transcript: `-Program: Facebook Social Media Marketing Professional Certificate 
+      body: `-Program: Facebook Social Media Marketing Professional Certificate
 
-Course 5: Optimize Your Marketing 
+Course 5: Optimize Your Marketing
 Module 1: Evaluate Your Marketing Results Against Goals
 Lesson 1: Evaluate Metrics Against Your Marketing Goal
 
@@ -350,23 +337,18 @@ Course Objectives:
 
 Understand different techniques used to optimize marketing campaigns (basic attribution, mixed model, attribution)
 
-Implement a Split Test to optimize your campaign 
+Implement a Split Test to optimize your campaign
 
-Analyze dashboards and evaluate ROI from your social media marketing efforts 
+Analyze dashboards and evaluate ROI from your social media marketing efforts
 
 Optimize your camp...`,
-      duration: 420,
-      chapters: [
-        { time: 0, title: 'Introduction' },
-        { time: 120, title: 'Main Content' },
-        { time: 300, title: 'Summary' },
-      ],
-      keyTakeaways: [
+      highlights: [
         '-Program: Facebook Social Media Marketing Professional Certificate',
         'Course 5: Optimize Your Marketing',
         'Module 1: Evaluate Your Marketing Results Against Goals',
         'Lesson 1: Evaluate Metrics Against Your Marketing Goal',
       ],
+      relatedResources: [],
     },
     estimatedMinutes: 7,
     isRequired: true,
@@ -375,13 +357,12 @@ Optimize your camp...`,
   {
     id: 'fsm-c5-m1-l1-a1',
     lessonId: 'fsm-c5-m1-l1',
-    type: 'video',
+    type: 'reading',
     title: 'Evaluate Your Marketing Results Against Goals Overview',
     content: {
-      videoUrl: '', // TODO: Add video URL when available
-      transcript: `-Program: Facebook Social Media Marketing Professional Certificate 
+      body: `-Program: Facebook Social Media Marketing Professional Certificate
 
-Course 5: Optimize Your Marketing 
+Course 5: Optimize Your Marketing
 Module 1: Evaluate Your Marketing Results Against Goals
 Lesson 1: Evaluate Metrics Against Your Marketing Goal
 
@@ -389,23 +370,18 @@ Course Objectives:
 
 Understand different techniques used to optimize marketing campaigns (basic attribution, mixed model, attribution)
 
-Implement a Split Test to optimize your campaign 
+Implement a Split Test to optimize your campaign
 
-Analyze dashboards and evaluate ROI from your social media marketing efforts 
+Analyze dashboards and evaluate ROI from your social media marketing efforts
 
 Optimize your camp...`,
-      duration: 420,
-      chapters: [
-        { time: 0, title: 'Introduction' },
-        { time: 120, title: 'Main Content' },
-        { time: 300, title: 'Summary' },
-      ],
-      keyTakeaways: [
+      highlights: [
         '-Program: Facebook Social Media Marketing Professional Certificate',
         'Course 5: Optimize Your Marketing',
         'Module 1: Evaluate Your Marketing Results Against Goals',
         'Lesson 1: Evaluate Metrics Against Your Marketing Goal',
       ],
+      relatedResources: [],
     },
     estimatedMinutes: 7,
     isRequired: true,
@@ -414,13 +390,12 @@ Optimize your camp...`,
   {
     id: 'fsm-c5-m1-l1-a2',
     lessonId: 'fsm-c5-m1-l1',
-    type: 'video',
+    type: 'reading',
     title: 'Align metrics with common marketing goals',
     content: {
-      videoUrl: '', // TODO: Add video URL when available
-      transcript: `-Program: Facebook Social Media Marketing Professional Certificate 
+      body: `-Program: Facebook Social Media Marketing Professional Certificate
 
-Course 5: Optimize Your Marketing 
+Course 5: Optimize Your Marketing
 Module 1: Evaluate Your Marketing Results Against Goals
 Lesson 1: Evaluate Metrics Against Your Marketing Goal
 
@@ -428,23 +403,18 @@ Course Objectives:
 
 Understand different techniques used to optimize marketing campaigns (basic attribution, mixed model, attribution)
 
-Implement a Split Test to optimize your campaign 
+Implement a Split Test to optimize your campaign
 
-Analyze dashboards and evaluate ROI from your social media marketing efforts 
+Analyze dashboards and evaluate ROI from your social media marketing efforts
 
 Optimize your camp...`,
-      duration: 420,
-      chapters: [
-        { time: 0, title: 'Introduction' },
-        { time: 120, title: 'Main Content' },
-        { time: 300, title: 'Summary' },
-      ],
-      keyTakeaways: [
+      highlights: [
         '-Program: Facebook Social Media Marketing Professional Certificate',
         'Course 5: Optimize Your Marketing',
         'Module 1: Evaluate Your Marketing Results Against Goals',
         'Lesson 1: Evaluate Metrics Against Your Marketing Goal',
       ],
+      relatedResources: [],
     },
     estimatedMinutes: 7,
     isRequired: true,
@@ -453,13 +423,12 @@ Optimize your camp...`,
   {
     id: 'fsm-c5-m1-l1-a2',
     lessonId: 'fsm-c5-m1-l1',
-    type: 'video',
+    type: 'reading',
     title: 'Align metrics with common marketing goals',
     content: {
-      videoUrl: '', // TODO: Add video URL when available
-      transcript: `-Program: Facebook Social Media Marketing Professional Certificate 
+      body: `-Program: Facebook Social Media Marketing Professional Certificate
 
-Course 5: Optimize Your Marketing 
+Course 5: Optimize Your Marketing
 Module 1: Evaluate Your Marketing Results Against Goals
 Lesson 1: Evaluate Metrics Against Your Marketing Goal
 
@@ -467,23 +436,18 @@ Course Objectives:
 
 Understand different techniques used to optimize marketing campaigns (basic attribution, mixed model, attribution)
 
-Implement a Split Test to optimize your campaign 
+Implement a Split Test to optimize your campaign
 
-Analyze dashboards and evaluate ROI from your social media marketing efforts 
+Analyze dashboards and evaluate ROI from your social media marketing efforts
 
 Optimize your camp...`,
-      duration: 420,
-      chapters: [
-        { time: 0, title: 'Introduction' },
-        { time: 120, title: 'Main Content' },
-        { time: 300, title: 'Summary' },
-      ],
-      keyTakeaways: [
+      highlights: [
         '-Program: Facebook Social Media Marketing Professional Certificate',
         'Course 5: Optimize Your Marketing',
         'Module 1: Evaluate Your Marketing Results Against Goals',
         'Lesson 1: Evaluate Metrics Against Your Marketing Goal',
       ],
+      relatedResources: [],
     },
     estimatedMinutes: 7,
     isRequired: true,
@@ -492,13 +456,12 @@ Optimize your camp...`,
   {
     id: 'fsm-c5-m1-l1-a3',
     lessonId: 'fsm-c5-m1-l1',
-    type: 'video',
+    type: 'reading',
     title: 'Data and Reports to Evaluate Performance',
     content: {
-      videoUrl: '', // TODO: Add video URL when available
-      transcript: `-Program: Facebook Social Media Marketing Professional Certificate 
+      body: `-Program: Facebook Social Media Marketing Professional Certificate
 
-Course 5: Optimize Your Marketing 
+Course 5: Optimize Your Marketing
 Module 1: Evaluate Your Marketing Results Against Goals
 Lesson 1: Evaluate Metrics Against Your Marketing Goal
 
@@ -506,23 +469,18 @@ Course Objectives:
 
 Understand different techniques used to optimize marketing campaigns (basic attribution, mixed model, attribution)
 
-Implement a Split Test to optimize your campaign 
+Implement a Split Test to optimize your campaign
 
-Analyze dashboards and evaluate ROI from your social media marketing efforts 
+Analyze dashboards and evaluate ROI from your social media marketing efforts
 
 Optimize your camp...`,
-      duration: 420,
-      chapters: [
-        { time: 0, title: 'Introduction' },
-        { time: 120, title: 'Main Content' },
-        { time: 300, title: 'Summary' },
-      ],
-      keyTakeaways: [
+      highlights: [
         '-Program: Facebook Social Media Marketing Professional Certificate',
         'Course 5: Optimize Your Marketing',
         'Module 1: Evaluate Your Marketing Results Against Goals',
         'Lesson 1: Evaluate Metrics Against Your Marketing Goal',
       ],
+      relatedResources: [],
     },
     estimatedMinutes: 7,
     isRequired: true,
@@ -531,13 +489,12 @@ Optimize your camp...`,
   {
     id: 'fsm-c5-m1-l1-a3',
     lessonId: 'fsm-c5-m1-l1',
-    type: 'video',
+    type: 'reading',
     title: 'Data and Reports to Evaluate Performance',
     content: {
-      videoUrl: '', // TODO: Add video URL when available
-      transcript: `-Program: Facebook Social Media Marketing Professional Certificate 
+      body: `-Program: Facebook Social Media Marketing Professional Certificate
 
-Course 5: Optimize Your Marketing 
+Course 5: Optimize Your Marketing
 Module 1: Evaluate Your Marketing Results Against Goals
 Lesson 1: Evaluate Metrics Against Your Marketing Goal
 
@@ -545,23 +502,18 @@ Course Objectives:
 
 Understand different techniques used to optimize marketing campaigns (basic attribution, mixed model, attribution)
 
-Implement a Split Test to optimize your campaign 
+Implement a Split Test to optimize your campaign
 
-Analyze dashboards and evaluate ROI from your social media marketing efforts 
+Analyze dashboards and evaluate ROI from your social media marketing efforts
 
 Optimize your camp...`,
-      duration: 420,
-      chapters: [
-        { time: 0, title: 'Introduction' },
-        { time: 120, title: 'Main Content' },
-        { time: 300, title: 'Summary' },
-      ],
-      keyTakeaways: [
+      highlights: [
         '-Program: Facebook Social Media Marketing Professional Certificate',
         'Course 5: Optimize Your Marketing',
         'Module 1: Evaluate Your Marketing Results Against Goals',
         'Lesson 1: Evaluate Metrics Against Your Marketing Goal',
       ],
+      relatedResources: [],
     },
     estimatedMinutes: 7,
     isRequired: true,

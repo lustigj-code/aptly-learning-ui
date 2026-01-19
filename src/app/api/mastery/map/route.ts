@@ -24,7 +24,6 @@ import {
   shouldUseHybrid,
   getCurrentModelForUser,
 } from '@/lib/ml/predictionFallback';
-import { logHybridPrediction } from '@/lib/ml/predictionLogger';
 import { DEFAULT_COLD_START_CONFIG } from '@/lib/ml/coldStart';
 
 export async function GET(request: NextRequest) {

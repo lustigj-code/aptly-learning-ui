@@ -8,7 +8,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Brain, TrendingUp, Calendar, Target, Lightbulb } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
@@ -16,16 +16,25 @@ import { Button } from '@/components/ui/Button';
 import { generateDashboardInsights } from '@/lib/ai/dashboard-insights';
 import { useUserProfileStore } from '@/store/userProfileStore';
 
+interface DashboardInsights {
+  weeklyProgress: string;
+  learningPatterns: string[];
+  optimizationSuggestions: string[];
+  masteryNarration: string;
+  predictiveTimeline?: {
+    certificationReady: string;
+    confidence: number;
+    requirements: string[];
+  };
+  aiGenerated?: boolean;
+}
+
 export function DashboardAIInsights() {
   const user = useUserProfileStore((state) => state.user);
-  const [insights, setInsights] = useState<any>(null);
+  const [insights, setInsights] = useState<DashboardInsights | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadInsights();
-  }, [user?.id]);
-
-  const loadInsights = async () => {
+  const loadInsights = useCallback(async () => {
     if (!user) return;
 
     setLoading(true);
@@ -64,7 +73,11 @@ export function DashboardAIInsights() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    loadInsights();
+  }, [loadInsights]);
 
   if (loading) {
     return (
@@ -100,7 +113,7 @@ export function DashboardAIInsights() {
           <div className="mt-4 p-3 bg-white rounded-lg">
             <div className="flex items-center gap-2 mb-2">
               <TrendingUp className="w-4 h-4 text-blue" />
-              <p className="text-sm font-semibold text-navy">Patterns I've Noticed:</p>
+              <p className="text-sm font-semibold text-navy">Patterns I&apos;ve Noticed:</p>
             </div>
             <ul className="space-y-1">
               {insights.learningPatterns.map((pattern: string, index: number) => (

@@ -4,7 +4,7 @@
  * Tests for the Partially Observable Markov Decision Process student modeling system.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   createInitialBelief,
   createBeliefFromBKT,
@@ -12,14 +12,10 @@ import {
   isLikelyStruggling,
   isLikelyDisengaging,
   isReadyForChallenge,
-  getBeliefConfidence,
 } from '../beliefState';
 import {
   applyMasteryTransition,
   applyForgettingTransition,
-  applyAttentionTransition,
-  applyConfusionTransition,
-  applyMotivationTransition,
   applyAllTransitions,
   getTransitionEffect,
 } from '../stateTransitions';
