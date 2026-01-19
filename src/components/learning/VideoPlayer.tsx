@@ -55,6 +55,27 @@ function isTouchDevice(): boolean {
 }
 
 // ============================================
+// VIDEO PLACEHOLDER COMPONENT (for missing videos)
+// ============================================
+
+function VideoPlaceholder({ title, duration }: { title: string; duration: number }) {
+  return (
+    <div className="relative w-full bg-gradient-to-br from-navy to-purple rounded-2xl overflow-hidden aspect-video">
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
+        <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mb-4">
+          <Play className="w-8 h-8 text-white/60 ml-1" />
+        </div>
+        <p className="font-medium text-lg">{title}</p>
+        <p className="text-white/60 text-sm mt-2">Video coming soon</p>
+        <p className="text-white/40 text-xs mt-1">
+          {Math.floor(duration / 60)} min lesson
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// ============================================
 // VIDEO PLAYER COMPONENT
 // ============================================
 
@@ -65,6 +86,9 @@ export function VideoPlayer({
   onComplete,
   onProgress,
 }: VideoPlayerProps) {
+  // Check for missing video URL
+  const hasValidUrl = videoUrl && videoUrl.trim() !== ''
+
   // Video refs
   const videoRef = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -98,13 +122,13 @@ export function VideoPlayer({
   // ============================================
 
   // Load saved progress and speed on mount
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const savedSpeed = localStorage.getItem(getStorageKey(videoUrl, 'speed'))
     if (savedSpeed) {
       const speed = parseFloat(savedSpeed) as PlaybackSpeed
       if (PLAYBACK_SPEEDS.includes(speed)) {
         // Restore user's saved playback speed preference from localStorage
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setPlaybackSpeed(speed)
       }
     }
@@ -114,11 +138,11 @@ export function VideoPlayer({
       const time = parseFloat(savedTime)
       if (time > 0 && time < duration) {
         videoRef.current.currentTime = time
-         
         setCurrentTime(time)
       }
     }
   }, [videoUrl, duration])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Apply playback speed to video element
   useEffect(() => {
@@ -361,10 +385,10 @@ export function VideoPlayer({
   // AUTO-HIDE CONTROLS
   // ============================================
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!isPlaying) {
       // Show controls when paused - sync with external state (play/pause)
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowControls(true)
       return
     }
@@ -375,6 +399,7 @@ export function VideoPlayer({
 
     return () => clearTimeout(timeout)
   }, [isPlaying, currentTime])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleMouseMove = useCallback(() => {
     setShowControls(true)
@@ -383,6 +408,11 @@ export function VideoPlayer({
   // ============================================
   // RENDER
   // ============================================
+
+  // Show placeholder for missing videos
+  if (!hasValidUrl) {
+    return <VideoPlaceholder title={title} duration={duration} />
+  }
 
   const progressPercent = (currentTime / duration) * 100
 

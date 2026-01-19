@@ -312,6 +312,33 @@ export function MainCoachChat({
 
       {/* Messages */}
       <main className="flex-1 overflow-y-auto p-6 space-y-5">
+        {/* Loading state while conversation is being fetched */}
+        {!conversationLoaded && lessonId && (
+          <div className="flex items-center justify-center py-12">
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="w-8 h-8 text-teal animate-spin" />
+              <p className="text-sm text-rich-black/50">Loading conversation...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Welcome state when no messages and conversation is loaded */}
+        {conversationLoaded && messages.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center justify-center py-12 text-center"
+          >
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal to-purple flex items-center justify-center text-3xl mb-4 shadow-lg">
+              🦉
+            </div>
+            <h2 className="text-xl font-bold text-navy mb-2">Hi there! I&apos;m Sage</h2>
+            <p className="text-rich-black/60 max-w-sm mb-6">
+              I&apos;m your AI learning coach. Ask me anything about your lessons, or try one of the quick prompts below.
+            </p>
+          </motion.div>
+        )}
+
         {messages.map((message, index) => {
           // Check if this message has quiz content (from quizMessages state or content block)
           const quizData = quizMessages[message.id];

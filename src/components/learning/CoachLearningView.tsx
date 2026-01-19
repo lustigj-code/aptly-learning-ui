@@ -35,7 +35,7 @@ import { MainCoachChat } from '@/components/coach/MainCoachChat'
 import type { CoachAction } from '@/types/coachActions'
 
 // Import intelligence components (Phase 3-2)
-import { WhyThisContent } from './WhyThisContent'
+// WhyThisContent removed per user feedback
 // These are imported but currently not used in the JSX - keeping for future use
 // import { RealTimeMasteryBar } from './RealTimeMasteryBar'
 // import { ContentSkipOption } from './ContentSkipOption'
@@ -554,7 +554,7 @@ export function CoachLearningView({
   // Intelligence feature state (Phase 3-2)
   const [showPacingIndicator, setShowPacingIndicator] = useState(false)
   const [lastResponseTimeMs, setLastResponseTimeMs] = useState(0)
-  const [contentReason, setContentReason] = useState<string>('')
+  const [_contentReason, _setContentReason] = useState<string>('')
 
   // Phase 4: Immediate context for quiz answers (passed to MainCoachChat)
   const [immediateContext, setImmediateContext] = useState<{
@@ -688,14 +688,16 @@ export function CoachLearningView({
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // Generate content reasoning when lesson changes (Phase 3-2)
+  // Note: contentReason unused after WhyThisContent removal, but keeping logic for future use
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (currentLesson) {
       const reason = generateContentReason(currentLesson, learningInsights)
-      setContentReason(reason)
+      _setContentReason(reason)
     }
   }, [currentLesson, learningInsights])
   /* eslint-enable react-hooks/set-state-in-effect */
+   
 
   // Record content view when atom changes (for re-reading detection)
   /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
@@ -1268,7 +1270,7 @@ export function CoachLearningView({
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Content Area - Full Screen (with bottom padding for floating coach bar) */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden px-4 sm:px-6 md:px-8 py-4 sm:py-6 pb-48 sm:pb-32">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden px-4 sm:px-6 md:px-8 lg:px-12 py-4 sm:py-6 pb-24 sm:pb-20">
           {/* Inline Header */}
           <div className="flex items-center justify-between mb-4 flex-shrink-0">
             <div className="flex items-center gap-3 min-w-0">
@@ -1367,18 +1369,6 @@ export function CoachLearningView({
               </div>
             </div>
           </div>
-
-          {/* Phase 3-2 intelligence components - Why This Content */}
-          {contentReason && (
-            <div className="mb-4">
-              <WhyThisContent
-                reason={contentReason}
-                skillName={currentLesson?.title}
-                currentMastery={learningInsights.averageQuizScore}
-                size="sm"
-              />
-            </div>
-          )}
 
           {/* Content - Fills remaining space */}
           <div className="flex-1 min-h-0 relative overflow-hidden">

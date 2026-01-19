@@ -317,7 +317,7 @@ export default function ProgressPage() {
 
       {/* Exam Readiness */}
       <Section delay={0.4}>
-        <Card variant="outlined" padding="lg" className="bg-light-teal/30 border-teal/20">
+        <Card variant="elevated" padding="lg" className="bg-gradient-to-r from-light-teal/40 to-teal/20">
           <div className="flex items-center gap-6">
             <div className="w-20 h-20 rounded-2xl bg-teal/20 flex items-center justify-center">
               <Award size={32} className="text-teal" />

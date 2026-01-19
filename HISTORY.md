@@ -1508,3 +1508,51 @@ Created comprehensive admin UI for managing the question bank with filtering, pa
 - Production URL: https://aptly-learning.vercel.app
 - Build: 51s compile, all routes functional
 - Deployment completed: 2026-01-19T20:30:17Z
+
+## 2026-01-19 - Production UX Polish Fixes
+
+### Session Summary
+Fixed multiple UX issues identified in production including video placeholder states, Sage modal empty state, layout improvements, and component cleanup.
+
+### Fixes Applied
+
+**1. VideoPlayer Empty URL Handling** ✅
+- Added `VideoPlaceholder` component for videos with missing URLs
+- Shows "Video coming soon" with title and duration instead of error
+- Files: `src/components/learning/VideoPlayer.tsx`
+
+**2. MainCoachChat Loading/Empty States** ✅
+- Added loading spinner while conversation is being fetched
+- Added welcome state with Sage introduction when no messages
+- Files: `src/components/coach/MainCoachChat.tsx`
+
+**3. CoachLearningView Layout Improvements** ✅
+- Reduced excessive bottom padding from `pb-48` to `pb-24`
+- Added `lg:px-12` for wider content on large screens
+- Files: `src/components/learning/CoachLearningView.tsx`
+
+**4. WhyThisContent Banner Removal** ✅
+- Removed the yellow "Personalized Learning Path" banner per user feedback
+- Removed component usage and marked state variables as unused
+- Files: `src/components/learning/CoachLearningView.tsx`
+
+**5. Keyboard Shortcuts Button Removal** ✅
+- Removed floating keyboard button from bottom-right corner
+- Kept keyboard functionality (? key still opens modal)
+- Files: `src/components/accessibility/KeyboardShortcuts.tsx`
+
+**6. Progress Page Styling** ✅
+- Changed Meta Certification Exam card from outlined to elevated variant
+- Added gradient background instead of border outline
+- Files: `src/app/progress/page.tsx`
+
+**7. Dashboard Error Handling** ✅ (Already Implemented)
+- Verified existing timeout and fallback mechanisms are adequate
+- Dashboard already has 10s timeout, fallback course loading, and error states
+
+### Files Modified
+- `src/components/learning/VideoPlayer.tsx`
+- `src/components/coach/MainCoachChat.tsx`
+- `src/components/learning/CoachLearningView.tsx`
+- `src/components/accessibility/KeyboardShortcuts.tsx`
+- `src/app/progress/page.tsx`

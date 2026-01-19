@@ -8,7 +8,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Keyboard } from 'lucide-react';
+// Keyboard icon removed - button no longer shown
 import { Modal } from '@/components/ui/Modal';
 
 type KeyboardShortcut = {
@@ -61,15 +61,7 @@ export function KeyboardShortcutsModal() {
 
   return (
     <>
-      {/* Floating hint button - Apple-style elegant design */}
-      <button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 p-3 bg-teal text-white rounded-full shadow-lg hover:bg-teal-dark hover:scale-105 active:scale-95 transition-all duration-200 z-40 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-teal/50 focus-visible:ring-offset-2 group"
-        aria-label="Show keyboard shortcuts (Press ? key)"
-        title="Press ? for keyboard shortcuts"
-      >
-        <Keyboard className="w-5 h-5 group-hover:rotate-12 transition-transform duration-200" />
-      </button>
+      {/* Floating button removed per user feedback - keyboard shortcuts still work via ? key */}
 
       {/* Shortcuts Modal */}
       <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title="Keyboard Shortcuts" size="lg">
