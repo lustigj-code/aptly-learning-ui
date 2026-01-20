@@ -178,6 +178,13 @@ export function calculateBrierScore(
 }
 
 /**
+ * Tolerance for floating-point comparison in tie detection
+ * Using 1e-9 to handle floating-point precision issues while still
+ * distinguishing meaningfully different predictions
+ */
+const TIE_TOLERANCE = 1e-9;
+
+/**
  * Calculate AUC-ROC (discrimination metric)
  *
  * Uses trapezoidal rule approximation.
@@ -212,8 +219,10 @@ export function calculateAUC(
 
   for (const pos of positives) {
     for (const neg of negatives) {
-      if (pos.prediction > neg.prediction) concordant++;
-      else if (pos.prediction === neg.prediction) tied++;
+      const diff = pos.prediction - neg.prediction;
+      // Use tolerance for floating-point comparison to properly detect ties
+      if (diff > TIE_TOLERANCE) concordant++;
+      else if (Math.abs(diff) <= TIE_TOLERANCE) tied++;
     }
   }
 
