@@ -78,6 +78,9 @@ type SessionState = {
   currentAtomIndex: number
   completedAtomIds: string[]
   completedLessonIds: string[]
+  // Phase persistence to prevent duplicate modals on page reload
+  currentSessionPhase?: SessionPhase
+  shownPhaseTransitions?: string[] // e.g., ['warmup_main', 'main_cooldown']
 }
 
 type LearningInsights = {
@@ -494,6 +497,8 @@ export function CoachLearningView({
       currentAtomIndex: 0,
       completedAtomIds: [],
       completedLessonIds: [],
+      currentSessionPhase: 'warmup' as SessionPhase,
+      shownPhaseTransitions: [],
     }
   })
 
@@ -547,7 +552,10 @@ export function CoachLearningView({
   const [timingTrigger, setTimingTrigger] = useState<TimingTrigger | null>(null)
   const [timingPreferences] = useState<TimingPreferences>(DEFAULT_TIMING_PREFERENCES)
   const [_previousMastery, _setPreviousMastery] = useState<Record<string, number>>({})
-  const [currentSessionPhase, setCurrentSessionPhase] = useState<SessionPhase>('warmup')
+  // Use persisted phase from session state to prevent duplicate modals on page reload
+  const [currentSessionPhase, setCurrentSessionPhase] = useState<SessionPhase>(
+    () => sessionState.currentSessionPhase || 'warmup'
+  )
 
   // Navigation direction for smooth transitions
   const [navigationDirection, setNavigationDirection] = useState<'forward' | 'backward'>('forward')
@@ -696,20 +704,40 @@ export function CoachLearningView({
 
     // Check for phase transition
     if (phase !== currentSessionPhase) {
-      const trigger = checkSessionTransition(
-        { itemsCompleted: completedAtoms, totalItems: totalAtoms },
-        currentSessionPhase,
-        phase
-      )
-      if (trigger) {
-        const filteredTrigger = filterByPreferences(trigger, timingPreferences)
-        if (filteredTrigger) {
-          setTimingTrigger(filteredTrigger)
+      // Create transition key to track if this modal has been shown
+      const transitionKey = `${currentSessionPhase}_${phase}`
+      const alreadyShown = sessionState.shownPhaseTransitions?.includes(transitionKey)
+
+      if (!alreadyShown) {
+        const trigger = checkSessionTransition(
+          { itemsCompleted: completedAtoms, totalItems: totalAtoms },
+          currentSessionPhase,
+          phase
+        )
+        if (trigger) {
+          const filteredTrigger = filterByPreferences(trigger, timingPreferences)
+          if (filteredTrigger) {
+            setTimingTrigger(filteredTrigger)
+          }
         }
+
+        // Mark this transition as shown to prevent duplicate modals on page reload
+        setSessionState(prev => ({
+          ...prev,
+          currentSessionPhase: phase,
+          shownPhaseTransitions: [...(prev.shownPhaseTransitions || []), transitionKey],
+        }))
+      } else {
+        // Phase changed but transition already shown - just update the phase
+        setSessionState(prev => ({
+          ...prev,
+          currentSessionPhase: phase,
+        }))
       }
+
       setCurrentSessionPhase(phase)
     }
-  }, [progressPercent, currentSessionPhase, completedAtoms, totalAtoms, timingPreferences])
+  }, [progressPercent, currentSessionPhase, completedAtoms, totalAtoms, timingPreferences, sessionState.shownPhaseTransitions])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // Handle timing trigger dismissal
