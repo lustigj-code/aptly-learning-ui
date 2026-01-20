@@ -176,6 +176,37 @@ export async function POST(request: NextRequest) {
       score: score || null,
     };
 
+    // Calculate overall percentage based on completed atoms
+    // Get current atomsCompleted after this update
+    const currentAtomsCompleted = [...atomsCompleted, atomId];
+
+    // Calculate total atoms in course by querying course structure
+    let totalAtomCount = 0;
+    try {
+      const modulesSnap = await adminDb
+        .collection('courses')
+        .doc(courseId)
+        .collection('modules')
+        .get();
+
+      for (const moduleDoc of modulesSnap.docs) {
+        const lessonsSnap = await moduleDoc.ref.collection('lessons').get();
+        for (const lessonDoc of lessonsSnap.docs) {
+          const atomsSnap = await lessonDoc.ref.collection('atoms').get();
+          totalAtomCount += atomsSnap.size;
+        }
+      }
+    } catch (error) {
+      console.error('Error counting atoms for percentage calculation:', error);
+      // Fall back to a reasonable default based on completed count
+      totalAtomCount = Math.max(currentAtomsCompleted.length * 4, 20);
+    }
+
+    // Calculate percentage (avoid division by zero)
+    const overallPercentage = totalAtomCount > 0
+      ? Math.round((currentAtomsCompleted.length / totalAtomCount) * 100)
+      : 0;
+
     // Update user progress in users.progress (primary location)
     await userRef.update({
       'progress.atomsCompleted': arrayUnion(atomId),
@@ -184,6 +215,7 @@ export async function POST(request: NextRequest) {
       'progress.currentLevel': levelInfo.level,
       'progress.xpToNextLevel': levelInfo.xpToNextLevel,
       'progress.currentAtomId': atomId,
+      'progress.overallPercentage': overallPercentage,
       lastActiveAt: serverTimestamp(),
     });
 

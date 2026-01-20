@@ -1,5 +1,59 @@
 # Project History
 
+## 2026-01-19 - Fix AI Coach Authentication Issue
+
+### Task
+Debug and fix "Failed to create conversation" error in AI coach, and enable fine-tuned Vertex AI model.
+
+### Root Cause
+The `useCoach` hook was not sending Firebase authentication tokens with API requests. The `/api/coach` endpoint requires a Bearer token for authentication, but the frontend was only sending `Content-Type` headers.
+
+### Solution
+1. **Added Firebase auth token to useCoach API calls**:
+   - Imported `getIdToken` from `@/lib/firebase/auth`
+   - Added `Authorization: Bearer ${token}` header to both fetch calls
+   - Added proper error handling when no token is available
+
+### Files Changed
+- `src/hooks/useCoach.ts` - Added auth token to API calls (lines 333-336, 556-560)
+
+### Additional Findings
+- Vertex AI fine-tuned model (`USE_TUNED_GEMINI`) was disabled
+- Vertex AI model is in a different GCP project (961528290184) than Firebase (aptly-study-app)
+- Manual setup required: Enable `USE_TUNED_GEMINI=true` and configure Vertex AI authentication
+
+### Build Status
+- Production build: Compiled successfully
+
+---
+
+## 2026-01-19 - Fix Progress Persistence Issues
+
+### Task
+Fix progress persistence issues where:
+1. Dashboard shows stale percentage (31%) - complete-atom API didn't update overallPercentage
+2. Learning page resets to 14% - Race condition where localStorage loads before Firebase
+3. Progress not remembered - Multiple competing sources of truth without proper sync
+
+### Root Causes
+1. **complete-atom API missing percentage update**: The API updated atomsCompleted but not overallPercentage
+2. **Race condition in CoachLearningView**: Session state initialized from localStorage before Firebase data loaded, causing ID mismatch and position reset
+3. **Position not synced to Firebase**: Navigation within lessons only updated localStorage, not Firebase
+
+### Solution
+1. **complete-atom API**: Added overallPercentage calculation by querying total atom count from course structure
+2. **CoachLearningView**: Deferred session restoration to useEffect that waits for Firebase data
+3. **Position sync**: Added useEffect to call setCurrentPosition when atom/lesson changes
+
+### Files Changed
+- `src/app/api/progress/complete-atom/route.ts` - Added overallPercentage calculation and Firestore update
+- `src/components/learning/CoachLearningView.tsx` - Fixed race condition with deferred session init, added position sync
+
+### Build Status
+- Production build: Compiled successfully
+
+---
+
 ## 2026-01-20 - Fix Progress Percentage Inconsistency and Tie Tracking
 
 ### Task

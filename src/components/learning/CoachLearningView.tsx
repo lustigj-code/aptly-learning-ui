@@ -442,7 +442,7 @@ export function CoachLearningView({
   onExit,
   onLessonComplete,
 }: CoachLearningViewProps) {
-  const { user } = useUser()
+  const { user, isLoading: isUserLoading, setCurrentPosition } = useUser()
 
   // Dynamic course content hooks
   const effectiveCourseId = courseId || user?.progress?.currentCourseId || DEFAULT_COURSE_ID
@@ -472,35 +472,20 @@ export function CoachLearningView({
   const { masteryLevels, isColdStart: _isColdStart } = useMasteryLevels(user?.id || null)
   const [prerequisiteWarning, setPrerequisiteWarning] = useState<string | null>(null)
 
-  // Session state
-  const [sessionState, setSessionState] = useState<SessionState>(() => {
-    const saved = loadSession()
-    // Only restore session if both courseId and moduleId match
-    if (saved && saved.courseId === effectiveCourseId && saved.moduleId === currentModule.id) {
-      // Validate bounds to prevent "Content Not Found" errors
-      const maxLessonIndex = currentModule.lessons.length - 1
-      const safeCurrentLessonIndex = Math.min(Math.max(0, saved.currentLessonIndex), maxLessonIndex)
-      const currentLessonAtoms = currentModule.lessons[safeCurrentLessonIndex]?.atoms || []
-      const maxAtomIndex = Math.max(0, currentLessonAtoms.length - 1)
-      const safeCurrentAtomIndex = Math.min(Math.max(0, saved.currentAtomIndex), maxAtomIndex)
+  // Track if session has been initialized from Firebase
+  const [sessionInitialized, setSessionInitialized] = useState(false)
 
-      return {
-        ...saved,
-        currentLessonIndex: safeCurrentLessonIndex,
-        currentAtomIndex: safeCurrentAtomIndex,
-      }
-    }
-    return {
-      courseId: effectiveCourseId,
-      moduleId: currentModule.id,
-      currentLessonIndex: 0,
-      currentAtomIndex: 0,
-      completedAtomIds: [],
-      completedLessonIds: [],
-      currentSessionPhase: 'warmup' as SessionPhase,
-      shownPhaseTransitions: [],
-    }
-  })
+  // Session state - initialize with default, then restore in useEffect after Firebase loads
+  const [sessionState, setSessionState] = useState<SessionState>(() => ({
+    courseId: DEFAULT_COURSE_ID,
+    moduleId: '',
+    currentLessonIndex: 0,
+    currentAtomIndex: 0,
+    completedAtomIds: [],
+    completedLessonIds: [],
+    currentSessionPhase: 'warmup' as SessionPhase,
+    shownPhaseTransitions: [],
+  }))
 
   const [_coachTip, setCoachTip] = useState('')
   const [showChatOverlay, setShowChatOverlay] = useState(false)
@@ -564,6 +549,54 @@ export function CoachLearningView({
   const [sessionStartTime] = useState(() => Date.now())
   const sessionId = `session_${user?.id || 'anon'}_${sessionStartTime}`
 
+  // Restore session from localStorage AFTER Firebase data is loaded
+  // This prevents the race condition where localStorage IDs don't match
+   
+  useEffect(() => {
+    // Wait for Firebase user data to load
+    if (isUserLoading) return
+    // Only initialize once
+    if (sessionInitialized) return
+
+    const saved = loadSession()
+    const firebaseCourseId = user?.progress?.currentCourseId || DEFAULT_COURSE_ID
+    const firebaseModuleId = user?.progress?.currentModuleId || ''
+    const moduleForInit = moduleData || (courseData?.modules?.[0]) || getModule(firebaseCourseId, firebaseModuleId)
+
+    // Restore session if courseId and moduleId match
+    if (saved && saved.courseId === firebaseCourseId && saved.moduleId === moduleForInit.id) {
+      // Validate bounds to prevent "Content Not Found" errors
+      const maxLessonIndex = moduleForInit.lessons.length - 1
+      const safeCurrentLessonIndex = Math.min(Math.max(0, saved.currentLessonIndex), maxLessonIndex)
+      const currentLessonAtoms = moduleForInit.lessons[safeCurrentLessonIndex]?.atoms || []
+      const maxAtomIndex = Math.max(0, currentLessonAtoms.length - 1)
+      const safeCurrentAtomIndex = Math.min(Math.max(0, saved.currentAtomIndex), maxAtomIndex)
+
+      setSessionState({
+        ...saved,
+        courseId: firebaseCourseId,
+        moduleId: moduleForInit.id,
+        currentLessonIndex: safeCurrentLessonIndex,
+        currentAtomIndex: safeCurrentAtomIndex,
+      })
+    } else {
+      // Initialize fresh session with Firebase data
+      setSessionState({
+        courseId: firebaseCourseId,
+        moduleId: moduleForInit.id,
+        currentLessonIndex: 0,
+        currentAtomIndex: 0,
+        completedAtomIds: [],
+        completedLessonIds: user?.progress?.lessonsCompleted || [],
+        currentSessionPhase: 'warmup' as SessionPhase,
+        shownPhaseTransitions: [],
+      })
+    }
+
+    setSessionInitialized(true)
+  }, [isUserLoading, sessionInitialized, user?.progress?.currentCourseId, user?.progress?.currentModuleId, user?.progress?.lessonsCompleted, moduleData, courseData])
+   
+
   // Initialize struggle tracking on mount
   useEffect(() => {
     initStruggleTracking(sessionId)
@@ -594,7 +627,7 @@ export function CoachLearningView({
   // Sync server progress and auto-advance past completed lessons
   // This runs when component mounts or when server progress updates
   const hasAutoAdvancedRef = useRef(false)
-  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     // Get completed lessons from server (Firebase user progress)
     const serverLessonsCompleted = user?.progress?.lessonsCompleted || []
@@ -649,10 +682,10 @@ export function CoachLearningView({
       })
     }
   }, [user?.progress?.lessonsCompleted, currentModule.id])
-  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   // Set initial coach tip - personalized based on insights and learning preferences
-  /* eslint-disable react-hooks/set-state-in-effect */
+   
   useEffect(() => {
     if (currentAtom && currentLesson) {
       // Use session recommendation on first atom, otherwise content-specific tips
@@ -666,22 +699,22 @@ export function CoachLearningView({
       setShowPacingIndicator(false)
     }
   }, [currentAtom, currentLesson, sessionRecommendation, sessionState.currentAtomIndex, sessionState.currentLessonIndex, learningInsights])
-  /* eslint-enable react-hooks/set-state-in-effect */
+   
 
   // Generate content reasoning when lesson changes (Phase 3-2)
   // Note: contentReason unused after WhyThisContent removal, but keeping logic for future use
-  /* eslint-disable react-hooks/set-state-in-effect */
+   
   useEffect(() => {
     if (currentLesson) {
       const reason = generateContentReason(currentLesson, learningInsights)
       _setContentReason(reason)
     }
   }, [currentLesson, learningInsights])
-  /* eslint-enable react-hooks/set-state-in-effect */
+   
    
 
   // Record content view when atom changes (for re-reading detection)
-  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     if (currentAtom) {
       const newStruggleState = recordContentView(sessionId, currentAtom.id)
@@ -690,10 +723,27 @@ export function CoachLearningView({
       answerStartTimeRef.current = Date.now()
     }
   }, [currentAtom?.id, sessionId])
-  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
+  /* eslint-enable react-hooks/exhaustive-deps */
+
+  // Sync current position to Firebase when atom/lesson changes
+  // This ensures Firebase always has the latest position for cross-device/session continuity
+  /* eslint-disable react-hooks/exhaustive-deps */
+  useEffect(() => {
+    // Only sync if session is initialized and we have valid data
+    if (!sessionInitialized || !currentAtom || !currentLesson || !user) return
+
+    // Sync position to Firebase
+    setCurrentPosition(
+      effectiveCourseId,
+      currentModule.id,
+      currentLesson.id,
+      currentAtom.id
+    )
+  }, [sessionInitialized, currentAtom?.id, currentLesson?.id, currentModule.id, effectiveCourseId, user, setCurrentPosition])
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   // Determine session phase based on progress
-  /* eslint-disable react-hooks/set-state-in-effect */
+   
   useEffect(() => {
     const phase: SessionPhase = (() => {
       if (progressPercent >= 100) return 'complete'
@@ -738,7 +788,7 @@ export function CoachLearningView({
       setCurrentSessionPhase(phase)
     }
   }, [progressPercent, currentSessionPhase, completedAtoms, totalAtoms, timingPreferences, sessionState.shownPhaseTransitions])
-  /* eslint-enable react-hooks/set-state-in-effect */
+   
 
   // Handle timing trigger dismissal
   const handleTimingDismiss = useCallback(() => {
@@ -1248,7 +1298,8 @@ export function CoachLearningView({
   }, [learningInsights.responseTimes])
 
   // Loading state for async data - use content-aware skeleton
-  if (courseLoading || moduleLoading) {
+  // Also wait for session initialization (Firebase-dependent)
+  if (courseLoading || moduleLoading || isUserLoading || !sessionInitialized) {
     return (
       <div className="flex h-screen bg-light-grey/30">
         {/* Sidebar skeleton */}

@@ -2,6 +2,7 @@
 
 import { useReducer, useCallback, useEffect } from 'react';
 import { useUser } from '@/store/unifiedStore';
+import { getIdToken } from '@/lib/firebase/auth';
 import type { CoachAction } from '@/types/coachActions';
 
 // ============================================
@@ -328,11 +329,18 @@ export function useCoach() {
 
         dispatch({ type: 'SET_LOADING', payload: true });
 
+        // Get auth token for API call
+        const token = await getIdToken();
+        if (!token) {
+          throw new Error('Authentication required. Please sign in.');
+        }
+
         // Create new conversation via API
         const response = await fetch('/api/coach', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
           },
           body: JSON.stringify({
             messages: [],
@@ -545,6 +553,12 @@ export function useCoach() {
       dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
 
       try {
+        // Get auth token for API call
+        const token = await getIdToken();
+        if (!token) {
+          throw new Error('Authentication required. Please sign in.');
+        }
+
         // Build conversation history for API
         const conversationHistory = [...messages, userMessage].map((m) => ({
           role: m.role === 'assistant' ? 'assistant' : 'user',
@@ -555,6 +569,7 @@ export function useCoach() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
           },
           body: JSON.stringify({
             messages: conversationHistory,
