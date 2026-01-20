@@ -38,7 +38,7 @@ export function getMessagingInstance(): Messaging | null {
 
   if (!messaging) {
     try {
-      messaging = getMessaging(app);
+      messaging = getMessaging(app ?? undefined);
     } catch (error) {
       console.error('Failed to initialize FCM:', error);
       return null;

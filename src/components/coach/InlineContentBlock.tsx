@@ -103,7 +103,7 @@ function VideoBlock({
   isActive: boolean
 }) {
   const [isPlaying, setIsPlaying] = useState(false)
-  const [_progress, _setProgress] = useState(0)
+  const [progress, _setProgress] = useState(0)
   const [showTranscript, setShowTranscript] = useState(false)
 
   const handleComplete = useCallback(() => {

@@ -98,6 +98,7 @@ vi.mock('@/store/unifiedStore', () => ({
     },
     isLoading: false,
     error: null,
+    setCurrentPosition: vi.fn(),
   })),
 }));
 
@@ -469,7 +470,7 @@ describe('CoachLearningView Component', () => {
     expect(owlEmojis.length).toBeGreaterThan(0);
   });
 
-  it('shows Content Not Found state when no lesson exists', () => {
+  it('shows No Lessons Available state when no lesson exists', () => {
     const emptyModule: Module = {
       ...mockModule,
       lessons: [],
@@ -493,9 +494,9 @@ describe('CoachLearningView Component', () => {
 
     render(<CoachLearningView />);
 
-    // Should show content not found
-    expect(screen.getByText('Content Not Found')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Start Fresh/i })).toBeInTheDocument();
+    // Should show no lessons available
+    expect(screen.getByText('No Lessons Available')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Refresh/i })).toBeInTheDocument();
   });
 
   it('calls onLessonComplete when lesson is finished', async () => {

@@ -70,7 +70,6 @@ export async function POST(request: NextRequest) {
           preferencePairs: [],
           instructions: [],
         });
-        filename = 'synthetic_conversations.jsonl';
         return NextResponse.json({
           success: true,
           type: 'conversations',
@@ -86,7 +85,6 @@ export async function POST(request: NextRequest) {
           preferencePairs: pairs,
           instructions: [],
         });
-        filename = 'synthetic_preference_pairs.jsonl';
         return NextResponse.json({
           success: true,
           type: 'preference',
@@ -102,7 +100,6 @@ export async function POST(request: NextRequest) {
           preferencePairs: [],
           instructions,
         });
-        filename = 'synthetic_instructions.jsonl';
         return NextResponse.json({
           success: true,
           type: 'instruction',

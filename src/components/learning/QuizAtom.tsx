@@ -196,7 +196,7 @@ export function QuizAtom({
   // Time tracking
   const { elapsedSeconds, isActive, getTimeSpent, reset: resetTimer } = useTimeTracking({
     atomId: atom.id,
-    lessonId: atom.lessonId,
+    _lessonId: atom.lessonId,
   });
 
   const questions = content.questions || [];

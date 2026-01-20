@@ -37,7 +37,7 @@ function createStripeClient(): Stripe | null {
   }
 
   return new Stripe(secretKey, {
-    apiVersion: '2024-12-18.acacia',
+    apiVersion: '2025-12-15.clover',
     typescript: true,
   });
 }

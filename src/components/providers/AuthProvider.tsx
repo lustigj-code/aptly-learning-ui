@@ -57,13 +57,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isAuthenticated, firebaseUser, refreshSessionCookie])
 
-  // Setup Firestore listener when authenticated
+  // Fetch user data from Firestore when authenticated
   useEffect(() => {
     if (!isAuthenticated || !authUser?.uid) return
 
-    const unsubscribe = setupFirestoreListener(authUser.uid)
-
-    return () => unsubscribe?.()
+    // fetchUserFromFirestore is an async function that returns Promise<void>
+    setupFirestoreListener(authUser.uid)
   }, [isAuthenticated, authUser?.uid, setupFirestoreListener])
 
   // Create new user if authenticated but no user data exists

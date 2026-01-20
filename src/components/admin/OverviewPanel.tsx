@@ -74,12 +74,38 @@ export function OverviewPanel({ dateRange }: OverviewPanelProps) {
   }
 
   if (error) {
+    const handleRetry = async () => {
+      try {
+        setError(null);
+        setLoading(true);
+        const response = await fetch('/api/admin/analytics/overview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            startDate: dateRange.start.toISOString(),
+            endDate: dateRange.end.toISOString(),
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch metrics');
+        }
+
+        const data = await response.json();
+        setMetrics(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     return (
       <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-red-700">
         <h3 className="font-semibold">Error loading metrics</h3>
         <p className="mt-1 text-sm">{error}</p>
         <button
-          onClick={fetchMetrics}
+          onClick={handleRetry}
           className="mt-4 px-4 py-2 bg-red-100 hover:bg-red-200 rounded-lg text-sm font-medium transition-colors"
         >
           Retry

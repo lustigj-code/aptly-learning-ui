@@ -100,7 +100,12 @@ export function ExperimentPanel() {
       await fetch(`/api/admin/experiments/${experimentId}/${action}`, {
         method: 'POST',
       });
-      await fetchExperiments();
+      // Refresh experiments list
+      const response = await fetch('/api/admin/experiments');
+      if (response.ok) {
+        const data = await response.json();
+        setExperiments(data.experiments || []);
+      }
     } catch (err) {
       console.error(`Error ${action} experiment:`, err);
     } finally {

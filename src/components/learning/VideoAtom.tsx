@@ -41,7 +41,7 @@ export function VideoAtom({ atom, onComplete, isLoading = false }: VideoAtomProp
   // Time tracking - pauses when video is not playing
   const { elapsedSeconds, getTimeSpent, pause, resume } = useTimeTracking({
     atomId: atom.id,
-    lessonId: atom.lessonId,
+    _lessonId: atom.lessonId,
   });
 
   // Log content view when component unmounts

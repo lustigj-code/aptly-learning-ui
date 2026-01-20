@@ -62,7 +62,7 @@ export function PracticeAtom({
   // Time tracking
   const { elapsedSeconds, isActive, getTimeSpent } = useTimeTracking({
     atomId: atom.id,
-    lessonId: atom.lessonId,
+    _lessonId: atom.lessonId,
   });
 
   // Interaction logging for ML model training

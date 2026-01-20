@@ -56,7 +56,7 @@ export function ReadingAtom({ atom, onComplete, isLoading = false }: ReadingAtom
   // Time tracking
   const { elapsedSeconds, isActive, getTimeSpent } = useTimeTracking({
     atomId: atom.id,
-    lessonId: atom.lessonId,
+    _lessonId: atom.lessonId,
   });
 
   // Log content view when component unmounts or completes
