@@ -1170,13 +1170,39 @@ export function CoachLearningView({
     return calculateAverageResponseTime(learningInsights.responseTimes, 30000)
   }, [learningInsights.responseTimes])
 
-  // Loading state for async data
+  // Loading state for async data - use content-aware skeleton
   if (courseLoading || moduleLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-white">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-teal mx-auto mb-4" />
-          <p className="text-grey">Loading learning content...</p>
+      <div className="flex h-screen bg-light-grey/30">
+        {/* Sidebar skeleton */}
+        <div className="w-72 bg-white/75 backdrop-blur-xl border-r border-white/20 hidden lg:flex flex-col">
+          <div className="p-6 border-b border-grey/10">
+            <div className="flex flex-col items-center">
+              <div className="w-32 h-32 rounded-full bg-grey/10 animate-pulse mb-4" />
+              <div className="w-20 h-4 bg-grey/10 rounded animate-pulse" />
+            </div>
+          </div>
+          <div className="flex-1 p-4 space-y-2">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-10 bg-grey/10 rounded-xl animate-pulse" />
+            ))}
+          </div>
+        </div>
+        {/* Main content skeleton */}
+        <div className="flex-1 flex flex-col p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-24 h-10 bg-grey/10 rounded-lg animate-pulse" />
+              <div>
+                <div className="w-48 h-5 bg-grey/10 rounded animate-pulse mb-1" />
+                <div className="w-24 h-3 bg-grey/10 rounded animate-pulse" />
+              </div>
+            </div>
+            <div className="w-20 h-10 bg-grey/10 rounded-lg animate-pulse" />
+          </div>
+          <div className="flex-1 flex items-center justify-center">
+            <ContentSkeleton type="reading" />
+          </div>
         </div>
       </div>
     )
@@ -1205,26 +1231,149 @@ export function CoachLearningView({
     )
   }
 
+  // Empty module state - module exists but has no lessons
+  if (currentModule.lessons.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-light-grey/30">
+        <div className="text-center max-w-md px-4">
+          <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-teal/10 to-teal/5 flex items-center justify-center">
+            <BookOpen className="w-10 h-10 text-teal" />
+          </div>
+          <h2 className="text-xl font-semibold text-navy mb-2">No Lessons Available</h2>
+          <p className="text-grey mb-6">
+            This module doesn&apos;t have any lessons yet. New content is being added regularly.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            {onExit && (
+              <Button
+                variant="secondary"
+                onClick={onExit}
+                className="flex items-center gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Go Back
+              </Button>
+            )}
+            <Button
+              variant="primary"
+              onClick={() => window.location.reload()}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Refresh
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Module complete state - all lessons finished
+  const allLessonsCompleted = currentModule.lessons.length > 0 &&
+    currentModule.lessons.every(lesson => sessionState.completedLessonIds.includes(lesson.id))
+
+  if (allLessonsCompleted && isLastLesson && isLastAtomInLesson && contentComplete) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gradient-to-b from-light-grey/30 to-white">
+        <div className="text-center max-w-lg px-4">
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+            className="w-24 h-24 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-teal to-teal-dark flex items-center justify-center shadow-lg shadow-teal/30"
+          >
+            <CheckCircle className="w-12 h-12 text-white" />
+          </motion.div>
+          <motion.h2
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.1 }}
+            className="text-2xl font-bold text-navy mb-2"
+          >
+            Module Complete!
+          </motion.h2>
+          <motion.p
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="text-grey mb-2"
+          >
+            Congratulations! You&apos;ve completed all {currentModule.lessons.length} lessons in
+          </motion.p>
+          <motion.p
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.25 }}
+            className="text-lg font-semibold text-navy mb-6"
+          >
+            {currentModule.title}
+          </motion.p>
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="flex flex-col sm:flex-row gap-3 justify-center"
+          >
+            {onExit && (
+              <Button
+                variant="secondary"
+                onClick={onExit}
+                className="flex items-center gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to Dashboard
+              </Button>
+            )}
+            {dueCount > 0 && (
+              <Button
+                variant="primary"
+                onClick={() => window.location.href = '/review'}
+                className="flex items-center gap-2"
+              >
+                <Brain className="w-4 h-4" />
+                Review ({dueCount} due)
+              </Button>
+            )}
+          </motion.div>
+        </div>
+      </div>
+    )
+  }
+
   if (!currentLesson || !currentAtom) {
     return (
-      <div className="flex items-center justify-center h-screen bg-white">
+      <div className="flex items-center justify-center h-screen bg-light-grey/30">
         <div className="text-center max-w-md px-4">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-yellow/10 flex items-center justify-center">
-            <BookOpen className="w-8 h-8 text-yellow" />
+          <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-yellow/10 flex items-center justify-center">
+            <BookOpen className="w-10 h-10 text-yellow" />
           </div>
-          <h2 className="text-lg font-semibold text-navy mb-2">Content Not Found</h2>
-          <p className="text-grey mb-4">
+          <h2 className="text-xl font-semibold text-navy mb-2">Content Not Found</h2>
+          <p className="text-grey mb-6">
             We couldn&apos;t find this lesson. Your progress may have been saved with outdated content.
           </p>
-          <Button
-            variant="primary"
-            onClick={() => {
-              _clearSession();
-              window.location.reload();
-            }}
-          >
-            Start Fresh
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            {onExit && (
+              <Button
+                variant="secondary"
+                onClick={onExit}
+                className="flex items-center gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Go Back
+              </Button>
+            )}
+            <Button
+              variant="primary"
+              onClick={() => {
+                _clearSession();
+                window.location.reload();
+              }}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Start Fresh
+            </Button>
+          </div>
         </div>
       </div>
     );
