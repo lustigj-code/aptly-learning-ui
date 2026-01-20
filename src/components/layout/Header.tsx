@@ -1,7 +1,7 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import { Bell, Menu } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Bell, Menu, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getGreeting } from '@/lib/utils';
 import { InlineStreak } from '@/components/progress/StreakCounter';
@@ -28,12 +28,15 @@ export function Header({
   const { user } = useUser();
   const greeting = getGreeting();
   const toggleMobileMenu = useUIStore((state) => state.toggleMobileMenu);
+  const mobileMenuOpen = useUIStore((state) => state.mobileMenuOpen);
   const prefersReducedMotion = useReducedMotion();
 
   return (
     <motion.header
       className={cn(
-        'h-16 bg-white/80 backdrop-blur-xl border-b border-light-grey/50 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-30',
+        'h-16 bg-white/80 backdrop-blur-xl border-b border-light-grey/50 flex items-center justify-between px-4 lg:px-6 sticky top-0',
+        // Elevate z-index above mobile overlay (z-40) when menu is open, otherwise stay at z-30
+        mobileMenuOpen ? 'z-[45]' : 'z-30',
         className
       )}
       initial={getMotionSafeInitial({ opacity: 0, y: -10 }, prefersReducedMotion)}
@@ -48,9 +51,32 @@ export function Header({
           className="lg:hidden p-2 -ml-2 rounded-xl hover:bg-light-grey/80 active:bg-light-grey transition-all duration-200"
           whileHover={!prefersReducedMotion ? { scale: 1.02 } : undefined}
           whileTap={!prefersReducedMotion ? { scale: 0.96 } : undefined}
-          aria-label="Toggle navigation menu"
+          aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+          aria-expanded={mobileMenuOpen}
         >
-          <Menu size={24} className="text-navy" />
+          <AnimatePresence mode="wait" initial={false}>
+            {mobileMenuOpen ? (
+              <motion.div
+                key="close"
+                initial={!prefersReducedMotion ? { rotate: -90, opacity: 0 } : undefined}
+                animate={{ rotate: 0, opacity: 1 }}
+                exit={!prefersReducedMotion ? { rotate: 90, opacity: 0 } : undefined}
+                transition={{ duration: 0.15 }}
+              >
+                <X size={24} className="text-navy" />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="menu"
+                initial={!prefersReducedMotion ? { rotate: 90, opacity: 0 } : undefined}
+                animate={{ rotate: 0, opacity: 1 }}
+                exit={!prefersReducedMotion ? { rotate: -90, opacity: 0 } : undefined}
+                transition={{ duration: 0.15 }}
+              >
+                <Menu size={24} className="text-navy" />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.button>
         {showGreeting && user ? (
           <motion.div
