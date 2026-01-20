@@ -1,7 +1,7 @@
 # Aptly Learning - API Documentation
 
-> **Last Updated:** 2026-01-20 00:25 UTC
-> **Total Endpoints:** 70+ across 13 categories
+> **Last Updated:** 2026-01-20 03:27 UTC
+> **Total Endpoints:** 71+ across 13 categories
 
 ---
 
