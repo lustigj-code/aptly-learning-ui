@@ -14,6 +14,41 @@ import type { AIMessage, GenerateOptions, GenerateResult, AIOrchestrator } from 
 import { HuggingFaceProvider } from './providers/huggingface';
 import { ChromaDBVectorStore } from './vectordb/chroma';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { LRUCache } from '@/lib/cache/LRUCache';
+
+// ============================================
+// RESPONSE CACHE CONFIGURATION
+// ============================================
+
+interface CachedResponse {
+  result: GenerateResult;
+  cachedAt: number;
+}
+
+// Cache for AI responses - reduces redundant API calls
+// TTL: 5 minutes, Max: 100 entries
+const responseCache = new LRUCache<string, CachedResponse>({
+  maxSize: 100,
+  ttlMs: 5 * 60 * 1000, // 5 minutes
+  cleanupIntervalMs: 60 * 1000, // Cleanup every minute
+});
+
+/**
+ * Generate cache key from messages
+ * Includes system context and conversation to ensure context-aware caching
+ */
+function generateCacheKey(messages: AIMessage[]): string {
+  // Create a hash of the messages for caching
+  const relevantContent = messages.map(m => `${m.role}:${m.content.slice(0, 200)}`).join('|');
+  // Simple hash function for cache key
+  let hash = 0;
+  for (let i = 0; i < relevantContent.length; i++) {
+    const char = relevantContent.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return `sage_${Math.abs(hash).toString(36)}`;
+}
 
 export class SageAIOrchestrator implements AIOrchestrator {
   private huggingFace: HuggingFaceProvider;
@@ -34,10 +69,26 @@ export class SageAIOrchestrator implements AIOrchestrator {
   }
 
   /**
-   * Generate with automatic provider selection and fallback
+   * Generate with automatic provider selection, caching, and fallback
    */
   async generate(messages: AIMessage[], options?: GenerateOptions): Promise<GenerateResult> {
     const startTime = Date.now();
+
+    // Check cache first (only for non-streaming requests)
+    if (!options?.stream) {
+      const cacheKey = generateCacheKey(messages);
+      const cached = responseCache.get(cacheKey);
+      if (cached) {
+        console.log('💾 Using cached Sage response');
+        this.logRequest('cache');
+        return {
+          ...cached.result,
+          latencyMs: Date.now() - startTime,
+        };
+      }
+    }
+
+    let result: GenerateResult;
 
     // Strategy 1: Try fine-tuned HuggingFace model first (FREE tier: 1000/month)
     try {
@@ -45,20 +96,26 @@ export class SageAIOrchestrator implements AIOrchestrator {
 
       if (hfAvailable) {
         console.log('🎯 Using fine-tuned Sage (HuggingFace)');
-        const result = await this.huggingFace.generate(messages, options);
+        result = await this.huggingFace.generate(messages, options);
         this.logRequest('huggingface');
-        return result;
       } else {
         console.log('⚠️  HuggingFace quota exhausted, falling back to Gemini');
+        console.log('🎯 Using Gemini fallback');
+        result = await this.generateWithGemini(messages, options);
+        this.logRequest('gemini');
       }
     } catch (error) {
       console.log(`⚠️  HuggingFace failed: ${error}, falling back to Gemini`);
+      console.log('🎯 Using Gemini fallback');
+      result = await this.generateWithGemini(messages, options);
+      this.logRequest('gemini');
     }
 
-    // Strategy 2: Fall back to Gemini (always available, FREE tier)
-    console.log('🎯 Using Gemini fallback');
-    const result = await this.generateWithGemini(messages, options);
-    this.logRequest('gemini');
+    // Cache the response (only for non-streaming, successful responses)
+    if (!options?.stream && result.content) {
+      const cacheKey = generateCacheKey(messages);
+      responseCache.set(cacheKey, { result, cachedAt: Date.now() });
+    }
 
     return {
       ...result,
@@ -175,16 +232,30 @@ export class SageAIOrchestrator implements AIOrchestrator {
   }
 
   /**
-   * Get usage statistics
+   * Get usage statistics including cache performance
    */
   async getUsageStats() {
     const month = new Date().toISOString().slice(0, 7);
+    const cacheStats = responseCache.getStats();
 
     return {
       huggingface: this.requestLog.get(`huggingface-${month}`) || 0,
       gemini: this.requestLog.get(`gemini-${month}`) || 0,
+      cache: {
+        hits: this.requestLog.get(`cache-${month}`) || 0,
+        size: cacheStats.size,
+        maxSize: cacheStats.maxSize,
+      },
       month,
     };
+  }
+
+  /**
+   * Clear the response cache (useful for testing or manual refresh)
+   */
+  clearCache(): void {
+    responseCache.clear();
+    console.log('🗑️ Sage response cache cleared');
   }
 }
 

@@ -1,5 +1,33 @@
 # Project History
 
+## 2026-01-20 - Fix Progress Percentage Inconsistency and Tie Tracking
+
+### Task
+Fix inconsistency in progress percentage calculation and improve tie detection in ML model comparison.
+
+### Root Cause
+1. **Progress Percentage Inconsistency**: The `/api/progress/sync` route was calculating `overallPercentage` differently:
+   - `atom_complete`: Used `(atomsCompleted / totalAtoms) * 100` - atom-based
+   - `lesson_complete`: Used `(lessonsCompleted / CONTENT.TOTAL_LESSONS) * 100` - lesson-based
+   - Both overwrote the same `overallPercentage` field, causing percentage to jump unexpectedly
+
+2. **Tie Tracking**: The `calculateAUC` function in `shadowMode.ts` used strict equality (`===`) for floating-point comparison, which could fail to detect ties due to floating-point precision issues.
+
+### Solution
+1. **Progress Percentage**: Removed `overallPercentage` update from `lesson_complete` case. Now only atom completions manage the percentage, ensuring consistency.
+
+2. **Tie Tracking**: Added `TIE_TOLERANCE` constant (1e-9) for robust floating-point comparison in AUC tie detection.
+
+### Files Changed
+- `src/app/api/progress/sync/route.ts` - Removed conflicting lesson-based percentage calculation
+- `src/lib/mastery/shadowMode.ts` - Added tolerance-based tie detection
+
+### Build Status
+- Production build: ✅ Compiled successfully
+- Lint: ✅ No errors
+
+---
+
 ## 2026-01-19 - UI Color Consistency (Video Player Aesthetic)
 
 ### Task

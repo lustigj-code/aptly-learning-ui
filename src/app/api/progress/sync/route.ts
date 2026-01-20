@@ -17,7 +17,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { calculateAtomXP, calculateLevel } from '@/lib/utils/xpCalculator';
 import { COURSES } from '@/data/mockData';
 import type { Module, Course, Lesson } from '@/types';
-import { CONTENT, QUIZ } from '@/config/constants';
+import { QUIZ } from '@/config/constants';
 
 const { serverTimestamp, arrayUnion } = FieldValue;
 
@@ -244,19 +244,21 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        // Calculate new overall percentage (rough estimate)
         const newLessonsCount = lessonsCompleted.length + 1;
-        const overallPercentage = Math.round((newLessonsCount / CONTENT.TOTAL_LESSONS) * 100);
+
+        // Note: overallPercentage is calculated from atoms, not lessons
+        // This prevents percentage inconsistency between atom and lesson completions
+        // The atom-based calculation in atom_complete is more accurate and granular
 
         // Extract module ID from lesson ID (c1-m1-l1 → c1-m1)
         const lessonParts = lessonId.match(/^(c\d+-m\d+)-l\d+$/);
         const moduleIdFromLesson = lessonParts ? lessonParts[1] : null;
         const courseIdFromLesson = lessonParts ? `course-${lessonParts[1].split('-')[0].slice(1)}` : null;
 
-        // Build update object
+        // Build update object - do NOT update overallPercentage here
+        // (it's managed by atom completions for consistency)
         const lessonUpdateData: Record<string, unknown> = {
           'progress.lessonsCompleted': arrayUnion(lessonId),
-          'progress.overallPercentage': overallPercentage,
           'progress.currentLessonId': lessonId,
           'progress.lastAtomId': null, // Clear so next visit doesn't go to last quiz
           lastActiveAt: serverTimestamp(),
@@ -314,7 +316,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           success: true,
           lessonsCompleted: newLessonsCount,
-          overallPercentage,
           message: 'Lesson completed',
         });
       }

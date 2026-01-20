@@ -9,7 +9,7 @@ import {
   User as FirebaseUser,
   UserCredential,
 } from 'firebase/auth';
-import { auth } from './config';
+import { getAuthInstance } from './config';
 
 type AuthUser = {
   uid: string;
@@ -39,6 +39,7 @@ export async function signUpWithEmail(
   email: string,
   password: string
 ): Promise<AuthUser> {
+  const auth = getAuthInstance();
   if (!auth) {
     throw new Error('Firebase Auth is not initialized');
   }
@@ -58,6 +59,7 @@ export async function signInWithEmail(
   email: string,
   password: string
 ): Promise<AuthUser> {
+  const auth = getAuthInstance();
   if (!auth) {
     throw new Error('Firebase Auth is not initialized');
   }
@@ -74,6 +76,7 @@ export async function signInWithEmail(
  * Sign in with Google
  */
 export async function signInWithGoogle(): Promise<AuthUser> {
+  const auth = getAuthInstance();
   if (!auth) {
     throw new Error('Firebase Auth is not initialized');
   }
@@ -87,6 +90,7 @@ export async function signInWithGoogle(): Promise<AuthUser> {
  * Sign out current user
  */
 export async function signOut(): Promise<void> {
+  const auth = getAuthInstance();
   if (!auth) {
     throw new Error('Firebase Auth is not initialized');
   }
@@ -99,6 +103,7 @@ export async function signOut(): Promise<void> {
  * Returns null if no user is authenticated
  */
 export function getCurrentUser(): FirebaseUser | null {
+  const auth = getAuthInstance();
   if (!auth) {
     return null;
   }
@@ -112,6 +117,7 @@ export function getCurrentUser(): FirebaseUser | null {
 export function onAuthStateChange(
   callback: (user: AuthUser | null) => void
 ): () => void {
+  const auth = getAuthInstance();
   if (!auth) {
     console.warn('Firebase Auth is not initialized');
     return () => {};
@@ -132,6 +138,7 @@ export function onAuthStateChange(
  * Send password reset email
  */
 export async function sendPasswordReset(email: string): Promise<void> {
+  const auth = getAuthInstance();
   if (!auth) {
     throw new Error('Firebase Auth is not initialized');
   }
