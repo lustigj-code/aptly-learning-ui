@@ -81,7 +81,6 @@ export async function POST(request: NextRequest) {
     const yesterdayString = yesterday.toISOString().split('T')[0];
 
     let newStreak = streakData.currentStreak || 0;
-    const _frozeApplied = false;
 
     // If last activity was yesterday, increment streak
     if (lastCompletedDate === yesterdayString) {
@@ -99,7 +98,6 @@ export async function POST(request: NextRequest) {
           ),
           'streak.lastCompletedDate': today,
         });
-        frozeApplied = true;
         // Streak remains unchanged
         return NextResponse.json(
           {

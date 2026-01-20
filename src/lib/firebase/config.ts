@@ -50,20 +50,77 @@ const firebaseConfig: FirebaseConfig = {
   appId: cleanEnvVar(process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
 };
 
-// Initialize Firebase (only if no app exists)
-const app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
-
-// Initialize services
-let auth: Auth | null = null;
-let db: Firestore | null = null;
-let storage: FirebaseStorage | null = null;
-
-try {
-  auth = getAuth(app);
-  db = getFirestore(app);
-  storage = getStorage(app);
-} catch (error) {
-  console.warn('Firebase services could not be initialized:', error);
+// Debug logging for Vercel troubleshooting (remove after fixing)
+if (typeof window !== 'undefined') {
+  console.log('[Firebase Config Debug]', {
+    hasApiKey: !!firebaseConfig.apiKey,
+    authDomain: firebaseConfig.authDomain,
+    projectId: firebaseConfig.projectId,
+    apiKeyLength: firebaseConfig.apiKey?.length,
+  });
 }
 
-export { app, auth, db, storage };
+// Initialize Firebase (only if no app exists and config is valid)
+let app: ReturnType<typeof initializeApp> | null = null;
+
+const isConfigValid = firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId;
+
+if (isConfigValid) {
+  try {
+    app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
+  } catch (error) {
+    console.error('Firebase app initialization failed:', error);
+  }
+}
+
+// Lazy getters for Firebase services - initialize on first access
+let _auth: Auth | null = null;
+let _db: Firestore | null = null;
+let _storage: FirebaseStorage | null = null;
+
+// Get Auth instance (lazy initialization)
+function getAuthInstance(): Auth | null {
+  if (_auth) return _auth;
+  if (!app) return null;
+  try {
+    _auth = getAuth(app);
+    return _auth;
+  } catch (error) {
+    console.error('Firebase Auth initialization failed:', error);
+    return null;
+  }
+}
+
+// Get Firestore instance (lazy initialization)
+function getFirestoreInstance(): Firestore | null {
+  if (_db) return _db;
+  if (!app) return null;
+  try {
+    _db = getFirestore(app);
+    return _db;
+  } catch (error) {
+    console.error('Firestore initialization failed:', error);
+    return null;
+  }
+}
+
+// Get Storage instance (lazy initialization)
+function getStorageInstance(): FirebaseStorage | null {
+  if (_storage) return _storage;
+  if (!app) return null;
+  try {
+    _storage = getStorage(app);
+    return _storage;
+  } catch (error) {
+    console.error('Firebase Storage initialization failed:', error);
+    return null;
+  }
+}
+
+// Export getters that return initialized instances
+// These are evaluated lazily when accessed
+const auth = getAuthInstance();
+const db = getFirestoreInstance();
+const storage = getStorageInstance();
+
+export { app, auth, db, storage, getAuthInstance, getFirestoreInstance, getStorageInstance };

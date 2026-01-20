@@ -420,8 +420,8 @@ function estimateBKTPerSkill(
   // Estimate parameters per skill
   const skillParameters = new Map<string, BKTParameters>();
   // Note: totalLogLoss and totalCount reserved for aggregate metrics computation
-  const _totalLogLoss = 0;
-  const _totalCount = 0;
+  let _totalLogLoss = 0;
+  let _totalCount = 0;
 
   for (const [skillId, skillData] of bySkill.entries()) {
     if (skillData.length < 20) {
