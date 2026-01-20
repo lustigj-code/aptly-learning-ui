@@ -499,8 +499,8 @@ function QuizRenderer({
       {/* Question */}
       <h3 className="text-xl font-medium text-navy mb-4">{currentQ?.question}</h3>
 
-      {/* Options */}
-      <div className="space-y-2 flex-1">
+      {/* Options - use overflow-y-auto for scrolling, not flex-1 to prevent pushing feedback out */}
+      <div className="space-y-2 overflow-y-auto flex-1 min-h-0">
         {currentQ?.options?.map((option, index) => {
           const isSelected = quizState.answers[currentQ.id] === index
           const isCorrect = index === currentQ.correctAnswer

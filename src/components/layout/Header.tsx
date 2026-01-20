@@ -1,12 +1,13 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Bell, Menu } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getGreeting } from '@/lib/utils';
 import { InlineStreak } from '@/components/progress/StreakCounter';
 import { ConnectivityStatus } from '@/components/pwa/ConnectivityStatus';
 import { UserMenu } from '@/components/navigation/UserMenu';
+import { NotificationBell } from '@/components/gamification/NotificationCenter';
 import { useUser } from '@/store/unifiedStore';
 import { useUIStore } from '@/store/uiStore';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -97,20 +98,7 @@ export function Header({
         )}
 
         {/* Notifications */}
-        <motion.button
-          className="relative p-2.5 rounded-xl hover:bg-light-grey/80 active:bg-light-grey transition-all duration-200 group"
-          whileHover={!prefersReducedMotion ? { scale: 1.05 } : undefined}
-          whileTap={!prefersReducedMotion ? { scale: 0.95 } : undefined}
-          aria-label="Notifications"
-        >
-          <Bell size={20} className="text-navy transition-transform group-hover:rotate-12" />
-          <motion.span
-            className="absolute top-1.5 right-1.5 w-2 h-2 bg-error rounded-full"
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.3, type: 'spring', stiffness: 500, damping: 15 }}
-          />
-        </motion.button>
+        <NotificationBell />
 
         {/* User Menu */}
         {user && (
