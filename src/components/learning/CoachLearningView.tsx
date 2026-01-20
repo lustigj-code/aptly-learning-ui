@@ -985,6 +985,55 @@ export function CoachLearningView({
     }
   }, [contentComplete, handleContinue])
 
+  // Keyboard shortcuts for learning navigation (n, p, h, c)
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Don't interfere with input elements
+      const target = event.target as HTMLElement
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      ) {
+        return
+      }
+
+      switch (event.key.toLowerCase()) {
+        case 'n':
+          // Next atom/question - only if content is complete
+          if (contentComplete) {
+            event.preventDefault()
+            handleContinue()
+          }
+          break
+        case 'p':
+          // Previous atom/question
+          event.preventDefault()
+          handleSwipePrevious()
+          break
+        case 'h':
+          // Show hint - opens coach panel
+          event.preventDefault()
+          setShowChatOverlay(true)
+          setLearningInsights(prev => ({
+            ...prev,
+            coachQuestionsAsked: prev.coachQuestionsAsked + 1,
+          }))
+          break
+        case 'c':
+          // Toggle coach panel
+          event.preventDefault()
+          setShowChatOverlay(prev => !prev)
+          break
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [contentComplete, handleContinue, handleSwipePrevious])
+
   // Handle lesson selection from sidebar
   const handleSelectLesson = useCallback((index: number) => {
     const targetLesson = currentModule.lessons[index]
