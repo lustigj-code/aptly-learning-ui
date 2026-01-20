@@ -1,6 +1,6 @@
 # Aptly Learning - Architectural Decisions Log
 
-> **Last Updated:** 2026-01-20 00:03 UTC
+> **Last Updated:** 2026-01-20 00:25 UTC
 
 This document records key architectural decisions, the reasoning behind them, and their implications for future development.
 
