@@ -80,20 +80,20 @@ export function RetentionAnalysis() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-200 p-6">
-          <h3 className="text-sm font-medium text-blue-700">7-Day Retention</h3>
-          <div className="mt-2 text-3xl font-bold text-blue-900">
+        <div className="bg-gradient-to-br from-light-teal to-teal/20 rounded-xl border border-teal/30 p-6">
+          <h3 className="text-sm font-medium text-teal-dark">7-Day Retention</h3>
+          <div className="mt-2 text-3xl font-bold text-navy">
             {data.overview.averageRetention7Day}%
           </div>
-          <p className="text-sm text-blue-600 mt-1">Platform average</p>
+          <p className="text-sm text-teal mt-1">Platform average</p>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border border-purple-200 p-6">
-          <h3 className="text-sm font-medium text-purple-700">30-Day Retention</h3>
-          <div className="mt-2 text-3xl font-bold text-purple-900">
+        <div className="bg-gradient-to-br from-navy/10 to-navy/20 rounded-xl border border-navy/30 p-6">
+          <h3 className="text-sm font-medium text-navy">30-Day Retention</h3>
+          <div className="mt-2 text-3xl font-bold text-navy">
             {data.overview.averageRetention30Day}%
           </div>
-          <p className="text-sm text-purple-600 mt-1">Platform average</p>
+          <p className="text-sm text-navy/70 mt-1">Platform average</p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -125,7 +125,7 @@ export function RetentionAnalysis() {
         </div>
         <MetricsChart
           data={data.retentionTrend}
-          color="#8B5CF6"
+          color="#21A8B0"
           label="Retention %"
           height={250}
         />
@@ -144,7 +144,7 @@ export function RetentionAnalysis() {
               value: d.percentage,
               color:
                 d.range.includes('90') || d.range.includes('80')
-                  ? '#10B981'
+                  ? '#21A8B0'
                   : d.range.includes('70') || d.range.includes('60')
                   ? '#F59E0B'
                   : '#EF4444',
@@ -168,7 +168,7 @@ export function RetentionAnalysis() {
                   onClick={() => setView('7day')}
                   className={`px-3 py-1 text-sm rounded-lg transition-colors ${
                     view === '7day'
-                      ? 'bg-blue-100 text-blue-700'
+                      ? 'bg-teal/20 text-teal-dark'
                       : 'text-gray-500 hover:bg-gray-100'
                   }`}
                 >
@@ -178,7 +178,7 @@ export function RetentionAnalysis() {
                   onClick={() => setView('30day')}
                   className={`px-3 py-1 text-sm rounded-lg transition-colors ${
                     view === '30day'
-                      ? 'bg-purple-100 text-purple-700'
+                      ? 'bg-navy/20 text-navy'
                       : 'text-gray-500 hover:bg-gray-100'
                   }`}
                 >
@@ -245,8 +245,8 @@ export function RetentionAnalysis() {
       </div>
 
       {/* Insights */}
-      <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border border-indigo-200 p-6">
-        <h3 className="text-lg font-semibold text-indigo-900 mb-4">
+      <div className="bg-gradient-to-br from-light-teal to-teal/10 rounded-xl border border-teal/30 p-6">
+        <h3 className="text-lg font-semibold text-navy mb-4">
           Key Insights
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

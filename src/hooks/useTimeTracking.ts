@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useUserProfileStore } from '@/store/userProfileStore';
+import { useUnifiedStore } from '@/store/unifiedStore';
 
 type TimeTrackingOptions = {
   atomId: string;
@@ -47,8 +47,8 @@ export function useTimeTracking({
   const totalPausedTimeRef = useRef<number>(0);
   const pauseStartRef = useRef<number | null>(null);
 
-  const updateProgress = useUserProfileStore((state) => state.updateProgress);
-  const user = useUserProfileStore((state) => state.user);
+  const updateProgress = useUnifiedStore((state) => state.updateProgress);
+  const user = useUnifiedStore((state) => state.user);
 
   // Calculate actual elapsed time
   const calculateElapsed = useCallback(() => {

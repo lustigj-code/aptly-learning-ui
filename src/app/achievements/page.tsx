@@ -23,7 +23,7 @@ import { InlineBadge } from '@/components/ui/Badge';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { SkeletonAchievementsPage } from '@/components/ui/Skeleton';
 import { Section } from '@/components/layout/AppLayout';
-import { useUser } from '@/store/userProfileStore';
+import { useUser } from '@/store/unifiedStore';
 import { cn } from '@/lib/utils';
 
 type BadgeCategory = 'all' | 'streak' | 'course' | 'special';

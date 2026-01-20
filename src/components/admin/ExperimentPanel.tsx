@@ -122,10 +122,10 @@ export function ExperimentPanel() {
   return (
     <div className="space-y-6">
       {/* Data Collection Progress */}
-      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-200 p-6">
+      <div className="bg-gradient-to-r from-light-teal to-teal/10 rounded-xl border border-teal/30 p-6">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-            <Database className="w-5 h-5 text-indigo-600" />
+          <div className="w-10 h-10 bg-teal/20 rounded-lg flex items-center justify-center">
+            <Database className="w-5 h-5 text-teal" />
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-900">ML Training Data Collection</h3>
@@ -140,9 +140,9 @@ export function ExperimentPanel() {
               {interactionCountLoading ? '...' : interactionCount.toLocaleString()} / {TARGET_INTERACTIONS.toLocaleString()}
             </span>
           </div>
-          <div className="h-3 bg-white rounded-full overflow-hidden border border-indigo-100">
+          <div className="h-3 bg-white rounded-full overflow-hidden border border-teal/30">
             <div
-              className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-500"
+              className="h-full bg-gradient-to-r from-teal to-teal-dark rounded-full transition-all duration-500"
               style={{ width: `${Math.min((interactionCount / TARGET_INTERACTIONS) * 100, 100)}%` }}
             />
           </div>
@@ -170,7 +170,7 @@ export function ExperimentPanel() {
           <h3 className="text-lg font-semibold text-gray-900">A/B Experiments</h3>
           <button
             onClick={() => handleExperimentAction('', 'start')}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+            className="px-4 py-2 bg-teal text-white rounded-lg text-sm font-medium hover:bg-teal-dark transition-colors"
           >
             Initialize Experiments
           </button>
@@ -183,7 +183,7 @@ export function ExperimentPanel() {
               onClick={() => setSelectedExperiment(exp.id)}
               className={`p-4 rounded-lg border text-left transition-all ${
                 selectedExperiment === exp.id
-                  ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
+                  ? 'border-teal bg-light-teal ring-2 ring-teal/30'
                   : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
               }`}
             >
@@ -240,7 +240,7 @@ export function ExperimentPanel() {
                     <button
                       onClick={() => handleExperimentAction(selected.id, 'complete')}
                       disabled={actionLoading === selected.id}
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                      className="px-4 py-2 bg-teal text-white rounded-lg text-sm font-medium hover:bg-teal-dark transition-colors disabled:opacity-50"
                     >
                       Complete
                     </button>
@@ -290,7 +290,7 @@ export function ExperimentPanel() {
               <div className="flex-1">
                 <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-indigo-500 rounded-full"
+                    className="h-full bg-teal rounded-full"
                     style={{
                       width: `${
                         (selected.sampleSize.current.treatment /
@@ -367,7 +367,7 @@ export function ExperimentPanel() {
                   <ul className="space-y-1">
                     {selected.results.recommendations.map((rec, i) => (
                       <li key={i} className="text-sm text-gray-600 flex items-start gap-2">
-                        <span className="text-indigo-500 mt-1">•</span>
+                        <span className="text-teal mt-1">•</span>
                         {rec}
                       </li>
                     ))}
@@ -393,7 +393,7 @@ function StatusBadge({ status }: { status: Experiment['status'] }) {
     draft: { bg: 'bg-gray-100', text: 'text-gray-600', label: 'Draft' },
     running: { bg: 'bg-green-100', text: 'text-green-700', label: 'Running' },
     paused: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Paused' },
-    completed: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Completed' },
+    completed: { bg: 'bg-teal/20', text: 'text-teal-dark', label: 'Completed' },
   };
 
   const c = config[status];

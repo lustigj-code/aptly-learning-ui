@@ -13,15 +13,14 @@ export { useAuthStore, useAuth } from './authStore';
 export type { AuthState, AuthUser } from './authStore';
 
 // ============================================
-// USER PROFILE STORE
+// USER PROFILE STORE (now consolidated in unifiedStore)
 // ============================================
 export {
-  useUserProfileStore,
+  useUnifiedStore as useUserProfileStore,
   useUser,
   useProgress,
   createNewUser,
-} from './userProfileStore';
-export type { UserProfileState } from './userProfileStore';
+} from './unifiedStore';
 
 // ============================================
 // UI STORE

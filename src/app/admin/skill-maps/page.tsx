@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useUser } from '@/store/userProfileStore';
+import { useUser } from '@/store/unifiedStore';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getIdToken } from '@/lib/firebase/auth';

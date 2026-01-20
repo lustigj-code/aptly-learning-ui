@@ -1,10 +1,16 @@
 /**
- * @deprecated Uses legacy `userProgress` collection.
- * Main learning flow uses `/api/progress/sync` instead.
+ * Complete Lesson API
+ *
+ * Marks a lesson as complete when all required atoms are done.
+ * Uses the unified `users.progress` location as the primary data store.
+ *
+ * @migration This endpoint was updated to write to `users.progress` instead
+ * of the deprecated `userProgress` collection.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminAuth } from '@/lib/firebase/admin';
 import { z } from 'zod';
+import { invalidateProgressCache } from '@/lib/data/userProgressLayer';
 
 const completeLessonSchema = z.object({
   lessonId: z.string().min(1),
@@ -54,18 +60,19 @@ export async function POST(request: NextRequest) {
 
     const { lessonId, moduleId, courseId } = validation.data;
 
-    // Get user progress
-    const userProgressRef = adminDb.collection('userProgress').doc(userId);
-    const userProgressSnap = await userProgressRef.get();
+    // Get user progress from primary location (users.progress)
+    const userRef = adminDb.collection('users').doc(userId);
+    const userSnap = await userRef.get();
 
-    if (!userProgressSnap.exists) {
+    if (!userSnap.exists) {
       return NextResponse.json(
-        { error: 'User progress not found' },
+        { error: 'User not found' },
         { status: 404 }
       );
     }
 
-    const userProgress = userProgressSnap.data();
+    const userData = userSnap.data();
+    const userProgress = userData?.progress;
 
     if (!userProgress) {
       return NextResponse.json(
@@ -122,16 +129,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Mark lesson as complete
+    // Mark lesson as complete in users.progress
     const lessonsCompleted = userProgress.lessonsCompleted || [];
     if (!lessonsCompleted.includes(lessonId)) {
       lessonsCompleted.push(lessonId);
     }
 
-    await userProgressRef.update({
-      lessonsCompleted,
-      currentLessonId: lessonId,
+    await userRef.update({
+      'progress.lessonsCompleted': lessonsCompleted,
+      'progress.currentLessonId': lessonId,
     });
+
+    // Invalidate cache
+    invalidateProgressCache(userId);
 
     // Check if all lessons in module are complete
     let allModuleLessonsCompleted = false;
@@ -171,15 +181,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Update module completion if needed
-    const coursesCompleted = userProgress.coursesCompleted || [];
-    const modulesCompleted = userProgress.modulesCompleted || [];
+    const coursesCompleted = userData?.progress?.coursesCompleted || [];
+    const modulesCompleted = userData?.progress?.modulesCompleted || [];
 
     if (allModuleLessonsCompleted && !modulesCompleted.includes(moduleId)) {
       modulesCompleted.push(moduleId);
 
-      await userProgressRef.update({
-        modulesCompleted,
-        currentModuleId: nextModuleId || '',
+      await userRef.update({
+        'progress.modulesCompleted': modulesCompleted,
+        'progress.currentModuleId': nextModuleId || '',
       });
 
       // Check if all modules in course are complete
@@ -197,9 +207,9 @@ export async function POST(request: NextRequest) {
           !coursesCompleted.includes(courseId)
         ) {
           coursesCompleted.push(courseId);
-          await userProgressRef.update({
-            coursesCompleted,
-            currentCourseId: '',
+          await userRef.update({
+            'progress.coursesCompleted': coursesCompleted,
+            'progress.currentCourseId': '',
           });
 
           return NextResponse.json(

@@ -1,12 +1,18 @@
 /**
- * @deprecated Uses legacy `userProgress` collection.
- * Should be migrated to use `users` collection.
+ * Use Freeze API
+ *
+ * Manually apply a streak freeze to prevent streak loss.
+ * Uses the unified `users.streak` location as the primary data store.
+ *
+ * @migration This endpoint was updated to write to `users.streak` instead
+ * of the deprecated `userProgress` collection.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { z } from 'zod';
 import { verifyBearerToken } from '@/lib/auth/apiAuth';
+import { invalidateProgressCache } from '@/lib/data/userProgressLayer';
 
 const { arrayUnion } = FieldValue;
 
@@ -38,19 +44,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user progress
-    const userProgressRef = adminDb.collection('userProgress').doc(userId);
-    const userProgressSnap = await userProgressRef.get();
+    // Get user data from primary location (users collection)
+    const userRef = adminDb.collection('users').doc(userId);
+    const userSnap = await userRef.get();
 
-    if (!userProgressSnap.exists) {
+    if (!userSnap.exists) {
       return NextResponse.json(
-        { error: 'User progress not found' },
+        { error: 'User not found' },
         { status: 404 }
       );
     }
 
-    const userProgress = userProgressSnap.data();
-    const streakData = userProgress?.streak || {
+    const userData = userSnap.data();
+    const streakData = userData?.streak || {
       currentStreak: 0,
       longestStreak: 0,
       lastCompletedDate: '',
@@ -77,12 +83,15 @@ export async function POST(request: NextRequest) {
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayString = yesterday.toISOString().split('T')[0];
 
-    // Apply freeze to yesterday
-    await userProgressRef.update({
+    // Apply freeze to yesterday in users.streak (primary location)
+    await userRef.update({
       'streak.freezesAvailable': freezesAvailable - 1,
       'streak.freezesUsed': arrayUnion(yesterdayString),
       'streak.lastCompletedDate': yesterdayString,
     });
+
+    // Invalidate cache
+    invalidateProgressCache(userId);
 
     return NextResponse.json(
       {

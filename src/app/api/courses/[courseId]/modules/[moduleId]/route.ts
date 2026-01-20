@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminDb } from '@/lib/firebase/admin'
+import { getAuthenticatedUserId } from '@/lib/auth/requireAuth'
 import type { Module, Lesson } from '@/types'
 
 type LessonInModuleResponse = {
@@ -45,7 +46,18 @@ export async function GET(
   try {
     const { courseId, moduleId } = await params
     const searchParams = request.nextUrl.searchParams
-    const userId = searchParams.get('userId')
+    const requestedUserId = searchParams.get('userId')
+
+    // IDOR Protection: If userId is provided, validate it matches authenticated user
+    // If no userId, allow access without user-specific progress data
+    let userId: string | null = null
+    if (requestedUserId) {
+      const userIdResult = await getAuthenticatedUserId(request, { allowUserId: true })
+      if (userIdResult instanceof NextResponse) {
+        return userIdResult
+      }
+      userId = userIdResult
+    }
 
     // Validate params
     if (!courseId || !moduleId || typeof courseId !== 'string' || typeof moduleId !== 'string') {

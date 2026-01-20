@@ -72,6 +72,8 @@ type UnifiedActions = {
   checkAndUpdateStreak: () => Promise<void>;
   useStreakFreeze: () => Promise<boolean>;
   earnBadge: (badgeId: string) => Promise<void>;
+  purchaseStreakFreeze: (xpCost: number) => Promise<boolean>;
+  updateStreak: (streak: Partial<StreakData>) => Promise<void>;
   completeAtom: (atomId: string) => Promise<void>;
   completeLesson: (lessonId: string) => Promise<void>;
   completeModule: (moduleId: string) => Promise<void>;
@@ -595,6 +597,59 @@ export const useUnifiedStore = create<UnifiedStore>()(
           }
         },
 
+        purchaseStreakFreeze: async (xpCost) => {
+          const { user, authUser } = get();
+          if (!user) return false;
+
+          // Check if user has enough XP
+          if (user.progress.xp < xpCost) return false;
+
+          const updatedProgress = {
+            ...user.progress,
+            xp: user.progress.xp - xpCost,
+          };
+
+          const updatedStreak: StreakData = {
+            ...user.streak,
+            freezesAvailable: user.streak.freezesAvailable + 1,
+          };
+
+          const updatedUser = {
+            ...user,
+            progress: updatedProgress,
+            streak: updatedStreak,
+          };
+
+          // Optimistic update
+          set({ user: updatedUser });
+
+          // Sync to Firestore
+          if (authUser?.uid) {
+            await get().syncToFirestore({
+              progress: updatedProgress,
+              streak: updatedStreak,
+            });
+          }
+
+          return true;
+        },
+
+        updateStreak: async (streak) => {
+          const { user, authUser } = get();
+          if (!user) return;
+
+          const updatedStreak = { ...user.streak, ...streak };
+          const updatedUser = { ...user, streak: updatedStreak };
+
+          // Optimistic update
+          set({ user: updatedUser });
+
+          // Sync to Firestore
+          if (authUser?.uid) {
+            await get().syncToFirestore({ streak: updatedStreak });
+          }
+        },
+
         completeAtom: async (atomId) => {
           const { user, authUser, atomStartedAt } = get();
           if (!user) return;
@@ -878,6 +933,7 @@ export function useUser() {
   const addXP = useUnifiedStore((state) => state.addXP);
   const checkAndUpdateStreak = useUnifiedStore((state) => state.checkAndUpdateStreak);
   const useStreakFreeze = useUnifiedStore((state) => state.useStreakFreeze);
+  const purchaseStreakFreeze = useUnifiedStore((state) => state.purchaseStreakFreeze);
   const earnBadge = useUnifiedStore((state) => state.earnBadge);
   const completeAtom = useUnifiedStore((state) => state.completeAtom);
   const completeLesson = useUnifiedStore((state) => state.completeLesson);
@@ -894,6 +950,7 @@ export function useUser() {
     addXP,
     checkAndUpdateStreak,
     useStreakFreeze,
+    purchaseStreakFreeze,
     earnBadge,
     completeAtom,
     completeLesson,

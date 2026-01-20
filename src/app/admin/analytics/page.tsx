@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useUser } from '@/store/userProfileStore';
+import { useUser } from '@/store/unifiedStore';
 import { useRouter } from 'next/navigation';
 import { OverviewPanel } from '@/components/admin/OverviewPanel';
 import { ExperimentPanel } from '@/components/admin/ExperimentPanel';
@@ -44,7 +44,7 @@ export default function AnalyticsDashboard() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal" />
       </div>
     );
   }
@@ -109,7 +109,7 @@ export default function AnalyticsDashboard() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                   activeTab === tab.id
-                    ? 'bg-indigo-100 text-indigo-700'
+                    ? 'bg-teal/20 text-teal-dark'
                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                 }`}
               >

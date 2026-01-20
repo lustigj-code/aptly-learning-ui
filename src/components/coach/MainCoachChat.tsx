@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Button } from '@/components/ui/Button';
 import { InlineQuiz, type QuizQuestion, type Answer } from '@/components/coach/InlineQuiz';
 import { ConversationHistoryPanel } from '@/components/coach/ConversationHistoryPanel';
 import { AIFeedbackInline } from '@/components/ai/AIFeedbackWidget';
@@ -68,6 +67,8 @@ type MainCoachChatProps = {
   onReady?: (api: { addQuizToChat: (question: QuizQuestion, introMessage?: string) => string }) => void;
   // Phase 3: Action handler
   onAction?: (action: CoachAction) => void;
+  // Compact mode: hides internal header, removes min-h-screen (for side panel use)
+  compact?: boolean;
 };
 
 // Re-export types for external use
@@ -82,6 +83,7 @@ export function MainCoachChat({
   onQuizAnswer,
   onReady,
   onAction,
+  compact = false,
 }: MainCoachChatProps) {
   const {
     messages,
@@ -239,9 +241,9 @@ export function MainCoachChat({
   ];
 
   return (
-    <div className="flex flex-col h-full min-h-screen relative">
-      {/* Header */}
-      <header className="flex-shrink-0 flex items-center justify-between p-5 border-b border-grey/20 bg-gradient-to-r from-teal/10 via-purple/5 to-teal/10">
+    <div className={cn("flex flex-col h-full relative", !compact && "min-h-screen")}>
+      {/* Header - hidden in compact mode (parent provides header) */}
+      {!compact && <header className="flex-shrink-0 flex items-center justify-between p-5 border-b border-grey/20 bg-gradient-to-r from-teal/10 via-purple/5 to-teal/10">
         <div className="flex items-center gap-4">
           <div className="relative">
             <motion.div
@@ -290,10 +292,10 @@ export function MainCoachChat({
             </button>
           )}
         </div>
-      </header>
+      </header>}
 
-      {/* History Panel Overlay */}
-      {showHistoryPanel && (
+      {/* History Panel Overlay - only show when not in compact mode */}
+      {!compact && showHistoryPanel && (
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -311,7 +313,7 @@ export function MainCoachChat({
       )}
 
       {/* Messages */}
-      <main className="flex-1 overflow-y-auto p-6 space-y-5">
+      <main className="flex-1 overflow-y-auto p-5 space-y-4 no-scrollbar">
         {/* Loading state while conversation is being fetched */}
         {!conversationLoaded && lessonId && (
           <div className="flex items-center justify-center py-12">
@@ -573,8 +575,8 @@ export function MainCoachChat({
       )}
 
       {/* Input */}
-      <footer className="flex-shrink-0 p-5 border-t border-grey/20 bg-gradient-to-t from-white to-white/95">
-        <div className="flex gap-3 max-w-4xl mx-auto items-end">
+      <footer className="flex-shrink-0 p-4 border-t border-grey/10 bg-white/95">
+        <div className="flex gap-2 items-end">
           <div className="flex-1 relative">
             <textarea
               ref={inputRef}
@@ -584,29 +586,32 @@ export function MainCoachChat({
               onInput={(e) => {
                 const target = e.currentTarget;
                 target.style.height = 'auto';
-                target.style.height = `${Math.min(target.scrollHeight, 120)}px`;
+                target.style.height = `${Math.min(target.scrollHeight, 100)}px`;
               }}
-              placeholder="Ask Sage anything... (Shift+Enter for new line)"
+              placeholder="Ask Sage..."
               aria-label="Message Sage AI coach"
               disabled={isLoading}
               rows={1}
-              className="w-full px-5 py-4 rounded-xl border border-grey/30 bg-white focus:outline-none focus:ring-2 focus:ring-teal/20 focus:border-teal/50 placeholder:text-grey/60 text-sm disabled:opacity-50 shadow-sm transition-all resize-none min-h-[52px] max-h-[120px] overflow-y-auto"
+              className="w-full px-4 py-3 rounded-xl border border-grey/20 bg-light-grey/30 focus:outline-none focus:ring-2 focus:ring-teal/20 focus:border-teal/40 placeholder:text-grey/50 text-sm disabled:opacity-50 transition-all resize-none min-h-[44px] max-h-[100px] overflow-y-auto"
             />
           </div>
           <motion.div whileHover={!prefersReducedMotion ? { scale: 1.05 } : undefined} whileTap={!prefersReducedMotion ? { scale: 0.95 } : undefined}>
-            <Button
+            <button
               onClick={handleSend}
               disabled={!input.trim() || isLoading}
-              variant="primary"
-              className="px-5 py-4 shadow-md h-[52px]"
+              className={cn(
+                "p-2.5 rounded-xl transition-all flex items-center justify-center",
+                "bg-teal text-white hover:bg-teal-dark disabled:opacity-40 disabled:cursor-not-allowed",
+                "min-w-[44px] min-h-[44px]"
+              )}
               aria-label={isLoading ? 'Sending message' : 'Send message'}
             >
               {isLoading ? (
-                <Loader2 size={22} className="animate-spin" aria-hidden="true" />
+                <Loader2 size={18} className="animate-spin" aria-hidden="true" />
               ) : (
-                <Send size={22} aria-hidden="true" />
+                <Send size={18} aria-hidden="true" />
               )}
-            </Button>
+            </button>
           </motion.div>
         </div>
       </footer>

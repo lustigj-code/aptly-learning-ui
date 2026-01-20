@@ -16,7 +16,7 @@ export interface MasteryOrbProps {
  *
  * Visual characteristics:
  * - 48px sphere using CSS radial gradients (no 3D libraries)
- * - Teal glow (#2DD4BF) with navy shadow
+ * - Teal glow (#21A8B0) with navy shadow
  * - Subtle pulse animation (2s breathing cycle)
  * - When receiving photon: ripple effect expands outward
  * - Progress ring around orb shows overall mastery %
@@ -69,7 +69,7 @@ export function MasteryOrb({ masteryLevel, isReceiving = false, className }: Mas
           cy="24"
           r="22"
           fill="none"
-          stroke="#2DD4BF"
+          stroke="#21A8B0"
           strokeWidth="2"
           strokeLinecap="round"
           strokeDasharray={circumference}
@@ -88,11 +88,11 @@ export function MasteryOrb({ masteryLevel, isReceiving = false, className }: Mas
         style={{
           background: `
             radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.8), transparent 30%),
-            radial-gradient(circle at 50% 50%, #2DD4BF, #0A004A 70%)
+            radial-gradient(circle at 50% 50%, #21A8B0, #0A004A 70%)
           `,
           boxShadow: `
-            0 0 ${20 * glowIntensity}px rgba(45, 212, 191, ${0.4 * glowIntensity}),
-            0 0 ${10 * glowIntensity}px rgba(45, 212, 191, ${0.3 * glowIntensity}),
+            0 0 ${20 * glowIntensity}px rgba(33, 168, 176, ${0.4 * glowIntensity}),
+            0 0 ${10 * glowIntensity}px rgba(33, 168, 176, ${0.3 * glowIntensity}),
             0 4px 8px rgba(10, 0, 74, 0.2)
           `,
         }}
@@ -102,9 +102,9 @@ export function MasteryOrb({ masteryLevel, isReceiving = false, className }: Mas
             : {
                 scale: [1, 1.05, 1],
                 boxShadow: [
-                  `0 0 ${20 * glowIntensity}px rgba(45, 212, 191, ${0.4 * glowIntensity}), 0 0 ${10 * glowIntensity}px rgba(45, 212, 191, ${0.3 * glowIntensity}), 0 4px 8px rgba(10, 0, 74, 0.2)`,
-                  `0 0 ${24 * glowIntensity}px rgba(45, 212, 191, ${0.5 * glowIntensity}), 0 0 ${12 * glowIntensity}px rgba(45, 212, 191, ${0.4 * glowIntensity}), 0 4px 8px rgba(10, 0, 74, 0.2)`,
-                  `0 0 ${20 * glowIntensity}px rgba(45, 212, 191, ${0.4 * glowIntensity}), 0 0 ${10 * glowIntensity}px rgba(45, 212, 191, ${0.3 * glowIntensity}), 0 4px 8px rgba(10, 0, 74, 0.2)`,
+                  `0 0 ${20 * glowIntensity}px rgba(33, 168, 176, ${0.4 * glowIntensity}), 0 0 ${10 * glowIntensity}px rgba(33, 168, 176, ${0.3 * glowIntensity}), 0 4px 8px rgba(10, 0, 74, 0.2)`,
+                  `0 0 ${24 * glowIntensity}px rgba(33, 168, 176, ${0.5 * glowIntensity}), 0 0 ${12 * glowIntensity}px rgba(33, 168, 176, ${0.4 * glowIntensity}), 0 4px 8px rgba(10, 0, 74, 0.2)`,
+                  `0 0 ${20 * glowIntensity}px rgba(33, 168, 176, ${0.4 * glowIntensity}), 0 0 ${10 * glowIntensity}px rgba(33, 168, 176, ${0.3 * glowIntensity}), 0 4px 8px rgba(10, 0, 74, 0.2)`,
                 ],
               }
         }

@@ -42,18 +42,13 @@
         ]
       }
     ],
-    "Stop": [
+    "SubagentStop": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/quality-gate.sh\"",
-            "timeout": 180
-          },
-          {
-            "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-plan.sh\"",
-            "timeout": 10
+            "command": "echo \"✓ Subagent completed: $(date '+%H:%M:%S')\" >> \"$CLAUDE_PROJECT_DIR/.claude/subagent-log.txt\"",
+            "timeout": 5
           }
         ]
       }

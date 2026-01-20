@@ -469,7 +469,7 @@ export function QuizAtom({
   if (state.isComplete) {
     return (
       <motion.div
-        className="max-w-2xl mx-auto space-y-6 relative"
+        className="max-w-full sm:max-w-[800px] lg:max-w-[1000px] xl:max-w-[1100px] mx-auto space-y-6 relative"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ type: 'spring', stiffness: 300, damping: 25 }}
@@ -727,7 +727,7 @@ export function QuizAtom({
 
   return (
     <motion.div
-      className="max-w-2xl mx-auto space-y-6"
+      className="max-w-full sm:max-w-[800px] lg:max-w-[1000px] xl:max-w-[1100px] mx-auto space-y-6"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}

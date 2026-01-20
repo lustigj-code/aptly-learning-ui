@@ -18,7 +18,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { useUser } from '@/store/userProfileStore'
+import { useUser } from '@/store/unifiedStore'
 import { buildSession, type LearningSession, type SessionItem } from '@/lib/adaptive/sessionBuilder'
 import { detectStruggle, type StruggleAnalysis } from '@/lib/ai/struggle-detection'
 import type { Atom, Lesson } from '@/types'

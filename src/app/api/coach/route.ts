@@ -18,8 +18,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { adminAuth } from '@/lib/firebase/admin';
 import { createConversation, addMessage } from '@/lib/services/coachService';
+import { requireAuthWithIdor, AuthError } from '@/lib/auth/requireAuth';
 import { checkRateLimit, recordMessage, recordTokenUsage as recordRateLimitUsage } from '@/lib/utils/rateLimit';
 import {
   getOrCreateSession,
@@ -30,8 +30,8 @@ import {
 import { parseCoachSuggestion, applyCoachModification } from '@/lib/coach/pathModifier';
 import { getSocraticErrorResponse } from '@/lib/coach/socraticHandler';
 import { recordTokenUsage, createTokenUsage } from '@/lib/coach/tokenUsageTracker';
-// Phase 3: Action parsing
-import { parseCoachActions } from '@/types/coachActions';
+// Phase 3: Action parsing and shared types
+import { parseCoachActions, type CoachRequestBody } from '@/types/coachActions';
 
 // Agent Orchestrator - Routes through multi-agent system with POMDP
 import { getOrchestrator } from '@/lib/agents/orchestrator';
@@ -39,52 +39,6 @@ import { getOrchestrator } from '@/lib/agents/orchestrator';
 // Phase 4: Memory system integration
 import { buildMemorySummary } from '@/lib/services/userMemoryService';
 import { analyzeConversation, quickExtract } from '@/lib/coach/memoryExtractor';
-
-// ============================================
-// TYPES
-// ============================================
-
-type Message = {
-  role: 'user' | 'assistant';
-  content: string;
-};
-
-// Phase 2: Immediate context for real-time awareness
-type ImmediateContext = {
-  questionId: string;
-  questionText: string;
-  selectedAnswer: string;
-  wasCorrect: boolean;
-  attemptNumber: number;
-};
-
-type RequestBody = {
-  messages: Message[];
-  context: {
-    userName: string;
-    currentCourse: string;
-    currentModule: string;
-    currentLesson: string;
-    currentAtom: string;
-    atomType: string;
-    atomContent?: string;
-    recentPerformance?: string;
-    masteryLevel?: number;
-    practiceContext?: string;
-    questionId?: string;
-    questionText?: string;
-    selectedAnswer?: string;
-    consecutiveWrong?: number;
-    conceptId?: string;
-    // Phase 2: Real-time context
-    immediateContext?: ImmediateContext;
-  };
-  type: 'chat' | 'practice_feedback' | 'quiz_help' | 'summary';
-  conversationId?: string;
-  userId?: string;
-  lessonId?: string;
-  currentAtomId?: string;
-};
 
 // ============================================
 // MAIN API HANDLER
@@ -97,13 +51,20 @@ export async function POST(request: NextRequest) {
 
   try {
     // Parse request
-    const body: RequestBody = await request.json();
+    const body: CoachRequestBody = await request.json();
     const { messages, context, type, conversationId: providedConvId, userId: providedUserId, lessonId, currentAtomId } = body;
 
-    // Authenticate user
-    userId = await authenticateUser(request, providedUserId);
-    if (!userId) {
-      return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+    // Authenticate user with IDOR protection
+    try {
+      userId = await authenticateUser(request, providedUserId);
+    } catch (error) {
+      if (error instanceof AuthError) {
+        return NextResponse.json(
+          { error: error.message, code: error.errorCode },
+          { status: error.statusCode }
+        );
+      }
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
     // Check rate limit - FAIL CLOSED: if rate limiting fails, deny the request
@@ -279,21 +240,29 @@ export async function POST(request: NextRequest) {
 // HELPER FUNCTIONS
 // ============================================
 
-async function authenticateUser(request: NextRequest, providedUserId?: string): Promise<string | null> {
-  if (providedUserId) return providedUserId;
-
+/**
+ * Authenticate user with IDOR protection
+ * Returns verified userId or throws AuthError
+ */
+async function authenticateUser(request: NextRequest, providedUserId?: string): Promise<string> {
   try {
-    const authHeader = request.headers.get('authorization');
-    if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      const decodedToken = await adminAuth.verifyIdToken(token);
-      return decodedToken.uid;
+    // IDOR Protection: If providedUserId is given, validate it matches authenticated user
+    const authResult = await requireAuthWithIdor(request, {
+      allowUserId: false, // We'll validate manually below
+    });
+
+    // If a userId was provided in the request body, validate it matches
+    if (providedUserId && providedUserId !== authResult.userId) {
+      throw new AuthError('Cannot access other users data', 403, 'IDOR_VIOLATION');
     }
-  } catch {
-    const sessionId = request.headers.get('x-session-id');
-    return sessionId || 'anonymous';
+
+    return authResult.userId;
+  } catch (error) {
+    if (error instanceof AuthError) {
+      throw error;
+    }
+    throw new AuthError('Authentication required', 401, 'AUTH_REQUIRED');
   }
-  return null;
 }
 
 async function saveConversation(conversationId: string | null, userMessage: string, assistantMessage: string): Promise<void> {
@@ -323,7 +292,7 @@ async function logTrainingData(
   conversationId: string | null,
   userId: string,
   lessonId?: string,
-  context?: RequestBody['context'],
+  context?: CoachRequestBody['context'],
   currentAtomId?: string,
   userMessage?: string,
   assistantMessage?: string

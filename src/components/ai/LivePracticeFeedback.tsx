@@ -166,7 +166,7 @@ export function LivePracticeFeedback({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
           >
-            <Card className="p-4 bg-gradient-to-br from-teal/5 to-light-blue/5 border-teal/20">
+            <Card className="p-4 bg-gradient-to-br from-teal/5 to-light-teal/50 border-teal/20">
               <div className="flex items-start gap-3">
                 <Sparkles className="w-5 h-5 text-teal mt-0.5 flex-shrink-0" />
                 <div className="flex-1">

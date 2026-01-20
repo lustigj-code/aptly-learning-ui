@@ -27,7 +27,7 @@ import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Character } from '@/components/characters/Character';
 import { useAuthStore } from '@/store/authStore';
-import { useUserProfileStore, createNewUser } from '@/store/userProfileStore';
+import { useUnifiedStore, createNewUser } from '@/store/unifiedStore';
 import { BADGES } from '@/data/mockData';
 import { updateProfile, updatePreferences } from '@/lib/api/userApi';
 import { cn, calculateWeeksToComplete } from '@/lib/utils';
@@ -99,7 +99,7 @@ const timeCommitments: { minutes: number; pace: LearningPace; label: string }[] 
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const setUser = useUserProfileStore((state) => state.setUser);
+  const setUser = useUnifiedStore((state) => state.setUser);
   const prefersReducedMotion = useReducedMotion();
 
   const [currentStep, setCurrentStep] = useState<OnboardingStep>('welcome');

@@ -24,6 +24,18 @@ vi.mock('@/lib/firebase/admin', () => ({
         },
       })),
     })),
+    runTransaction: vi.fn((callback) => {
+      // Mock transaction that executes the callback with a mock transaction object
+      const mockTransaction = {
+        get: vi.fn(() => Promise.resolve({
+          exists: true,
+          data: () => ({ streak: { currentStreak: 0, longestStreak: 0, lastCompletedDate: '' } }),
+        })),
+        update: vi.fn(),
+        set: vi.fn(),
+      };
+      return callback(mockTransaction);
+    }),
   },
   adminAuth: {
     verifyIdToken: vi.fn(() =>
@@ -204,7 +216,7 @@ describe('POST /api/progress/complete-atom', () => {
   });
 
   it('returns 400 when trying to complete already completed atom', async () => {
-    // Mock that atom is already completed
+    // Mock that atom is already completed (using new data model with nested progress)
     const { adminDb } = await import('@/lib/firebase/admin');
     vi.mocked(adminDb.collection).mockReturnValue({
       doc: vi.fn(() => ({
@@ -212,8 +224,10 @@ describe('POST /api/progress/complete-atom', () => {
           Promise.resolve({
             exists: true,
             data: () => ({
-              atomsCompleted: ['atom-1'], // Already completed
-              totalXP: 50,
+              progress: {
+                atomsCompleted: ['atom-1'], // Already completed
+                totalXP: 50,
+              },
               streak: { currentStreak: 1 },
             }),
           })

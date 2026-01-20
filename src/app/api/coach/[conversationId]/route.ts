@@ -2,13 +2,41 @@
  * Coach Conversation Details Route
  * GET: Load full conversation history
  * DELETE: Soft delete conversation
+ *
+ * SECURITY: All endpoints verify user ownership of conversation
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { adminAuth } from '@/lib/firebase/admin';
 import {
   getConversation,
   deleteConversation,
 } from '@/lib/services/coachService';
+
+/**
+ * Authenticate user from request
+ * Returns userId if authenticated, null otherwise
+ */
+async function authenticateUser(request: NextRequest): Promise<string | null> {
+  try {
+    const authHeader = request.headers.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const decodedToken = await adminAuth.verifyIdToken(token);
+      return decodedToken.uid;
+    }
+
+    // Fallback to session cookie
+    const sessionCookie = request.cookies.get('session')?.value;
+    if (sessionCookie) {
+      const decodedClaims = await adminAuth.verifySessionCookie(sessionCookie, true);
+      return decodedClaims.uid;
+    }
+  } catch (error) {
+    console.error('[Conversation API] Auth error:', error);
+  }
+  return null;
+}
 
 type RouteParams = {
   params: Promise<{
@@ -23,6 +51,15 @@ type RouteParams = {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    // SECURITY: Authenticate user first
+    const userId = await authenticateUser(request);
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
     const { conversationId } = await params;
 
     // Validate conversationId
@@ -53,6 +90,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json(
         { error: 'Conversation not found' },
         { status: 404 }
+      );
+    }
+
+    // SECURITY: Verify user owns this conversation (IDOR protection)
+    if (conversation.userId !== userId) {
+      console.warn(`[Conversation API] IDOR attempt: User ${userId} tried to access conversation owned by ${conversation.userId}`);
+      return NextResponse.json(
+        { error: 'Forbidden' },
+        { status: 403 }
       );
     }
 
@@ -94,6 +140,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    // SECURITY: Authenticate user first
+    const userId = await authenticateUser(request);
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
     const { conversationId } = await params;
 
     // Validate conversationId
@@ -110,6 +165,15 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json(
         { error: 'Conversation not found' },
         { status: 404 }
+      );
+    }
+
+    // SECURITY: Verify user owns this conversation (IDOR protection)
+    if (conversation.userId !== userId) {
+      console.warn(`[Conversation API] IDOR attempt: User ${userId} tried to delete conversation owned by ${conversation.userId}`);
+      return NextResponse.json(
+        { error: 'Forbidden' },
+        { status: 403 }
       );
     }
 
@@ -139,6 +203,12 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
  */
 export async function HEAD(request: NextRequest, { params }: RouteParams) {
   try {
+    // SECURITY: Authenticate user first
+    const userId = await authenticateUser(request);
+    if (!userId) {
+      return new NextResponse(null, { status: 401 });
+    }
+
     const { conversationId } = await params;
 
     if (!conversationId || typeof conversationId !== 'string') {
@@ -149,6 +219,11 @@ export async function HEAD(request: NextRequest, { params }: RouteParams) {
 
     if (!conversation) {
       return new NextResponse(null, { status: 404 });
+    }
+
+    // SECURITY: Verify user owns this conversation (IDOR protection)
+    if (conversation.userId !== userId) {
+      return new NextResponse(null, { status: 403 });
     }
 
     const messageCount = conversation.messages?.length || 0;

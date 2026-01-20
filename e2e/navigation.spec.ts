@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { checkA11y } from '../src/test/a11y'
 
 test.describe('Navigation', () => {
   test('should redirect unauthenticated users from dashboard to login', async ({ page }) => {
@@ -49,6 +50,13 @@ test.describe('Page Content', () => {
     await page.goto('/login')
 
     await expect(page).toHaveTitle(/aptly|login|sign in/i)
+  })
+
+  test('login page meets accessibility standards', async ({ page }) => {
+    await page.goto('/login')
+
+    // Check accessibility using helper utility
+    await checkA11y(page)
   })
 
   test('privacy page displays policy content', async ({ page }) => {

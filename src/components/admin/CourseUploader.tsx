@@ -267,15 +267,15 @@ export function CourseUploader({ onUploadComplete }: CourseUploaderProps) {
               {result.stats && (
                 <div className="grid grid-cols-4 gap-4 max-w-md mx-auto pt-2">
                   <div className="text-center">
-                    <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg mx-auto mb-1">
-                      <Video className="w-5 h-5 text-blue-600" />
+                    <div className="flex items-center justify-center w-10 h-10 bg-teal/20 rounded-lg mx-auto mb-1">
+                      <Video className="w-5 h-5 text-teal" />
                     </div>
                     <p className="text-2xl font-bold text-navy">{result.stats.videos}</p>
                     <p className="text-xs text-rich-black/60">Videos</p>
                   </div>
                   <div className="text-center">
-                    <div className="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-lg mx-auto mb-1">
-                      <FileText className="w-5 h-5 text-purple-600" />
+                    <div className="flex items-center justify-center w-10 h-10 bg-navy/10 rounded-lg mx-auto mb-1">
+                      <FileText className="w-5 h-5 text-navy" />
                     </div>
                     <p className="text-2xl font-bold text-navy">{result.stats.textFiles}</p>
                     <p className="text-xs text-rich-black/60">Files</p>
@@ -288,8 +288,8 @@ export function CourseUploader({ onUploadComplete }: CourseUploaderProps) {
                     <p className="text-xs text-rich-black/60">Modules</p>
                   </div>
                   <div className="text-center">
-                    <div className="flex items-center justify-center w-10 h-10 bg-orange-100 rounded-lg mx-auto mb-1">
-                      <BookOpen className="w-5 h-5 text-orange-600" />
+                    <div className="flex items-center justify-center w-10 h-10 bg-warning/20 rounded-lg mx-auto mb-1">
+                      <BookOpen className="w-5 h-5 text-warning" />
                     </div>
                     <p className="text-2xl font-bold text-navy">{result.stats.lessons}</p>
                     <p className="text-xs text-rich-black/60">Lessons</p>

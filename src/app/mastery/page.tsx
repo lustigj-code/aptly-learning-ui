@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser } from '@/store/userProfileStore';
+import { useUser } from '@/store/unifiedStore';
 import { useMasteryMap } from '@/hooks/useMasteryMap';
 import { EnhancedMasteryMap } from '@/components/mastery';
 import type { SkillNodeData } from '@/components/mastery/types';

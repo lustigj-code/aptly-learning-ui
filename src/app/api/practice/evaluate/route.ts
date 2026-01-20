@@ -98,18 +98,31 @@ export async function POST(request: NextRequest) {
 // ============================================
 
 async function authenticateUser(request: NextRequest, providedUserId?: string): Promise<string | null> {
-  if (providedUserId) return providedUserId;
-
+  // SECURITY: Always verify auth token first - never trust providedUserId alone
   try {
     const authHeader = request.headers.get('authorization');
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
       const decodedToken = await adminAuth.verifyIdToken(token);
-      return decodedToken.uid;
+      const authenticatedUid = decodedToken.uid;
+
+      // If providedUserId was given, verify it matches the authenticated user (IDOR protection)
+      if (providedUserId && providedUserId !== authenticatedUid) {
+        console.warn('[Practice API] IDOR attempt: providedUserId does not match authenticated user');
+        return null; // Reject mismatched userId
+      }
+
+      return authenticatedUid;
     }
-  } catch {
-    const sessionId = request.headers.get('x-session-id');
-    return sessionId || null;
+  } catch (error) {
+    console.warn('[Practice API] Auth verification failed:', error);
   }
+
+  // Fallback to session ID only if no auth token (for anonymous/demo usage)
+  const sessionId = request.headers.get('x-session-id');
+  if (sessionId && !providedUserId) {
+    return sessionId;
+  }
+
   return null;
 }

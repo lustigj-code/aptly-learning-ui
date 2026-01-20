@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useUser } from '@/store/userProfileStore';
+import { useUser } from '@/store/unifiedStore';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase';
 import {
@@ -148,12 +148,12 @@ function convertToReactFlowFormat(
       type: 'smoothstep',
       animated: edge.strength >= 0.8,
       style: {
-        stroke: edge.strength >= 0.8 ? '#6366f1' : '#94a3b8',
+        stroke: edge.strength >= 0.8 ? '#21A8B0' : '#94a3b8',
         strokeWidth: edge.strength >= 0.8 ? 2 : 1,
       },
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        color: edge.strength >= 0.8 ? '#6366f1' : '#94a3b8',
+        color: edge.strength >= 0.8 ? '#21A8B0' : '#94a3b8',
       },
     }));
 
@@ -288,7 +288,7 @@ export default function AdminGraphPage() {
   if (userLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal" />
       </div>
     );
   }
@@ -321,13 +321,13 @@ export default function AdminGraphPage() {
                   value={searchUserId}
                   onChange={(e) => setSearchUserId(e.target.value)}
                   placeholder="Enter User ID..."
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-64"
+                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal focus:border-transparent w-64"
                 />
               </div>
               <button
                 type="submit"
                 disabled={loading}
-                className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 py-2 bg-teal text-white text-sm font-medium rounded-lg hover:bg-teal-dark disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {loading ? (
                   <RefreshCw className="h-4 w-4 animate-spin" />
@@ -355,11 +355,11 @@ export default function AdminGraphPage() {
             </div>
           )}
           {loadedUserId && userInfo && (
-            <div className="mt-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-indigo-700 text-sm flex items-center gap-4">
+            <div className="mt-4 p-3 bg-light-teal border border-teal/30 rounded-lg text-teal-dark text-sm flex items-center gap-4">
               <User className="h-5 w-5" />
               <div>
                 <span className="font-medium">User:</span> {loadedUserId}
-                {userInfo.email && <span className="ml-2 text-indigo-500">({userInfo.email})</span>}
+                {userInfo.email && <span className="ml-2 text-teal">({userInfo.email})</span>}
               </div>
             </div>
           )}

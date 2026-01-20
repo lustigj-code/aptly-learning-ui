@@ -8,7 +8,7 @@ import { render, screen } from '@testing-library/react';
 import { Header } from '../layout/Header';
 
 // Mock hooks and stores
-vi.mock('@/store/userProfileStore', () => ({
+vi.mock('@/store/unifiedStore', () => ({
   useUser: () => ({
     user: {
       id: 'test-user',

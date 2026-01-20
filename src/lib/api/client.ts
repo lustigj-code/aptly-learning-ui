@@ -14,6 +14,7 @@ export type ApiErrorCode =
   | 'FORBIDDEN'
   | 'NOT_FOUND'
   | 'VALIDATION_ERROR'
+  | 'RATE_LIMITED'
   | 'SERVER_ERROR'
   | 'NETWORK_ERROR'
   | 'TIMEOUT'
@@ -24,6 +25,7 @@ export type ApiError = {
   message: string;
   status: number;
   details?: unknown;
+  requestId?: string; // For correlating client errors with server logs
 };
 
 export type ApiResponse<T> = {
@@ -52,6 +54,7 @@ export type RequestConfig = {
 const DEFAULT_TIMEOUT = 30000; // 30 seconds
 const DEFAULT_RETRIES = 3;
 const DEFAULT_RETRY_DELAY = 1000; // 1 second
+const MAX_RATE_LIMIT_WAIT = 30000; // 30 seconds max wait for rate limit
 const RETRYABLE_STATUS_CODES = [408, 429, 500, 502, 503, 504];
 
 // ============================================
@@ -74,6 +77,8 @@ function statusToErrorCode(status: number): ApiErrorCode {
       return 'VALIDATION_ERROR';
     case 408:
       return 'TIMEOUT';
+    case 429:
+      return 'RATE_LIMITED';
     default:
       if (status >= 500) {
         return 'SERVER_ERROR';
@@ -88,13 +93,15 @@ function statusToErrorCode(status: number): ApiErrorCode {
 function createApiError(
   status: number,
   message: string,
-  details?: unknown
+  details?: unknown,
+  requestId?: string
 ): ApiError {
   return {
     code: statusToErrorCode(status),
     message,
     status,
     details,
+    requestId,
   };
 }
 
@@ -110,10 +117,55 @@ function isRetryable(status: number): boolean {
 // ============================================
 
 /**
+ * Generate a unique request ID for tracing
+ */
+function generateRequestId(): string {
+  const timestamp = Date.now().toString(36);
+  const randomPart = Math.random().toString(36).substring(2, 10);
+  return `req_${timestamp}_${randomPart}`;
+}
+
+/**
  * Sleep for specified milliseconds
  */
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Calculate wait time for rate limit retry based on Retry-After header
+ * Returns the wait time in ms, or null if we shouldn't retry
+ */
+function getRateLimitWaitTime(response: Response, retryCount: number): number | null {
+  const retryAfter = response.headers.get('Retry-After');
+
+  let waitTime: number;
+  if (retryAfter) {
+    // Retry-After can be seconds (number) or HTTP-date
+    const seconds = parseInt(retryAfter, 10);
+    if (!isNaN(seconds)) {
+      waitTime = seconds * 1000;
+    } else {
+      // Try parsing as HTTP-date
+      const date = new Date(retryAfter);
+      if (!isNaN(date.getTime())) {
+        waitTime = Math.max(0, date.getTime() - Date.now());
+      } else {
+        // Fallback to exponential backoff
+        waitTime = Math.pow(2, retryCount) * 1000;
+      }
+    }
+  } else {
+    // No Retry-After header, use exponential backoff
+    waitTime = Math.pow(2, retryCount) * 1000;
+  }
+
+  // Don't wait more than the max limit
+  if (waitTime > MAX_RATE_LIMIT_WAIT) {
+    return null;
+  }
+
+  return waitTime;
 }
 
 /**
@@ -162,9 +214,13 @@ export async function apiRequest<T>(
     skipAuth = false,
   } = config;
 
+  // Generate request ID for tracing
+  const requestId = generateRequestId();
+
   // Build headers
   const requestHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
+    'x-request-id': requestId,
     ...headers,
   };
 
@@ -176,7 +232,7 @@ export async function apiRequest<T>(
         requestHeaders['Authorization'] = `Bearer ${token}`;
       }
     } catch (error) {
-      console.warn('Failed to get auth token:', error);
+      console.warn(`[${requestId}] Failed to get auth token:`, error);
     }
   }
 
@@ -235,13 +291,31 @@ export async function apiRequest<T>(
           ? (responseData as Record<string, unknown>).details
           : undefined;
 
-      const apiError = createApiError(response.status, errorMessage, errorDetails);
+      const apiError = createApiError(response.status, errorMessage, errorDetails, requestId);
 
       // Check if we should retry
       if (isRetryable(response.status) && attempt < retries) {
         lastError = apiError;
         attempt++;
-        await sleep(retryDelay * attempt); // Exponential backoff
+
+        // For 429, use Retry-After header if available
+        if (response.status === 429) {
+          const waitTime = getRateLimitWaitTime(response, attempt);
+          if (waitTime === null) {
+            // Wait time exceeds max, don't retry
+            console.warn(`[${requestId}] Rate limit wait time exceeds maximum, not retrying`);
+            return {
+              data: null,
+              success: false,
+              error: apiError,
+            };
+          }
+          console.warn(`[${requestId}] Rate limited, waiting ${waitTime}ms before retry ${attempt}`);
+          await sleep(waitTime);
+        } else {
+          // Standard exponential backoff for other retryable errors
+          await sleep(retryDelay * attempt);
+        }
         continue;
       }
 
@@ -254,12 +328,13 @@ export async function apiRequest<T>(
       // Handle network errors and timeouts
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
-          lastError = createApiError(408, 'Request timeout');
+          lastError = createApiError(408, 'Request timeout', undefined, requestId);
         } else {
           lastError = {
             code: 'NETWORK_ERROR',
             message: error.message || 'Network error occurred',
             status: 0,
+            requestId,
           };
         }
       } else {
@@ -267,6 +342,7 @@ export async function apiRequest<T>(
           code: 'UNKNOWN',
           message: 'An unknown error occurred',
           status: 0,
+          requestId,
         };
       }
 
@@ -289,7 +365,7 @@ export async function apiRequest<T>(
   return {
     data: null,
     success: false,
-    error: lastError || createApiError(500, 'Max retries exceeded'),
+    error: lastError || createApiError(500, 'Max retries exceeded', undefined, requestId),
   };
 }
 

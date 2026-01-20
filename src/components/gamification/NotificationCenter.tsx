@@ -11,7 +11,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, Award, Zap, Trophy, Flame, X, ChevronRight, AlertTriangle, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { useUserProfileStore } from '@/store/userProfileStore';
+import { useUnifiedStore } from '@/store/unifiedStore';
 
 type Notification = {
   id: string;
@@ -66,7 +66,7 @@ const createSampleNotifications = (): Notification[] => {
 };
 
 export function NotificationCenter({ isOpen, onClose }: NotificationCenterProps) {
-  const user = useUserProfileStore((state) => state.user);
+  const user = useUnifiedStore((state) => state.user);
   // Initialize notifications lazily - only creates sample data once on first render
   const [notifications, setNotifications] = useState<Notification[]>(() =>
     user ? createSampleNotifications() : []
@@ -91,13 +91,13 @@ export function NotificationCenter({ isOpen, onClose }: NotificationCenterProps)
     switch (type) {
       case 'badge':
       case 'achievement':
-        return <Trophy className="w-5 h-5 text-purple" />;
+        return <Trophy className="w-5 h-5 text-navy" />;
       case 'level_up':
         return <Zap className="w-5 h-5 text-teal" />;
       case 'streak':
-        return <Flame className="w-5 h-5 text-orange" />;
+        return <Flame className="w-5 h-5 text-warning" />;
       case 'xp':
-        return <Award className="w-5 h-5 text-blue" />;
+        return <Award className="w-5 h-5 text-teal" />;
       case 'reengagement':
         return <ArrowRight className="w-5 h-5 text-teal" />;
       case 'streak_risk':
@@ -207,7 +207,7 @@ export function NotificationCenter({ isOpen, onClose }: NotificationCenterProps)
                   className={`p-4 rounded-lg border transition-all cursor-pointer ${
                     notification.read
                       ? 'bg-white border-gray-200'
-                      : 'bg-light-blue/10 border-teal/30 shadow-sm'
+                      : 'bg-light-teal/30 border-teal/30 shadow-sm'
                   }`}
                 >
                   <div className="flex items-start gap-3">

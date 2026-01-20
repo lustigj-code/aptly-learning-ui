@@ -73,7 +73,12 @@ describe('GET /api/courses', () => {
   });
 
   it('handles userId query parameter without error', async () => {
-    const request = new NextRequest('http://localhost:3000/api/courses?userId=test-user');
+    // Use test-user-id to match global mock's verifyIdToken uid
+    const request = new NextRequest('http://localhost:3000/api/courses?userId=test-user-id', {
+      headers: {
+        'Authorization': 'Bearer valid-token',
+      },
+    });
 
     const response = await getCourses(request);
     const data = await response.json();

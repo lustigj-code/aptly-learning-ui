@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getNextItems, type SequencerConfig, fetchLearnerState } from '@/lib/adaptive/sequencer';
+import { getAuthenticatedUserId, validateBodyUserId } from '@/lib/auth/requireAuth';
 import { getSkillName } from '@/data/skillMap';
 import { getSkillMap } from '@/lib/skillmap/skillMapStorage';
 import {
@@ -420,14 +421,14 @@ async function interleaveItemsWithFSRS(
 export async function POST(request: NextRequest) {
   try {
     const body: SessionRequest = await request.json();
-    const { userId, courseId, availableMinutes, preferences } = body;
+    const { userId: bodyUserId, courseId, availableMinutes, preferences } = body;
 
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'userId is required' },
-        { status: 400 }
-      );
+    // IDOR Protection: Validate userId from body matches authenticated user
+    const userIdResult = await validateBodyUserId(request, bodyUserId);
+    if (userIdResult instanceof NextResponse) {
+      return userIdResult;
     }
+    const userId = userIdResult;
 
     const session = await buildSessionServer(
       userId,
@@ -455,17 +456,16 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  // IDOR Protection: Validate userId query param matches authenticated user
+  const userIdResult = await getAuthenticatedUserId(request, { allowUserId: true });
+  if (userIdResult instanceof NextResponse) {
+    return userIdResult;
+  }
+  const userId = userIdResult;
+
   const searchParams = request.nextUrl.searchParams;
-  const userId = searchParams.get('userId');
   const courseId = searchParams.get('courseId');
   const minutes = searchParams.get('minutes');
-
-  if (!userId) {
-    return NextResponse.json(
-      { error: 'userId query param required' },
-      { status: 400 }
-    );
-  }
 
   try {
     const session = await buildSessionServer(

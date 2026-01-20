@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { InlineStreak } from '@/components/progress/StreakCounter';
-import { useUser } from '@/store/userProfileStore';
+import { useUser } from '@/store/unifiedStore';
 import { useUIStore } from '@/store/uiStore';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 

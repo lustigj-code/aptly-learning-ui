@@ -130,7 +130,7 @@ export function OverviewPanel({ dateRange }: OverviewPanelProps) {
           </h3>
           <MetricsChart
             data={data.dailyActiveUsers}
-            color="#4F46E5"
+            color="#21A8B0"
             label="Active Users"
           />
         </div>
@@ -141,7 +141,7 @@ export function OverviewPanel({ dateRange }: OverviewPanelProps) {
           </h3>
           <MetricsChart
             data={data.completionRateTrend}
-            color="#10B981"
+            color="#0A004A"
             label="Completion Rate %"
           />
         </div>
@@ -154,7 +154,7 @@ export function OverviewPanel({ dateRange }: OverviewPanelProps) {
         </h3>
         <MetricsChart
           data={data.sessionLengthTrend}
-          color="#F59E0B"
+          color="#FFDE00"
           label="Minutes"
         />
       </div>

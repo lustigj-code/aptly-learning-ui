@@ -78,10 +78,10 @@ export function SocraticQuizHint({
             delay: index * 0.1
           }}
         >
-          <Card className="p-5 bg-gradient-to-br from-blue-50/80 to-purple-50/40 border border-blue-200/40 shadow-md hover:shadow-lg transition-shadow">
+          <Card className="p-5 bg-gradient-to-br from-light-teal/80 to-white border border-teal/20 shadow-md hover:shadow-lg transition-shadow">
             <div className="flex items-start gap-3">
               <motion.div
-                className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0 shadow-sm"
+                className="w-8 h-8 rounded-xl bg-teal flex items-center justify-center flex-shrink-0 shadow-sm"
                 initial={{ scale: 0, rotate: -90 }}
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{
@@ -94,7 +94,7 @@ export function SocraticQuizHint({
                 <Lightbulb className="w-4 h-4 text-white" />
               </motion.div>
               <div className="flex-1">
-                <p className="text-xs font-bold text-blue-600 mb-2 uppercase tracking-wide">Hint {index + 1}</p>
+                <p className="text-xs font-bold text-teal mb-2 uppercase tracking-wide">Hint {index + 1}</p>
                 <p className="text-sm text-navy leading-relaxed font-medium">{hint}</p>
               </div>
             </div>
@@ -120,7 +120,7 @@ export function SocraticQuizHint({
               {loading ? (
                 <>
                   <motion.div
-                    className="w-4 h-4 rounded-full border-2 border-blue border-t-transparent"
+                    className="w-4 h-4 rounded-full border-2 border-teal border-t-transparent"
                     animate={{ rotate: 360 }}
                     transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
                   />
@@ -151,7 +151,7 @@ export function SocraticQuizHint({
 
       {currentLevel >= 3 && (
         <motion.p
-          className="text-xs text-gray-600 text-center font-semibold px-3 py-2 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg border border-blue-200/40"
+          className="text-xs text-gray-600 text-center font-semibold px-3 py-2 bg-gradient-to-br from-light-teal to-white rounded-lg border border-teal/20"
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3 }}

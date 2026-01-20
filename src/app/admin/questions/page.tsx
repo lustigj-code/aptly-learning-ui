@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Modal } from '@/components/ui/Modal'
 import { QuestionBankTable } from '@/components/admin/QuestionBankTable'
-import { useUser } from '@/store/userProfileStore'
+import { useUser } from '@/store/unifiedStore'
 import { getAllQuestions, type IndexedQuestion } from '@/data/questionBank'
 import { allFsmQuestions } from '@/data/fsmQuestionBank'
 
@@ -119,7 +119,7 @@ export default function AdminQuestionsPage() {
       label: 'Total Questions',
       value: stats.total,
       icon: BookOpen,
-      color: 'bg-blue-500',
+      color: 'bg-teal',
     },
     {
       label: 'Easy',
@@ -131,19 +131,19 @@ export default function AdminQuestionsPage() {
       label: 'Medium',
       value: stats.byDifficulty[2] || 0,
       icon: Target,
-      color: 'bg-blue-500',
+      color: 'bg-teal',
     },
     {
       label: 'Hard',
       value: stats.byDifficulty[3] || 0,
       icon: Target,
-      color: 'bg-orange-500',
+      color: 'bg-warning',
     },
     {
       label: 'Expert+',
       value: (stats.byDifficulty[4] || 0) + (stats.byDifficulty[5] || 0),
       icon: Target,
-      color: 'bg-purple-500',
+      color: 'bg-navy',
     },
   ]
 
@@ -252,7 +252,7 @@ export default function AdminQuestionsPage() {
                       className="flex items-center justify-between p-3 bg-light-grey rounded-lg"
                     >
                       <span className="text-sm font-medium text-navy">{course}</span>
-                      <span className="px-3 py-1 bg-purple/20 text-purple rounded-full text-sm font-semibold">
+                      <span className="px-3 py-1 bg-navy/20 text-navy rounded-full text-sm font-semibold">
                         {count}
                       </span>
                     </div>
@@ -279,9 +279,9 @@ export default function AdminQuestionsPage() {
             title="Edit Question"
           >
             <div className="space-y-4">
-              <div className="p-4 bg-blue-50 rounded-lg flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-blue-800">
+              <div className="p-4 bg-light-teal rounded-lg flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-teal flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-teal-dark">
                   <p className="font-semibold mb-1">Edit functionality coming soon</p>
                   <p>
                     This is a placeholder modal. Question editing will be implemented

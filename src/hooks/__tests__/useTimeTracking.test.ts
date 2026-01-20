@@ -21,11 +21,11 @@ import {
   estimateReadingTime,
 } from '../useTimeTracking';
 
-// Mock userProfileStore
+// Mock unifiedStore
 const mockUpdateProgress = vi.fn(() => Promise.resolve());
 
-vi.mock('@/store/userProfileStore', () => ({
-  useUserProfileStore: vi.fn((selector) => {
+vi.mock('@/store/unifiedStore', () => ({
+  useUnifiedStore: vi.fn((selector) => {
     const state = {
       user: {
         id: 'test-user',

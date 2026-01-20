@@ -158,9 +158,13 @@ describe('POST /api/coach', () => {
     vi.clearAllMocks();
   });
 
-  it('requires userId in request', async () => {
+  it('uses authenticated userId when not provided in body', async () => {
+    // With IDOR protection, userId is derived from auth token if not provided
     const request = new NextRequest('http://localhost:3000/api/coach', {
       method: 'POST',
+      headers: {
+        'Authorization': 'Bearer valid-token',
+      },
       body: JSON.stringify({
         messages: [{ role: 'user', content: 'Hello!' }],
         context: {
@@ -172,20 +176,24 @@ describe('POST /api/coach', () => {
           atomType: 'reading',
         },
         type: 'chat',
-        // No userId provided
+        // No userId provided - uses authenticated userId from token
       }),
     });
 
     const response = await POST(request);
     const data = await response.json();
 
-    expect(response.status).toBe(400);
-    expect(data.error).toBe('userId is required');
+    // Should succeed using authenticated user ID from token
+    expect(response.status).toBe(200);
+    expect(data.conversationId).toBeDefined();
   });
 
   it('returns conversation ID when initialized with empty messages', async () => {
     const request = new NextRequest('http://localhost:3000/api/coach', {
       method: 'POST',
+      headers: {
+        'Authorization': 'Bearer valid-token',
+      },
       body: JSON.stringify({
         messages: [],
         context: {
@@ -214,6 +222,9 @@ describe('POST /api/coach', () => {
 
     const request = new NextRequest('http://localhost:3000/api/coach', {
       method: 'POST',
+      headers: {
+        'Authorization': 'Bearer valid-token',
+      },
       body: JSON.stringify({
         messages: [{ role: 'user', content: longMessage }],
         context: {
@@ -242,6 +253,9 @@ describe('POST /api/coach', () => {
 
     const request = new NextRequest('http://localhost:3000/api/coach', {
       method: 'POST',
+      headers: {
+        'Authorization': 'Bearer valid-token',
+      },
       body: JSON.stringify({
         messages: [{ role: 'user', content: 'What is a lookalike audience?' }],
         context: {
@@ -279,6 +293,9 @@ describe('POST /api/coach', () => {
 
     const request = new NextRequest('http://localhost:3000/api/coach', {
       method: 'POST',
+      headers: {
+        'Authorization': 'Bearer valid-token',
+      },
       body: JSON.stringify({
         messages: [{ role: 'user', content: 'Help me!' }],
         context: {
@@ -290,7 +307,7 @@ describe('POST /api/coach', () => {
           atomType: 'quiz',
         },
         type: 'chat',
-        userId: 'rate-limited-user',
+        userId: 'test-user-123',
       }),
     });
 
@@ -307,6 +324,9 @@ describe('POST /api/coach', () => {
 
     const request = new NextRequest('http://localhost:3000/api/coach', {
       method: 'POST',
+      headers: {
+        'Authorization': 'Bearer valid-token',
+      },
       body: JSON.stringify({
         messages: [
           {
@@ -347,6 +367,9 @@ describe('POST /api/coach', () => {
 
     const request = new NextRequest('http://localhost:3000/api/coach', {
       method: 'POST',
+      headers: {
+        'Authorization': 'Bearer valid-token',
+      },
       body: JSON.stringify({
         messages: [{ role: 'user', content: 'Explain ROI in social media marketing' }],
         context: {

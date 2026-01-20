@@ -1,5 +1,22 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import type { BadgeCriteria } from '@/types';
+import type { BadgeCriteria, AssessmentScore, StreakData } from '@/types';
+
+/**
+ * Context for badge evaluation - flexible interface that accepts
+ * UserProgress or partial progress data for badge evaluation
+ */
+export type BadgeEvaluationContext = {
+  coursesCompleted?: string[];
+  modulesCompleted?: string[];
+  lessonsCompleted?: string[];
+  atomsCompleted?: string[];
+  assessmentScores?: AssessmentScore[];
+  totalTimeSpentMinutes?: number;
+  streak?: StreakData;
+  /** Legacy field name for streak data */
+  stripe?: StreakData;
+  /** Optional completion details for fallback score checking */
+  completionDetails?: Record<string, { score?: number }>;
+};
 
 /**
  * Evaluate badge criteria for a user
@@ -8,7 +25,7 @@ import type { BadgeCriteria } from '@/types';
 export async function evaluateBadgeCriteria(
   userId: string,
   criteria: BadgeCriteria,
-  userProgress: any
+  userProgress: BadgeEvaluationContext
 ): Promise<boolean> {
   switch (criteria.type) {
     case 'completion':
@@ -32,7 +49,7 @@ export async function evaluateBadgeCriteria(
  */
 function evaluateCompletionCriteria(
   criteria: BadgeCriteria,
-  userProgress: any
+  userProgress: BadgeEvaluationContext
 ): boolean {
   if (!criteria.relatedEntityId) return false;
 
@@ -67,7 +84,7 @@ function evaluateCompletionCriteria(
  */
 function evaluateStreakCriteria(
   criteria: BadgeCriteria,
-  userProgress: any
+  userProgress: BadgeEvaluationContext
 ): boolean {
   const threshold = criteria.threshold || 7; // Default 7 days
   const streakData = userProgress.streak || userProgress.stripe;
@@ -81,22 +98,21 @@ function evaluateStreakCriteria(
  */
 function evaluateScoreCriteria(
   criteria: BadgeCriteria,
-  userProgress: any
+  userProgress: BadgeEvaluationContext
 ): boolean {
   const threshold = criteria.threshold || 90; // Default 90%
 
   // Check if user has any assessment with score >= threshold
   if (userProgress.assessmentScores && Array.isArray(userProgress.assessmentScores)) {
     return userProgress.assessmentScores.some(
-      (assessment: any) => assessment.score >= threshold
+      (assessment) => assessment.score >= threshold
     );
   }
 
   // Fallback: check completionDetails if assessmentScores not available
   if (userProgress.completionDetails && typeof userProgress.completionDetails === 'object') {
     return Object.values(userProgress.completionDetails).some((detail) => {
-      const d = detail as any;
-      return typeof d?.score === 'number' && d.score >= threshold;
+      return typeof detail?.score === 'number' && detail.score >= threshold;
     });
   }
 
@@ -109,7 +125,7 @@ function evaluateScoreCriteria(
  */
 function evaluateTimeCriteria(
   criteria: BadgeCriteria,
-  userProgress: any
+  userProgress: BadgeEvaluationContext
 ): boolean {
   const thresholdHours = criteria.threshold || 1; // Default 1 hour
   const thresholdMinutes = thresholdHours * 60;
@@ -122,7 +138,7 @@ function evaluateTimeCriteria(
  */
 export function calculateBadgeProgress(
   criteria: BadgeCriteria,
-  userProgress: any
+  userProgress: BadgeEvaluationContext
 ): {
   current: number;
   target: number;
@@ -163,7 +179,7 @@ export function calculateBadgeProgress(
       let current = 0;
       if (userProgress.assessmentScores && Array.isArray(userProgress.assessmentScores)) {
         current = userProgress.assessmentScores.filter(
-          (a: any) => a.score >= target
+          (assessment) => assessment.score >= target
         ).length;
       }
       return {

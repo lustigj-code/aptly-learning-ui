@@ -168,7 +168,7 @@ export function AdCreativeUpload({ onAnalysisComplete, campaignContext = {} }: P
         <motion.div
           className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
             dragActive
-              ? 'border-blue-500 bg-blue-50'
+              ? 'border-teal bg-light-teal'
               : 'border-gray-300 hover:border-gray-400'
           }`}
           onDragEnter={handleDrag}
@@ -230,7 +230,7 @@ export function AdCreativeUpload({ onAnalysisComplete, campaignContext = {} }: P
                 <select
                   value={context.platform}
                   onChange={(e) => setContext({ ...context, platform: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal focus:border-transparent"
                 >
                   <option value="instagram">Instagram</option>
                   <option value="facebook">Facebook</option>
@@ -246,7 +246,7 @@ export function AdCreativeUpload({ onAnalysisComplete, campaignContext = {} }: P
                 <select
                   value={context.objective}
                   onChange={(e) => setContext({ ...context, objective: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal focus:border-transparent"
                 >
                   <option value="brand_awareness">Brand Awareness</option>
                   <option value="lead_generation">Lead Generation</option>
@@ -264,7 +264,7 @@ export function AdCreativeUpload({ onAnalysisComplete, campaignContext = {} }: P
                   value={context.targetAudience}
                   onChange={(e) => setContext({ ...context, targetAudience: e.target.value })}
                   placeholder="e.g., Young professionals aged 25-35 interested in fitness"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal focus:border-transparent"
                 />
               </div>
               <div className="col-span-2">
@@ -276,7 +276,7 @@ export function AdCreativeUpload({ onAnalysisComplete, campaignContext = {} }: P
                   value={context.industry}
                   onChange={(e) => setContext({ ...context, industry: e.target.value })}
                   placeholder="e.g., E-commerce, SaaS, Healthcare"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal focus:border-transparent"
                 />
               </div>
             </div>
@@ -287,7 +287,7 @@ export function AdCreativeUpload({ onAnalysisComplete, campaignContext = {} }: P
             <motion.button
               onClick={handleAnalyze}
               disabled={isAnalyzing}
-              className="mt-4 w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="mt-4 w-full py-3 bg-teal text-white rounded-lg font-medium hover:bg-teal-dark disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               whileHover={!prefersReducedMotion ? { scale: 1.01 } : undefined}
               whileTap={!prefersReducedMotion ? { scale: 0.99 } : undefined}
             >
@@ -377,11 +377,11 @@ export function AdCreativeUpload({ onAnalysisComplete, campaignContext = {} }: P
             </div>
 
             {/* Socratic Questions */}
-            <div className="p-4 bg-blue-50 rounded-xl">
-              <h4 className="text-sm font-semibold text-blue-800 mb-2">Questions to Consider</h4>
+            <div className="p-4 bg-light-teal rounded-xl">
+              <h4 className="text-sm font-semibold text-teal-dark mb-2">Questions to Consider</h4>
               <ul className="space-y-2">
                 {analysis.socraticQuestions.map((q, i) => (
-                  <li key={i} className="text-sm text-blue-700 italic">
+                  <li key={i} className="text-sm text-teal italic">
                     &quot;{q}&quot;
                   </li>
                 ))}
@@ -389,11 +389,11 @@ export function AdCreativeUpload({ onAnalysisComplete, campaignContext = {} }: P
             </div>
 
             {/* Target Audience Fit */}
-            <div className="p-4 bg-purple-50 rounded-xl">
-              <h4 className="text-sm font-semibold text-purple-800 mb-2">
+            <div className="p-4 bg-navy/10 rounded-xl">
+              <h4 className="text-sm font-semibold text-navy mb-2">
                 Target Audience Fit: {analysis.targetAudienceFit.score}%
               </h4>
-              <p className="text-sm text-purple-700">{analysis.targetAudienceFit.reasoning}</p>
+              <p className="text-sm text-navy/80">{analysis.targetAudienceFit.reasoning}</p>
             </div>
 
             {/* Detailed Feedback */}
@@ -412,7 +412,7 @@ export function AdCreativeUpload({ onAnalysisComplete, campaignContext = {} }: P
               </button>
               <button
                 onClick={() => setAnalysis(null)}
-                className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+                className="flex-1 py-2 bg-teal text-white rounded-lg text-sm font-medium hover:bg-teal-dark"
               >
                 Analyze Again
               </button>

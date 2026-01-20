@@ -336,59 +336,62 @@ export async function POST(request: NextRequest) {
 
 /**
  * Update user's streak on activity
+ * Wrapped in transaction to prevent race conditions
  */
 async function updateStreak(
-  userId: string,
+  _userId: string,
   userRef: FirebaseFirestore.DocumentReference
 ): Promise<void> {
-  const userSnap = await userRef.get();
-  const userData = userSnap.data() || {};
-  const streak = userData.streak || {
-    currentStreak: 0,
-    longestStreak: 0,
-    freezesAvailable: 2,
-    streakHistory: [],
-  };
-
   const today = new Date().toISOString().split('T')[0];
-  const lastDate = streak.lastCompletedDate || '';
 
-  // If already completed today, don't update
-  if (lastDate === today) {
-    return;
-  }
-
-  // Calculate yesterday
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-  let newStreak = streak.currentStreak || 0;
+  await adminDb.runTransaction(async (transaction) => {
+    const userSnap = await transaction.get(userRef);
+    const userData = userSnap.data() || {};
+    const streak = userData.streak || {
+      currentStreak: 0,
+      longestStreak: 0,
+      freezesAvailable: 2,
+      streakHistory: [],
+    };
 
-  if (lastDate === yesterdayStr) {
-    // Consecutive day - increment streak
-    newStreak++;
-  } else if (lastDate && lastDate !== today) {
-    // Gap in activity - reset streak (or use freeze)
-    newStreak = 1;
-  } else {
-    // First activity
-    newStreak = 1;
-  }
+    const lastDate = streak.lastCompletedDate || '';
 
-  const longestStreak = Math.max(streak.longestStreak || 0, newStreak);
+    // If already completed today, don't update
+    if (lastDate === today) {
+      return;
+    }
 
-  // Update streak history
-  const streakHistory = streak.streakHistory || [];
-  streakHistory.push({ date: today, completed: true });
-  // Keep last 30 days
-  const recentHistory = streakHistory.slice(-30);
+    let newStreak = streak.currentStreak || 0;
 
-  await userRef.update({
-    'streak.currentStreak': newStreak,
-    'streak.longestStreak': longestStreak,
-    'streak.lastCompletedDate': today,
-    'streak.streakHistory': recentHistory,
+    if (lastDate === yesterdayStr) {
+      // Consecutive day - increment streak
+      newStreak++;
+    } else if (lastDate && lastDate !== today) {
+      // Gap in activity - reset streak
+      newStreak = 1;
+    } else {
+      // First activity
+      newStreak = 1;
+    }
+
+    const longestStreak = Math.max(streak.longestStreak || 0, newStreak);
+
+    // Update streak history
+    const streakHistory = streak.streakHistory || [];
+    streakHistory.push({ date: today, completed: true });
+    // Keep last 30 days
+    const recentHistory = streakHistory.slice(-30);
+
+    transaction.update(userRef, {
+      'streak.currentStreak': newStreak,
+      'streak.longestStreak': longestStreak,
+      'streak.lastCompletedDate': today,
+      'streak.streakHistory': recentHistory,
+    });
   });
 }
 

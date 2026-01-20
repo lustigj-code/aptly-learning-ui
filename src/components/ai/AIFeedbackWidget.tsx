@@ -177,7 +177,7 @@ export function AIFeedbackWidget({
                   onClick={() => setFeedbackText(option)}
                   className={`px-3 py-1.5 text-xs rounded-full border transition ${
                     feedbackText === option
-                      ? 'bg-blue-50 border-blue-300 text-blue-700'
+                      ? 'bg-light-teal border-teal/50 text-teal-dark'
                       : 'border-gray-200 text-gray-600 hover:border-gray-300'
                   }`}
                 >
@@ -190,7 +190,7 @@ export function AIFeedbackWidget({
               value={feedbackText}
               onChange={(e) => setFeedbackText(e.target.value)}
               placeholder="Or describe in your own words... (optional)"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-teal focus:border-transparent"
               rows={2}
             />
 
@@ -198,7 +198,7 @@ export function AIFeedbackWidget({
               <button
                 onClick={() => submitFeedback()}
                 disabled={isSubmitting}
-                className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 py-2 bg-teal text-white rounded-lg text-sm font-medium hover:bg-teal-dark disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isSubmitting ? (
                   <>

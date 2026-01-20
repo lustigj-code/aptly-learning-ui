@@ -158,7 +158,7 @@ export function ReadingAtom({ atom, onComplete, isLoading = false }: ReadingAtom
         animate={{ opacity: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 350, damping: 30 }}
       >
-        <div className="max-w-[680px] mx-auto flex items-center justify-between">
+        <div className="max-w-full sm:max-w-[800px] lg:max-w-[1000px] xl:max-w-[1100px] mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BookOpen size={18} className="text-teal" />
             <span className="text-sm font-medium text-navy">{estimatedMinutes} min read</span>
@@ -189,9 +189,9 @@ export function ReadingAtom({ atom, onComplete, isLoading = false }: ReadingAtom
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="bg-gradient-to-r from-light-teal/20 to-light-blue/20 border-b border-teal/30"
+            className="bg-gradient-to-r from-light-teal/20 to-light-teal/40 border-b border-teal/30"
           >
-            <div className="max-w-[680px] mx-auto px-4 py-4">
+            <div className="max-w-full sm:max-w-[800px] lg:max-w-[1000px] xl:max-w-[1100px] mx-auto px-4 py-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3 flex-1">
                   <div className="w-8 h-8 bg-teal/20 rounded-full flex items-center justify-center flex-shrink-0">
@@ -223,7 +223,7 @@ export function ReadingAtom({ atom, onComplete, isLoading = false }: ReadingAtom
 
       {/* Content Area - Centered, Optimal Reading Width */}
       <div className="flex-1 overflow-y-auto px-4 py-8">
-        <div className="max-w-[680px] mx-auto space-y-8">
+        <div className="max-w-full sm:max-w-[800px] lg:max-w-[1000px] xl:max-w-[1100px] mx-auto space-y-8">
           {/* Title */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -322,7 +322,7 @@ export function ReadingAtom({ atom, onComplete, isLoading = false }: ReadingAtom
         animate={{ opacity: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 350, damping: 30, delay: 0.2 }}
       >
-        <div className="max-w-[680px] mx-auto">
+        <div className="max-w-full sm:max-w-[800px] lg:max-w-[1000px] xl:max-w-[1100px] mx-auto">
           {isCompleted ? (
             <motion.div
               className="flex items-center justify-center gap-2 p-4 bg-gradient-to-r from-green-50 to-success-light/30 rounded-xl border border-green-200 shadow-md shadow-success/20"

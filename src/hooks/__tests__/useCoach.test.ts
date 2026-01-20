@@ -31,8 +31,8 @@ Object.defineProperty(window, 'sessionStorage', {
   writable: true,
 });
 
-// Mock useUser from userProfileStore - the hook depends on this
-vi.mock('@/store/userProfileStore', () => ({
+// Mock useUser from unifiedStore - the hook depends on this
+vi.mock('@/store/unifiedStore', () => ({
   useUser: vi.fn(() => ({
     user: {
       id: 'test-user',
@@ -42,7 +42,7 @@ vi.mock('@/store/userProfileStore', () => ({
     isLoading: false,
     error: null,
   })),
-  useUserProfileStore: vi.fn((selector) => {
+  useUnifiedStore: vi.fn((selector) => {
     const state = {
       user: {
         id: 'test-user',

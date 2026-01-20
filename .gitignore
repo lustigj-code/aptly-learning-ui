@@ -68,3 +68,7 @@ training-data/
 __pycache__/
 *.pyc
 
+
+# Playwright
+playwright-report/
+test-results/

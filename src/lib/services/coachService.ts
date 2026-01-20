@@ -179,7 +179,7 @@ export async function addMessage(
     const conversationRef = adminDb.collection('conversations').doc(conversationId);
 
     await conversationRef.update({
-      messages: FieldValue.arrayUnion([message]),
+      messages: FieldValue.arrayUnion(message),
       updatedAt: FieldValue.serverTimestamp(),
     });
 

@@ -165,20 +165,22 @@ function VideoRenderer({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="h-full flex flex-col"
+      className="flex flex-col items-center px-4 py-6"
     >
-      {/* Enhanced Video Player */}
-      <div className="flex-1 flex flex-col min-h-0">
-        <VideoPlayer
-          videoUrl={content.videoUrl}
-          title={atom.title}
-          duration={content.duration}
-          onComplete={handleVideoComplete}
-        />
+      {/* Enhanced Video Player - Responsive width matching reading */}
+      <div className="w-full max-w-full sm:max-w-[800px] lg:max-w-[1000px] xl:max-w-[1100px]">
+        <div className="aspect-video rounded-xl overflow-hidden shadow-lg">
+          <VideoPlayer
+            videoUrl={content.videoUrl}
+            title={atom.title}
+            duration={content.duration}
+            onComplete={handleVideoComplete}
+          />
+        </div>
       </div>
 
       {/* Bottom bar with title and continue */}
-      <div className="flex items-center justify-between pt-4 flex-shrink-0">
+      <div className="w-full max-w-full sm:max-w-[800px] lg:max-w-[1000px] xl:max-w-[1100px] flex items-center justify-between pt-4 flex-shrink-0">
         <div>
           <h2 className="font-medium text-navy">{atom.title}</h2>
           <span className="text-sm text-grey">{Math.ceil(content.duration / 60)} min</span>
@@ -236,7 +238,7 @@ function ReadingRenderer({
       {/* Content Area */}
       <div>
         {/* Article Card */}
-        <article className="max-w-3xl mx-auto bg-white rounded-xl shadow-sm border border-grey/10 overflow-hidden">
+        <article className="max-w-full sm:max-w-[800px] lg:max-w-[1000px] xl:max-w-[1100px] mx-auto bg-white rounded-xl shadow-sm border border-grey/10 overflow-hidden">
           {/* Header */}
           <div className="bg-gradient-to-r from-teal/5 to-transparent px-8 py-6 border-b border-grey/10">
             <div className="flex items-center gap-2 text-teal text-sm font-medium mb-2">
@@ -285,7 +287,7 @@ function ReadingRenderer({
 
       {/* Continue button */}
       {isActive && (
-        <div className="mt-6 max-w-3xl mx-auto">
+        <div className="mt-6 max-w-full sm:max-w-[800px] lg:max-w-[1000px] xl:max-w-[1100px] mx-auto">
           <button
             onClick={handleContinue}
             className="w-full py-3 bg-teal text-white font-medium rounded-lg hover:bg-teal-dark transition-colors flex items-center justify-center gap-2 shadow-lg"

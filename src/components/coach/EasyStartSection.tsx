@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { Play, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useProgress } from '@/store/userProfileStore';
+import { useProgress } from '@/store/unifiedStore';
 import { cn } from '@/lib/utils';
 
 type EasyStartSectionProps = {

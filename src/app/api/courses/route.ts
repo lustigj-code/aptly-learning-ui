@@ -3,6 +3,7 @@ import { adminDb } from '@/lib/firebase/admin';
 import { getAllCourses } from '@/data/courseRegistry';
 import { getAtomsCompleted } from '@/lib/data/userProgressLayer';
 import { LRUCache } from '@/lib/cache/LRUCache';
+import { getAuthenticatedUserId } from '@/lib/auth/requireAuth';
 import type { Course } from '@/types';
 
 type CourseResponse = {
@@ -158,7 +159,18 @@ function calculateProgress(
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const userId = searchParams.get('userId');
+    const requestedUserId = searchParams.get('userId');
+
+    // IDOR Protection: If userId is provided, validate it matches authenticated user
+    // If no userId, allow unauthenticated access (public course listing)
+    let userId: string | null = null;
+    if (requestedUserId) {
+      const userIdResult = await getAuthenticatedUserId(request, { allowUserId: true });
+      if (userIdResult instanceof NextResponse) {
+        return userIdResult;
+      }
+      userId = userIdResult;
+    }
 
     // Fetch all published courses from Firestore
     const coursesSnapshot = await adminDb

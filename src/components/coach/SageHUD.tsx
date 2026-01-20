@@ -138,7 +138,7 @@ function PulseContent({ onClick, prefersReducedMotion }: PulseContentProps) {
   return (
     <motion.button
       onClick={onClick}
-      className="w-full h-full flex items-center justify-center cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-full"
+      className="w-full h-full flex items-center justify-center cursor-pointer focus:outline-none focus:ring-2 focus:ring-teal focus:ring-offset-2 rounded-full"
       animate={
         prefersReducedMotion
           ? {}
@@ -159,7 +159,7 @@ function PulseContent({ onClick, prefersReducedMotion }: PulseContentProps) {
       whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
       aria-label="Open Sage coach"
     >
-      <Sparkles className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+      <Sparkles className="w-5 h-5 text-teal dark:text-teal-light" />
     </motion.button>
   );
 }
@@ -180,7 +180,7 @@ function ThoughtContent({ prefersReducedMotion }: ThoughtContentProps) {
       {bars.map((baseHeight, index) => (
         <motion.div
           key={index}
-          className="w-1 bg-blue-600 dark:bg-blue-400 rounded-full"
+          className="w-1 bg-teal dark:bg-blue-400 rounded-full"
           animate={
             prefersReducedMotion
               ? { height: `${baseHeight * 100}%` }
@@ -256,7 +256,7 @@ function InterventionContent({
         {onAction && (
           <button
             onClick={onAction}
-            className="px-3 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-1 text-xs font-medium text-teal dark:text-teal-light hover:bg-light-teal dark:hover:bg-teal/20 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-teal"
           >
             {type === 'hint' ? 'Show hint' : 'Explain'}
           </button>
@@ -293,7 +293,7 @@ function ConsciousnessContent({ onMinimize, children }: ConsciousnessContentProp
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200/50 dark:border-gray-700/50">
         <div className="flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          <Sparkles className="w-5 h-5 text-teal dark:text-teal-light" />
           <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
             Sage Coach
           </h2>
@@ -301,7 +301,7 @@ function ConsciousnessContent({ onMinimize, children }: ConsciousnessContentProp
         <div className="flex items-center gap-2">
           <button
             onClick={onMinimize}
-            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-teal"
             aria-label="Minimize coach"
           >
             <Minimize2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />

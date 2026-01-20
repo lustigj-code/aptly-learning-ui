@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react';
 import { useCelebration } from '@/components/celebration/CelebrationSystem';
-import { useUser, useUserProfileStore } from '@/store/userProfileStore';
+import { useUser, useUnifiedStore } from '@/store/unifiedStore';
 import { useAuthStore } from '@/store';
 import { emitQuizResult } from '@/lib/api/queryClient';
 // Badge type is used implicitly via user?.badges
@@ -20,10 +20,10 @@ export function useCelebratedProgress() {
   const { checkBadgesAfterProgress } = useBadgeCheck();
 
   // Store methods
-  const completeAtom = useUserProfileStore((state) => state.completeAtom);
-  const completeLesson = useUserProfileStore((state) => state.completeLesson);
-  const completeModule = useUserProfileStore((state) => state.completeModule);
-  const completeCourse = useUserProfileStore((state) => state.completeCourse);
+  const completeAtom = useUnifiedStore((state) => state.completeAtom);
+  const completeLesson = useUnifiedStore((state) => state.completeLesson);
+  const completeModule = useUnifiedStore((state) => state.completeModule);
+  const completeCourse = useUnifiedStore((state) => state.completeCourse);
 
   /**
    * Add XP with celebration effect

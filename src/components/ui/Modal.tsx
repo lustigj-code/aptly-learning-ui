@@ -6,6 +6,7 @@ import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { SPRING, EASING } from '@/lib/motion/springs';
+import { Z_INDEX } from '@/lib/design-tokens';
 
 type ModalSize = 'sm' | 'md' | 'lg' | 'xl';
 
@@ -142,7 +143,8 @@ export function Modal({
     <AnimatePresence mode="wait">
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 flex items-center justify-center p-4"
+          className="fixed inset-0 flex items-center justify-center p-4"
+          style={{ zIndex: Z_INDEX.modal }}
           onClick={handleOverlayClick}
           role="dialog"
           aria-modal="true"

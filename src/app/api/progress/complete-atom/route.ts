@@ -1,10 +1,11 @@
 /**
- * @deprecated This endpoint writes to the legacy `userProgress` collection.
- * The main learning flow uses `/api/progress/sync` instead, which writes to
- * the correct `users.progress` location.
+ * Complete Atom API
  *
- * TODO: Migrate this endpoint to use `users` collection with `progress.*` fields
- * once legacy atom components are removed.
+ * Marks an atom as complete and awards XP. Uses the unified `users.progress`
+ * location as the primary data store.
+ *
+ * @migration This endpoint was updated to write to `users.progress` instead
+ * of the deprecated `userProgress` collection.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminAuth } from '@/lib/firebase/admin';
@@ -17,6 +18,7 @@ import {
   createInitialConceptMastery,
 } from '@/lib/mastery/fsrs';
 import type { ConceptMastery } from '@/lib/mastery/knowledgeGraph';
+import { invalidateProgressCache } from '@/lib/data/userProgressLayer';
 
 const { serverTimestamp, arrayUnion } = FieldValue;
 
@@ -81,35 +83,41 @@ export async function POST(request: NextRequest) {
     const { atomId, lessonId, moduleId, courseId, score, timeSpentSeconds } =
       validation.data;
 
-    // Get or create user progress document
-    const userProgressRef = adminDb.collection('userProgress').doc(userId);
-    const userProgressSnap = await userProgressRef.get();
+    // Get or create user progress document from primary location (users.progress)
+    const userRef = adminDb.collection('users').doc(userId);
+    const userSnap = await userRef.get();
 
     let userProgress: Record<string, unknown>;
 
-    if (!userProgressSnap.exists) {
-      // Create initial progress for new users
+    if (!userSnap.exists || !userSnap.data()?.progress) {
+      // Create initial progress for new users in users.progress
       const initialProgress = {
-        userId,
         atomsCompleted: [],
         completionDetails: {},
         totalXP: 0,
         currentLevel: 1,
         xpToNextLevel: 100,
-        streak: {
-          currentStreak: 0,
-          longestStreak: 0,
-          lastCompletedDate: '',
-          freezesAvailable: 2,
-          freezesUsed: [],
-        },
+      };
+      const initialStreak = {
+        currentStreak: 0,
+        longestStreak: 0,
+        lastCompletedDate: '',
+        freezesAvailable: 2,
+        freezesUsed: [],
+      };
+      await userRef.set({
+        progress: initialProgress,
+        streak: initialStreak,
         createdAt: serverTimestamp(),
         lastActiveAt: serverTimestamp(),
-      };
-      await userProgressRef.set(initialProgress);
-      userProgress = initialProgress;
+      }, { merge: true });
+      userProgress = { ...initialProgress, streak: initialStreak };
     } else {
-      userProgress = userProgressSnap.data() || {};
+      const userData = userSnap.data() || {};
+      userProgress = {
+        ...(userData.progress || {}),
+        streak: userData.streak || {},
+      };
     }
 
     // Check if atom already completed
@@ -168,16 +176,19 @@ export async function POST(request: NextRequest) {
       score: score || null,
     };
 
-    // Update user progress
-    await userProgressRef.update({
-      atomsCompleted: arrayUnion(atomId),
-      completionDetails,
-      totalXP: newTotalXP,
-      currentLevel: levelInfo.level,
-      xpToNextLevel: levelInfo.xpToNextLevel,
-      currentAtomId: atomId,
+    // Update user progress in users.progress (primary location)
+    await userRef.update({
+      'progress.atomsCompleted': arrayUnion(atomId),
+      'progress.completionDetails': completionDetails,
+      'progress.totalXP': newTotalXP,
+      'progress.currentLevel': levelInfo.level,
+      'progress.xpToNextLevel': levelInfo.xpToNextLevel,
+      'progress.currentAtomId': atomId,
       lastActiveAt: serverTimestamp(),
     });
+
+    // Invalidate progress cache after update
+    invalidateProgressCache(userId);
 
     // Update streak
     await updateStreakOnCompletion(userId);
@@ -236,94 +247,93 @@ export async function POST(request: NextRequest) {
 
 /**
  * Update streak when atom is completed
+ * Uses users.streak (primary location)
+ * Wrapped in transaction to prevent race conditions
  */
 async function updateStreakOnCompletion(userId: string): Promise<void> {
-  const userProgressRef = adminDb.collection('userProgress').doc(userId);
-  const userProgressSnap = await userProgressRef.get();
-  const userProgress = userProgressSnap.data();
-
-  const streakData = userProgress?.streak || {
-    currentStreak: 0,
-    longestStreak: 0,
-    lastCompletedDate: '',
-    freezesAvailable: 2,
-    freezesUsed: [],
-    streakHistory: [],
-  };
-
+  const userRef = adminDb.collection('users').doc(userId);
   const today = new Date().toISOString().split('T')[0];
-  const lastCompletedDate = streakData.lastCompletedDate || '';
 
-  // If today's activity already recorded, don't update streak
-  if (lastCompletedDate === today) {
-    return;
-  }
-
-  // Calculate yesterday's date
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterdayString = yesterday.toISOString().split('T')[0];
 
-  let newStreak = streakData.currentStreak || 0;
+  await adminDb.runTransaction(async (transaction) => {
+    const userSnap = await transaction.get(userRef);
+    const userData = userSnap.data();
 
-  // If last activity was yesterday, increment streak
-  if (lastCompletedDate === yesterdayString) {
-    newStreak++;
-  } else if (lastCompletedDate !== today) {
-    // If gap > 1 day, check freezes
-    if (lastCompletedDate && lastCompletedDate !== yesterdayString) {
+    const streakData = userData?.streak || {
+      currentStreak: 0,
+      longestStreak: 0,
+      lastCompletedDate: '',
+      freezesAvailable: 2,
+      freezesUsed: [],
+      streakHistory: [],
+    };
+
+    const lastCompletedDate = streakData.lastCompletedDate || '';
+
+    // If today's activity already recorded, don't update streak
+    if (lastCompletedDate === today) {
+      return;
+    }
+
+    let newStreak = streakData.currentStreak || 0;
+
+    // If last activity was yesterday, increment streak
+    if (lastCompletedDate === yesterdayString) {
+      newStreak++;
+    } else if (lastCompletedDate && lastCompletedDate !== yesterdayString) {
+      // Gap > 1 day - check freezes
       if (streakData.freezesAvailable > 0) {
-        // Apply freeze
-        await userProgressRef.update({
+        // Apply freeze and return early
+        transaction.update(userRef, {
           'streak.freezesAvailable': streakData.freezesAvailable - 1,
           'streak.freezesUsed': arrayUnion(yesterdayString),
           'streak.lastCompletedDate': today,
         });
         return;
-      } else {
-        // Reset streak
-        newStreak = 1;
       }
+      // No freezes available - reset streak
+      newStreak = 1;
     } else {
       // First activity
       newStreak = 1;
     }
-  }
 
-  // Update longest streak if needed
-  const longestStreak = Math.max(
-    streakData.longestStreak || 0,
-    newStreak
-  );
+    // Update longest streak if needed
+    const longestStreak = Math.max(streakData.longestStreak || 0, newStreak);
 
-  await userProgressRef.update({
-    'streak.currentStreak': newStreak,
-    'streak.longestStreak': longestStreak,
-    'streak.lastCompletedDate': today,
+    transaction.update(userRef, {
+      'streak.currentStreak': newStreak,
+      'streak.longestStreak': longestStreak,
+      'streak.lastCompletedDate': today,
+    });
   });
 }
 
 /**
  * Trigger badge criteria check asynchronously
+ * Uses users.progress (primary location)
  */
 async function triggerBadgeCriteriaCheck(userId: string): Promise<void> {
   // This would typically trigger a Cloud Function or queue a job
   // For now, we'll implement basic badge checks here
   try {
-    const userProgressRef = adminDb.collection('userProgress').doc(userId);
-    const userProgressSnap = await userProgressRef.get();
-    const userProgress = userProgressSnap.data();
+    const userRef = adminDb.collection('users').doc(userId);
+    const userSnap = await userRef.get();
+    const userData = userSnap.data();
 
     const badgesToCheck = [];
 
-    // Check for completion badges
-    const atomsCompleted = userProgress?.atomsCompleted?.length || 0;
+    // Check for completion badges (from users.progress)
+    const atomsCompleted = userData?.progress?.atomsCompleted?.length || 0;
     if (atomsCompleted >= 10) badgesToCheck.push('first-10-atoms');
     if (atomsCompleted >= 50) badgesToCheck.push('fifty-atoms');
     if (atomsCompleted >= 100) badgesToCheck.push('hundred-atoms');
 
-    // Check for streak badges
-    const currentStreak = userProgress?.streak?.currentStreak || 0;
+    // Check for streak badges (from users.streak)
+    const currentStreak = userData?.streak?.currentStreak || 0;
     if (currentStreak >= 7) badgesToCheck.push('week-warrior');
     if (currentStreak >= 30) badgesToCheck.push('month-master');
 

@@ -78,12 +78,12 @@ function getStyles(priority: TimingPriority, type: TimingTriggerType): {
     };
   }
 
-  // Difficult content prep (warning-ish)
+  // Difficult content prep
   if (type === 'difficult_content_prep') {
     return {
-      iconBg: 'bg-gradient-to-br from-blue-500 to-indigo-600',
-      headerBg: 'bg-gradient-to-r from-blue-50 to-indigo-50',
-      borderColor: 'border-blue-200',
+      iconBg: 'bg-gradient-to-br from-navy to-navy-light',
+      headerBg: 'bg-gradient-to-r from-light-teal to-white',
+      borderColor: 'border-teal/30',
     };
   }
 

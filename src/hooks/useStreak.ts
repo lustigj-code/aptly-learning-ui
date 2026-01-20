@@ -9,7 +9,7 @@
 
 import { useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/store/authStore';
-import { useProgress, useUserProfileStore } from '@/store/userProfileStore';
+import { useProgress, useUnifiedStore } from '@/store/unifiedStore';
 
 // ============================================
 // TYPES
@@ -45,7 +45,7 @@ type UseStreakReturn = {
 export function useStreak(): UseStreakReturn {
   const { authUser: user } = useAuth();
   const { streak, isLoading, checkAndUpdateStreak } = useProgress();
-  const streakFreezeAction = useUserProfileStore((state) => state.useStreakFreeze);
+  const streakFreezeAction = useUnifiedStore((state) => state.useStreakFreeze);
 
   // Track if we've already triggered a notification this session
   const hasTriggeredNotification = useRef(false);

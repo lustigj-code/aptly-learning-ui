@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useUser } from '@/store/userProfileStore';
+import { useUser } from '@/store/unifiedStore';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import SkillMapEditor from '@/components/admin/SkillMapEditor';

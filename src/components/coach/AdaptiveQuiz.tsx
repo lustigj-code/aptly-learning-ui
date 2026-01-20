@@ -12,7 +12,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Brain, TrendingUp, Target, Sparkles } from 'lucide-react';
+import { Brain, TrendingUp, Target, Sparkles, AlertCircle, RefreshCw } from 'lucide-react';
 import { InlineQuiz, type QuizQuestion, type Answer } from '@/components/coach/InlineQuiz';
 import { useMasteryPrediction, type DifficultyLevel } from '@/hooks/useMasteryPrediction';
 import { cn } from '@/lib/utils';
@@ -62,6 +62,8 @@ export function AdaptiveQuiz({
   const {
     data,
     isLoading,
+    error,
+    refetch,
     recommendedDifficulty,
     masteryPercent,
     isHighConfidence,
@@ -73,8 +75,29 @@ export function AdaptiveQuiz({
 
   return (
     <div className="space-y-2">
+      {/* Error state with retry */}
+      {showAdaptiveInfo && skillId && error && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-lg px-3 py-2 border border-error/30 bg-error/5 flex items-center gap-3"
+        >
+          <AlertCircle className="w-4 h-4 text-error flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <span className="text-xs text-error font-medium">Failed to load prediction</span>
+          </div>
+          <button
+            onClick={() => refetch()}
+            className="flex items-center gap-1 text-xs text-error hover:text-error/80 px-2 py-1 rounded hover:bg-error/10 transition-colors"
+          >
+            <RefreshCw className="w-3 h-3" />
+            Retry
+          </button>
+        </motion.div>
+      )}
+
       {/* Adaptive Info Banner */}
-      {showAdaptiveInfo && skillId && !isLoading && data && (
+      {showAdaptiveInfo && skillId && !isLoading && !error && data && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -104,7 +127,7 @@ export function AdaptiveQuiz({
       )}
 
       {/* Loading state */}
-      {isLoading && showAdaptiveInfo && skillId && (
+      {isLoading && !error && showAdaptiveInfo && skillId && (
         <div className="rounded-lg px-3 py-2 bg-light-grey/50 border border-grey/20 flex items-center gap-2">
           <div className="w-4 h-4 border-2 border-teal border-t-transparent rounded-full animate-spin" />
           <span className="text-xs text-grey">Personalizing difficulty...</span>

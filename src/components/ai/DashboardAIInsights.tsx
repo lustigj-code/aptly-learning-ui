@@ -14,7 +14,7 @@ import { Brain, TrendingUp, Calendar, Target, Lightbulb } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { generateDashboardInsights } from '@/lib/ai/dashboard-insights';
-import { useUserProfileStore } from '@/store/userProfileStore';
+import { useUnifiedStore } from '@/store/unifiedStore';
 
 interface DashboardInsights {
   weeklyProgress: string;
@@ -30,7 +30,7 @@ interface DashboardInsights {
 }
 
 export function DashboardAIInsights() {
-  const user = useUserProfileStore((state) => state.user);
+  const user = useUnifiedStore((state) => state.user);
   const [insights, setInsights] = useState<DashboardInsights | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -95,7 +95,7 @@ export function DashboardAIInsights() {
   return (
     <div className="space-y-4">
       {/* AI-Powered Weekly Summary */}
-      <Card className="p-6 bg-gradient-to-br from-teal/5 to-light-blue/5">
+      <Card className="p-6 bg-gradient-to-br from-teal/5 to-light-teal/5">
         <div className="flex items-start gap-3 mb-4">
           <Brain className="w-6 h-6 text-teal flex-shrink-0" />
           <div className="flex-1">
@@ -112,7 +112,7 @@ export function DashboardAIInsights() {
         {insights.learningPatterns.length > 0 && (
           <div className="mt-4 p-3 bg-white rounded-lg">
             <div className="flex items-center gap-2 mb-2">
-              <TrendingUp className="w-4 h-4 text-blue" />
+              <TrendingUp className="w-4 h-4 text-teal" />
               <p className="text-sm font-semibold text-navy">Patterns I&apos;ve Noticed:</p>
             </div>
             <ul className="space-y-1">
@@ -128,15 +128,15 @@ export function DashboardAIInsights() {
 
         {/* Optimization Suggestions */}
         {insights.optimizationSuggestions.length > 0 && (
-          <div className="mt-4 p-3 bg-light-blue/10 rounded-lg">
+          <div className="mt-4 p-3 bg-light-teal/10 rounded-lg">
             <div className="flex items-center gap-2 mb-2">
-              <Lightbulb className="w-4 h-4 text-orange" />
+              <Lightbulb className="w-4 h-4 text-warning" />
               <p className="text-sm font-semibold text-navy">Suggestions to Optimize:</p>
             </div>
             <ul className="space-y-1">
               {insights.optimizationSuggestions.map((suggestion: string, index: number) => (
                 <li key={index} className="text-sm text-gray-700 flex items-start gap-2">
-                  <span className="text-orange mt-0.5">→</span>
+                  <span className="text-warning mt-0.5">→</span>
                   <span>{suggestion}</span>
                 </li>
               ))}
@@ -156,7 +156,7 @@ export function DashboardAIInsights() {
 
       {/* Certification Timeline */}
       {insights.predictiveTimeline && (
-        <Card className="p-4 bg-gradient-to-r from-teal/10 to-blue/10">
+        <Card className="p-4 bg-gradient-to-r from-teal/10 to-light-teal">
           <div className="flex items-center gap-2 mb-3">
             <Calendar className="w-5 h-5 text-teal" />
             <h4 className="font-semibold text-navy">Certification Readiness</h4>

@@ -18,7 +18,7 @@ import {
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Section } from '@/components/layout/AppLayout';
-import { useUser } from '@/store/userProfileStore';
+import { useUser } from '@/store/unifiedStore';
 import { cn } from '@/lib/utils';
 import { SPRING } from '@/lib/motion/springs';
 

@@ -15,7 +15,7 @@ import { AlertTriangle, Clock, Flame, X, ChevronRight, Snowflake } from 'lucide-
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { useDropoutIntervention } from '@/hooks/useDropoutIntervention';
-import { useUserProfileStore } from '@/store/userProfileStore';
+import { useUnifiedStore } from '@/store/unifiedStore';
 
 export function ReengagementAlert() {
   const router = useRouter();
@@ -28,8 +28,8 @@ export function ReengagementAlert() {
     snoozeIntervention,
   } = useDropoutIntervention();
 
-  const applyStreakFreeze = useUserProfileStore((state) => state.useStreakFreeze);
-  const user = useUserProfileStore((state) => state.user);
+  const applyStreakFreeze = useUnifiedStore((state) => state.useStreakFreeze);
+  const user = useUnifiedStore((state) => state.user);
 
   if (!shouldShowIntervention || !message || !risk) {
     return null;
@@ -66,7 +66,7 @@ export function ReengagementAlert() {
               ? 'bg-gradient-to-r from-red-50 to-orange-50 border-red-300'
               : isHighRisk
               ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-400'
-              : 'bg-gradient-to-r from-blue-50 to-teal-50 border-teal-300'
+              : 'bg-gradient-to-r from-light-teal to-teal/10 border-teal/30'
           }`}
           padding="lg"
         >

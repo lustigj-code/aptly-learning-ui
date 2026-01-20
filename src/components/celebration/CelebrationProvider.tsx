@@ -25,6 +25,7 @@ import {
 import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/lib/utils';
 import type { CelebrationEvent, Badge } from '@/types';
+import { Z_INDEX } from '@/lib/design-tokens';
 
 // ============================================
 // CONFETTI HELPERS
@@ -163,7 +164,8 @@ function CelebrationOverlay({ item }: { item: CelebrationQueueItem }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-navy/60 backdrop-blur-sm"
+      className="fixed inset-0 flex items-center justify-center bg-navy/60 backdrop-blur-sm"
+      style={{ zIndex: Z_INDEX.celebrationModal }}
       onClick={dismissCelebration}
     >
       <motion.div

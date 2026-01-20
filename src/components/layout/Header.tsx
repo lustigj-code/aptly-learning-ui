@@ -7,7 +7,7 @@ import { getGreeting } from '@/lib/utils';
 import { InlineStreak } from '@/components/progress/StreakCounter';
 import { ConnectivityStatus } from '@/components/pwa/ConnectivityStatus';
 import { UserMenu } from '@/components/navigation/UserMenu';
-import { useUser } from '@/store/userProfileStore';
+import { useUser } from '@/store/unifiedStore';
 import { useUIStore } from '@/store/uiStore';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { SPRING, getMotionSafeTransition, getMotionSafeInitial } from '@/lib/motion/springs';

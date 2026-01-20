@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { useUser } from '@/store/userProfileStore'
+import { useUser } from '@/store/unifiedStore'
+import { get, post, isSuccess } from '@/lib/api/client'
 import type { FlowState, FlowOptions, CompletionData, QuizAnswer } from '@/lib/services/flowController'
 import type { SessionItem } from '@/lib/adaptive/sessionBuilder'
 
@@ -58,175 +59,136 @@ export function useFlowController(): UseFlowControllerReturn {
 
   // Fetch current flow state
   const refreshState = useCallback(async () => {
-    try {
-      setIsLoading(true)
-      setError(null)
+    setIsLoading(true)
+    setError(null)
 
-      const response = await fetch(`/api/flow?userId=${userId}`)
+    const response = await get<FlowStateData>(`/api/flow?userId=${userId}`)
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch flow state')
-      }
-
-      const data = await response.json()
-      setFlowState(data)
-    } catch (err) {
-      console.error('[useFlowController] refreshState error:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load flow state')
-    } finally {
-      setIsLoading(false)
+    if (isSuccess(response)) {
+      setFlowState(response.data)
+    } else {
+      console.error('[useFlowController] refreshState error:', response.error.message)
+      setError(response.error.message)
     }
+
+    setIsLoading(false)
   }, [userId])
 
-  // Load state on mount
+  // Load state on mount - standard data fetching pattern
   useEffect(() => {
     if (userId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       refreshState()
     }
   }, [userId, refreshState])
 
   // Start a new learning flow
   const startFlow = useCallback(async (options?: FlowOptions): Promise<boolean> => {
-    try {
-      setIsLoading(true)
-      setError(null)
+    setIsLoading(true)
+    setError(null)
 
-      const response = await fetch('/api/flow', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'start',
-          options,
-        }),
-      })
+    const response = await post<{ success: boolean; error?: string }>('/api/flow', {
+      action: 'start',
+      options,
+    })
 
-      const data = await response.json()
-
-      if (!data.success) {
-        setError(data.error || 'Failed to start flow')
+    if (isSuccess(response)) {
+      if (!response.data.success) {
+        setError(response.data.error || 'Failed to start flow')
+        setIsLoading(false)
         return false
       }
-
       // Refresh state to get current item
       await refreshState()
-      return true
-    } catch (err) {
-      console.error('[useFlowController] startFlow error:', err)
-      setError(err instanceof Error ? err.message : 'Failed to start flow')
-      return false
-    } finally {
       setIsLoading(false)
+      return true
     }
+
+    console.error('[useFlowController] startFlow error:', response.error.message)
+    setError(response.error.message)
+    setIsLoading(false)
+    return false
   }, [refreshState])
 
   // Advance to next content after completion
   const advanceFlow = useCallback(async (completion: CompletionData): Promise<SessionItem | null> => {
-    try {
-      setIsLoading(true)
-      setError(null)
+    setIsLoading(true)
+    setError(null)
 
-      const response = await fetch('/api/flow', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'advance',
-          completion,
-        }),
-      })
+    const response = await post<{ success: boolean; nextItem?: SessionItem }>('/api/flow', {
+      action: 'advance',
+      completion,
+    })
 
-      const data = await response.json()
-
-      if (!data.success) {
+    if (isSuccess(response)) {
+      if (!response.data.success) {
         setError('Failed to advance flow')
+        setIsLoading(false)
         return null
       }
-
       // Refresh state
       await refreshState()
-      return data.nextItem
-    } catch (err) {
-      console.error('[useFlowController] advanceFlow error:', err)
-      setError(err instanceof Error ? err.message : 'Failed to advance flow')
-      return null
-    } finally {
       setIsLoading(false)
+      return response.data.nextItem || null
     }
+
+    console.error('[useFlowController] advanceFlow error:', response.error.message)
+    setError(response.error.message)
+    setIsLoading(false)
+    return null
   }, [refreshState])
 
   // Record a quiz answer
   const recordQuizAnswer = useCallback(async (answer: QuizAnswer): Promise<{ nextAction: string } | null> => {
-    try {
-      const response = await fetch('/api/flow', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'quiz',
-          answer,
-        }),
-      })
+    const response = await post<{ success: boolean; nextAction: string }>('/api/flow', {
+      action: 'quiz',
+      answer,
+    })
 
-      const data = await response.json()
-
-      if (!data.success) {
-        return null
-      }
-
+    if (isSuccess(response) && response.data.success) {
       // Refresh state to get updated stats
       await refreshState()
-      return { nextAction: data.nextAction }
-    } catch (err) {
-      console.error('[useFlowController] recordQuizAnswer error:', err)
-      return null
+      return { nextAction: response.data.nextAction }
     }
+
+    if (!isSuccess(response)) {
+      console.error('[useFlowController] recordQuizAnswer error:', response.error.message)
+    }
+    return null
   }, [refreshState])
 
   // Pause the flow
   const pauseFlow = useCallback(async (): Promise<boolean> => {
-    try {
-      const response = await fetch('/api/flow', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'pause' }),
-      })
+    const response = await post<{ success: boolean }>('/api/flow', { action: 'pause' })
 
-      const data = await response.json()
-
-      if (data.success) {
-        await refreshState()
-      }
-
-      return data.success
-    } catch (err) {
-      console.error('[useFlowController] pauseFlow error:', err)
-      return false
+    if (isSuccess(response) && response.data.success) {
+      await refreshState()
+      return true
     }
+
+    if (!isSuccess(response)) {
+      console.error('[useFlowController] pauseFlow error:', response.error.message)
+    }
+    return false
   }, [refreshState])
 
   // Resume a paused flow
   const resumeFlow = useCallback(async (): Promise<SessionItem | null> => {
-    try {
-      setIsLoading(true)
+    setIsLoading(true)
 
-      const response = await fetch('/api/flow', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'resume' }),
-      })
+    const response = await post<{ success: boolean; currentItem?: SessionItem }>('/api/flow', { action: 'resume' })
 
-      const data = await response.json()
-
-      if (data.success) {
-        await refreshState()
-        return data.currentItem
-      }
-
-      return null
-    } catch (err) {
-      console.error('[useFlowController] resumeFlow error:', err)
-      return null
-    } finally {
+    if (isSuccess(response) && response.data.success) {
+      await refreshState()
       setIsLoading(false)
+      return response.data.currentItem || null
     }
+
+    if (!isSuccess(response)) {
+      console.error('[useFlowController] resumeFlow error:', response.error.message)
+    }
+    setIsLoading(false)
+    return null
   }, [refreshState])
 
   return {

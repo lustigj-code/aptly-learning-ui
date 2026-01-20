@@ -1,5 +1,980 @@
 # Project History
 
+## 2026-01-19 - UI Color Consistency (Video Player Aesthetic)
+
+### Task
+Standardize colors across ~28 files to match the video player aesthetic, using only three main colors:
+- Teal (#21A8B0) - Primary accent, buttons, links, progress
+- Navy (#0A004A) - Headings, text, sidebar
+- Yellow (#FFDE00) - Celebrations, achievements, XP
+
+### Changes Made
+Removed all blue, indigo, purple, pink colors (except semantic success/error states) and replaced with brand palette.
+
+**P0 (Critical):**
+- `src/components/learning/CompletionOverlay.tsx` - Fixed confetti colors from indigo/green/pink to teal/navy/yellow
+- `src/components/effects/PhotonEffect.tsx` - Changed #2DD4BF cyan to #21A8B0 teal
+- `src/components/effects/MasteryOrb.tsx` - Changed #2DD4BF cyan to #21A8B0 teal throughout
+- `src/components/backgrounds/CognitiveMesh.tsx` - Changed #2DD4BF to #21A8B0
+
+**P1 (High Priority - User Pages):**
+- `src/app/reset-password/page.tsx` - Blue/indigo gradients → text-navy
+- `src/components/learning/PathVisualization.tsx` - Purple button → teal
+- `src/components/coach/SageHUD.tsx` - Blue icons → teal
+- `src/components/ai/SocraticQuizHint.tsx` - Blue-purple gradients → teal-navy
+- `src/components/learning/PacingIndicator.tsx` - Blue button → teal
+
+**P2 (AI/Coach Components):**
+- `src/components/coach/TimingPrompt.tsx` - Blue-indigo → teal
+- `src/components/coach/InlineContentBlock.tsx` - Purple/blue icons → navy/teal
+- `src/components/ai/AIFeedbackWidget.tsx` - Blue button → teal
+- `src/components/ai/AdCreativeUpload.tsx` - Blue/purple → teal/navy
+- `src/components/ai/DashboardAIInsights.tsx` - Light-blue → light-teal
+- `src/components/ai/LivePracticeFeedback.tsx` - Light-blue → light-teal
+- `src/components/gamification/StreakShop.tsx` - Cyan-blue → teal
+- `src/components/gamification/XPBreakdown.tsx` - Purple/blue/orange → navy/teal/warning
+- `src/components/gamification/NotificationCenter.tsx` - Purple/blue → navy/teal
+- `src/components/learning/AdaptiveSessionView.tsx` - Purple/blue → teal/navy
+- `src/components/learning/ReviewGate.tsx` - Blue → teal
+- `src/components/learning/ReadingAtom.tsx` - Light-blue → light-teal
+
+**P3 (Admin Pages):**
+- `src/app/admin/graph/page.tsx` - Indigo #6366f1 → teal #21A8B0
+- `src/app/admin/analytics/page.tsx` - Indigo loader/tabs → teal
+- `src/app/admin/questions/page.tsx` - Blue/purple stats → teal/navy
+- `src/components/admin/ExperimentPanel.tsx` - Indigo throughout → teal
+- `src/components/admin/RetentionAnalysis.tsx` - Purple #8B5CF6 → teal #21A8B0, green #10B981 → teal
+- `src/components/admin/CourseUploader.tsx` - Blue/purple/orange icons → teal/navy/warning
+- `src/components/admin/OverviewPanel.tsx` - Chart colors: indigo #4F46E5 → teal, green → navy, amber → yellow
+- `src/components/admin/MetricsChart.tsx` - Default bar color: indigo #4F46E5 → teal #21A8B0
+- `src/components/admin/CohortAnalysis.tsx` - Indigo buttons → teal, COLORS array → brand palette
+- `src/components/admin/InterventionEffectiveness.tsx` - Blue/purple cards → teal/navy, green chart → teal
+
+**P4 (Demo/Utility):**
+- `src/components/ui/Toast.demo.tsx` - Rainbow buttons → teal/navy/warning
+- `src/components/retention/ReengagementAlert.tsx` - Blue gradient → light-teal
+
+**Store:**
+- `src/store/celebrationStore.ts` - Confetti colors tiers 1-5: removed purple #8B5CF6, pink #EC4899, green #10B981 → brand palette (teal, yellow, navy variants)
+
+### Verification
+- Build passes successfully
+- Color audit: `grep -r "blue-600|indigo-600|purple-600|#4F46E5|#EC4899|#2DD4BF|#8B5CF6|#10B981" src/` returns no matches
+
+---
+
+## 2026-01-19 - Fix Progress Persistence Between Sessions
+
+### Task
+Fix issue where progress doesn't save between sessions even when logged in.
+
+### Root Cause
+- Session cookie expires after 24 hours (set in `/api/auth/session`)
+- Firebase client auth persists longer (IndexedDB)
+- Users return appearing "logged in" but with expired session cookie
+- API calls to `/api/progress/sync` fail with 401 (no valid session cookie)
+
+### Solution
+Added automatic session cookie refresh in AuthProvider:
+- When Firebase auth state is detected as authenticated
+- Refresh the session cookie by getting a fresh ID token and calling `/api/auth/session`
+- Uses `useRef` to prevent duplicate refreshes in same session
+
+### Files Changed
+- `src/components/providers/AuthProvider.tsx` - Added `refreshSessionCookie` function and effect
+
+---
+
+## 2026-01-19 - Dashboard Progress Display Fix
+
+### Task
+Fix dashboard showing 0% progress when user has completed lessons.
+
+### Root Cause
+- `useCourse()` hook returns courses with empty `modules: []` (modules fetched separately)
+- `lessonsCompleted` array in Firebase was empty (lesson sync may not be working)
+- Dashboard was calculating percentage from empty data instead of using stored `overallPercentage`
+
+### Solution
+- Use `getDefaultCourse()` from registry (has full module data) instead of `useCourse()`
+- Use stored `overallPercentage` from Firebase (set by atom completions)
+- ProgressRingCard now shows "X items completed" when lessons array is empty but atoms exist
+- Falls back gracefully: lessons → atoms → "Ready to start"
+
+### Files Changed
+- `src/app/dashboard/hooks/useDashboardData.ts` - Use registry for course data, use stored percentage
+- `src/app/dashboard/components/ProgressRingCard.tsx` - Accept `atomsCompleted` prop, smart display
+- `src/app/dashboard/page.tsx` - Pass `atomsCompleted` to ProgressRingCard
+- `src/app/dashboard/types.ts` - Add `atomsCompleted` to ProgressRingCardProps
+
+---
+
+## 2026-01-19 - Dashboard Fixes (Data, Layout, FAB Removal)
+
+### Task
+Fix dashboard card data updates, remove excessive negative space, hide footer, and remove out-of-place FAB.
+
+### Changes
+
+**useDashboardData.ts:**
+- Use `getDefaultCourse()` from registry (has full module data)
+- Use stored `overallPercentage` from Firebase (atom-based, reliable)
+- Added `atomsCompleted` count to progress object
+
+**AppLayout.tsx:**
+- Hide footer on `/dashboard` route
+- Moderate padding on dashboard with centered content
+
+**dashboard/page.tsx:**
+- Use `getDefaultCourse()` directly for course data (useCourse returns empty modules)
+- Removed FAB component from returning user view
+- Passed `onContinueLearning` handler to ProgressRingCard
+
+**ProgressRingCard.tsx:**
+- Added optional `onContinueLearning` prop for CTA button
+- Added "Continue Learning" button with ArrowRight icon in footer section
+- Button only renders when callback is provided
+
+**DashboardGrid.tsx:**
+- Added minimum heights to cards for better visual balance
+- `2x2` cards: 320-380px, `1x1`: 160-180px, `2x1`/`3x1`: 140-160px
+
+**AppLayout.tsx:**
+- Hide footer on `/dashboard` route (reduces 250-350px of vertical space)
+- Moderate padding on dashboard: `py-6` to `py-10` with centered content
+- Dashboard uses `max-w-6xl` for tighter bento layout
+- Footer still renders on all other pages
+
+**types.ts:**
+- Added `isCourseLoading` to DashboardData interface
+- Added `atomsCompleted` to progress type
+- Added `onContinueLearning?` to ProgressRingCardProps
+
+### Files Changed
+- `src/app/dashboard/hooks/useDashboardData.ts`
+- `src/app/dashboard/page.tsx`
+- `src/app/dashboard/components/ProgressRingCard.tsx`
+- `src/app/dashboard/components/DashboardGrid.tsx`
+- `src/app/dashboard/types.ts`
+- `src/components/layout/AppLayout.tsx`
+
+### Build Status
+- Production build: ✅ Compiled successfully
+- Lint: ✅ No errors in modified files
+
+---
+
+## 2026-01-19 - Sage & Learning View UI Fixes
+
+### Task
+Fix multiple UI/UX issues in the Sage panel and learning view, including close button not working, header cutoff, large send button, and navigation errors.
+
+### Changes
+
+**MainCoachChat.tsx:**
+- Added `compact` prop to hide internal header and remove min-h-screen in side panel mode
+- Reduced send button size from `px-5 py-4 h-[52px]` to `p-2.5 min-h-[44px]` with 18px icon
+- Added `no-scrollbar` class to hide scrollbar in messages area
+- Condensed footer padding and simplified input styling
+
+**CoachLearningView.tsx:**
+- Fixed `setStruggleContext` undefined error (was defined as `_setStruggleContext`)
+- Added Sage trigger button in header (owl icon + "Sage" label)
+- Removed SmartCoachBar component from render
+- Added fixed floating Continue button at bottom (appears when content complete)
+- Added fade gradient at bottom of content area
+- Added bounds checking when restoring session state to prevent "Content Not Found" errors
+- Passed `compact={true}` to MainCoachChat for both desktop and mobile panels
+- Removed duplicate progress indicators from header (sidebar ring is the single source)
+
+### Files Changed
+- `src/components/coach/MainCoachChat.tsx`
+- `src/components/learning/CoachLearningView.tsx`
+
+### Build Status
+- Production build: ✅ Compiled successfully
+
+---
+
+## 2026-01-20 - Dashboard Redesign (Bento Grid + Glassmorphism)
+
+### Task
+Complete rebuild of the dashboard with Bento Grid layout, glassmorphic styling, and real-time data integration. Replaced oversized hero section with information-dense, actionable cards.
+
+### Changes
+
+**New Files Created:**
+- `src/app/dashboard/types.ts` - Type definitions for all dashboard data structures
+- `src/app/dashboard/hooks/useDashboardData.ts` - Unified data fetching hook with 5-minute caching
+- `src/app/dashboard/components/DashboardGrid.tsx` - Bento grid container with span classes
+- `src/app/dashboard/components/ProgressRingCard.tsx` - 2x2 animated SVG progress ring
+- `src/app/dashboard/components/SkillSpotlightCard.tsx` - 2x1 strongest/focus skill cards
+- `src/app/dashboard/components/ReviewQueueCard.tsx` - 1x2 review queue with urgency breakdown
+- `src/app/dashboard/components/VelocityCard.tsx` - 1x1 learning velocity trend
+- `src/app/dashboard/components/ActivityHeatmap.tsx` - 3x1 GitHub-style 12-week heatmap
+- `src/app/dashboard/components/FloatingActionButton.tsx` - Fixed FAB with pulse animation
+- `src/app/dashboard/components/NewUserDashboard.tsx` - Clean onboarding for new users
+- `src/app/dashboard/components/index.ts` - Export barrel
+
+**Modified:**
+- `src/app/dashboard/page.tsx` - Reduced from ~800 lines to ~207 lines (lean orchestrator)
+
+### Key Features
+- **Bento Grid Layout**: Asymmetric cards (2x2, 2x1, 1x2, 1x1, 3x1) with responsive mobile stack
+- **Glassmorphism 2.0**: `backdrop-blur-xl bg-white/75 border border-white/15` with hover states
+- **New User View**: Different dashboard for users with no progress (no empty states with zeros)
+- **Real-time Data**: Fetches from `/api/dashboard/insights` and `/api/review/due`
+- **Activity Heatmap**: GitHub-style 12-week activity visualization
+- **Floating Action Button**: Bottom-right CTA with attention pulse
+
+### Layout (Desktop)
+```
+┌─────────────────┬─────────┬─────────┐
+│  Progress Ring  │ Velocity│ Review  │
+│     (2x2)       │  (1x1)  │ Queue   │
+│                 │         │  (1x2)  │
+├─────────────────┼─────────┤         │
+│ Skill Spotlight │         │         │
+│     (2x1)       │         │         │
+└─────────────────┴─────────┴─────────┘
+┌─────────────────────────────────────┐
+│         Activity Heatmap (3x1)      │
+└─────────────────────────────────────┘
+```
+
+### Build Status
+- Production build: ✅ Compiled successfully
+- Lint: ✅ 0 errors in dashboard files
+
+---
+
+## 2026-01-20 - Critical Security & Bug Fixes (Parallel Execution)
+
+### Task
+Complete 5 critical fixes identified during code review, executed in parallel using subagents.
+
+### Changes
+
+1. **IDOR Vulnerability Fix** (`/src/app/api/practice/evaluate/route.ts`)
+   - Fixed critical IDOR vulnerability in `authenticateUser()` function
+   - Previously accepted any `providedUserId` without validation
+   - Now requires auth token verification first, then validates providedUserId matches authenticated user
+   - Session ID fallback only allowed when no providedUserId is given
+
+2. **Firestore arrayUnion Bug** (`/src/lib/services/coachService.ts`)
+   - Fixed line 182: `FieldValue.arrayUnion([message])` → `FieldValue.arrayUnion(message)`
+   - Passing an array to arrayUnion causes "Nested arrays are not supported" error
+   - Messages now properly append to conversation
+
+3. **Request ID in Error Responses** (`/src/lib/api/client.ts`)
+   - Added `requestId` field to `ApiError` type
+   - Updated `createApiError()` to accept and include requestId
+   - All error responses now include request ID for client-server log correlation
+   - Helps debugging by linking client errors to server logs
+
+4. **Accessibility Testing Setup** (`/src/test/a11y.ts`, `/e2e/navigation.spec.ts`)
+   - Created reusable `checkA11y()` helper for Playwright tests
+   - Leverages existing @axe-core/playwright dependency
+   - Added example accessibility test to navigation suite
+   - Provides WCAG tag sets and common rule constants
+
+5. **Visual Regression Auth Fix** (`/e2e/visual-regression.spec.ts`)
+   - Added `test.beforeEach` hook for authenticated page tests
+   - Creates test user and logs in before each screenshot
+   - Authenticated pages now capture actual content, not login redirects
+
+### Files Changed
+- `src/app/api/practice/evaluate/route.ts`
+- `src/lib/services/coachService.ts`
+- `src/lib/api/client.ts`
+- `src/test/a11y.ts` (new)
+- `e2e/navigation.spec.ts`
+- `e2e/visual-regression.spec.ts`
+
+### Build Status
+- Production build: ✅ Compiled successfully
+
+---
+
+## 2026-01-19 - Visual Regression Tests Authentication Fix
+
+### Task
+Fix visual regression tests in `/e2e/visual-regression.spec.ts` so authenticated pages (dashboard, learn, mastery, progress, settings, review) capture actual content instead of login redirects.
+
+### Changes
+- Added `test.beforeEach` hook to "Visual Regression - Authenticated Pages" test suite
+- Creates test user account via signup before each test
+- Handles optional onboarding flow after signup
+- Waits for auth to settle with `networkidle` before taking screenshots
+- Removed unnecessary redirect handling in dashboard test
+- Follows same authentication pattern as `learning-flow.spec.ts`
+
+### Files Changed
+- `e2e/visual-regression.spec.ts`
+
+### To Run Tests
+```bash
+# Install Playwright browsers (one-time setup)
+npx playwright install chromium
+
+# Run visual regression tests (requires dev server running)
+npm run dev  # In terminal 1
+npx playwright test visual-regression --update-snapshots  # In terminal 2
+```
+
+## 2026-01-19 - Sage & Learning View UI/UX Overhaul
+
+### Task
+Comprehensive overhaul of the learning view to fix Sage overlay issues, improve content responsiveness, and redesign navigation and sidebar.
+
+### Changes
+
+1. **Part 1 - Sage Interaction Redesign** (`CoachLearningView.tsx`):
+   - Converted modal overlay to side panel on desktop (slides from right, 384px width)
+   - Added bottom sheet on mobile (max 60vh height with drag handle)
+   - Content area shrinks when panel is open instead of being covered
+   - Removed backdrop entirely to fix z-index issues
+
+2. **Part 2 - Navigation Restructure** (`CoachLearningView.tsx`):
+   - Moved Previous button from SmartCoachBar to header
+   - Header now shows: Exit button | Previous button | Title | Completion %
+   - SmartCoachBar simplified to: Avatar, message, "Ask Sage", "Continue"
+
+3. **Part 3 - Content Width & Spacing Fix**:
+   - `ReadingAtom.tsx`: Changed from fixed `max-w-[680px]` to responsive widths
+   - `QuizAtom.tsx`: Changed from `max-w-2xl` to wider responsive widths
+   - `ContentRenderer.tsx`: Updated Reading and Video renderers
+   - New responsive pattern: `max-w-full sm:max-w-[800px] lg:max-w-[1000px] xl:max-w-[1100px]`
+
+4. **Part 4 - Video & Scroll Fixes** (`ContentRenderer.tsx`):
+   - Added `aspect-video` container to video for proper aspect ratio
+   - Video now matches reading content width
+   - Removed full-height flex layout that caused scroll issues
+
+5. **Part 5 - Sidebar Redesign** (`CoachLearningView.tsx`):
+   - Added circular SVG progress ring (Apple Watch style)
+   - Shows percentage in center with "X/Y done" below
+   - Added mastery score horizontal bar
+   - Clean lesson list with checkmark/circle indicators
+   - Current lesson highlighted with teal accent
+   - Glassmorphic styling: `bg-white/75 backdrop-blur-xl`
+
+6. **Part 6 - Glassmorphism Text Fix** (`CoachLearningView.tsx`):
+   - SmartCoachBar now uses solid `bg-white` instead of backdrop-blur
+   - Only sidebar and Sage panel use glassmorphism to avoid stacked blur
+
+### Files Changed
+- `src/components/learning/CoachLearningView.tsx`
+- `src/components/learning/ReadingAtom.tsx`
+- `src/components/learning/QuizAtom.tsx`
+- `src/components/learning/ContentRenderer.tsx`
+
+### Build Status
+✅ Build passed successfully
+
+---
+
+## 2026-01-19 - Accessibility Testing Setup with axe-core
+
+### Task
+Install and configure axe-core for accessibility testing in E2E tests.
+
+### Changes
+1. **Created `/src/test/a11y.ts`**:
+   - Accessibility testing helper utility using `@axe-core/playwright`
+   - `checkA11y()` function for running accessibility checks in tests
+   - `getA11yViolations()` function for custom violation handling
+   - Pre-configured WCAG tag sets (A, AA, AAA, 2.1-A, 2.1-AA)
+   - Common rule constants for selective disabling (COLOR_CONTRAST, REGION, DUPLICATE_ID)
+   - Configurable options: tags, disableRules, include/exclude selectors, waitForIdle
+
+2. **Updated `/e2e/navigation.spec.ts`**:
+   - Added import for `checkA11y` helper
+   - Added new test "login page meets accessibility standards" demonstrating usage
+   - Test validates login page against WCAG AA standards
+
+### Notes
+- `@axe-core/playwright` package already installed (v4.11.0)
+- Comprehensive accessibility test suite already exists in `/e2e/accessibility.spec.ts`
+- New helper makes accessibility testing more reusable across test files
+- Build passes successfully
+
+---
+
+## 2026-01-19 - Phase 3 Gate Complete & Full Remediation Plan Finished
+
+### Summary
+Completed all 3 phases of the codebase remediation plan. All tasks passed validation.
+
+### Phase 3 Tasks Completed:
+1. **Task 3.1 - Streak Race Condition Fix**: Wrapped streak updates in Firestore transactions to prevent double increments
+2. **Task 3.2 - TypeScript any Cleanup**: Eliminated 10 `any` types from badgeEvaluator.ts and AtomContainer.tsx
+3. **Task 3.3 - Export Coach Types**: Created `/src/types/coachActions.ts` with shared CoachAction types
+4. **Task 3.4 - axe-core Integration**: Added `@axe-core/playwright` with accessibility tests in e2e/navigation.spec.ts
+
+### Phase 3 Gate Results:
+- **Build**: ✅ Passed (56 routes compiled)
+- **Lint**: ✅ Passed (0 errors, 1 pre-existing warning in test file)
+- **Tests**: ✅ 740 tests passing
+
+### Additional Fixes:
+- Fixed unused import warning in useCoach.ts (removed CoachRequestBody, CoachResponse - not yet used)
+- Added eslint-disable for standard data-fetching pattern in useFlowController.ts
+
+### Full Remediation Summary:
+- **Phase 1**: Stripe webhooks, data model consolidation, z-index system, Zustand store consolidation
+- **Phase 2**: IDOR protection (9 routes), CSP assessment, error surfacing, API client standardization
+- **Phase 3**: Streak race fix, TypeScript any cleanup, coach types export, accessibility tests
+
+---
+
+## 2026-01-19 - TypeScript any Cleanup (Task 3.2)
+
+### Task
+Eliminate all TypeScript 'any' types from badgeEvaluator.ts and AtomContainer.tsx.
+
+### Changes
+1. **`/src/lib/utils/badgeEvaluator.ts`**:
+   - Removed `/* eslint-disable @typescript-eslint/no-explicit-any */` comment
+   - Created `BadgeEvaluationContext` type with all required fields:
+     - `coursesCompleted`, `modulesCompleted`, `lessonsCompleted`, `atomsCompleted`
+     - `assessmentScores` (typed as `AssessmentScore[]`)
+     - `totalTimeSpentMinutes`, `streak`, `stripe` (legacy), `completionDetails`
+   - Typed all 6 function parameters that previously used `any`:
+     - `evaluateBadgeCriteria`, `evaluateCompletionCriteria`, `evaluateStreakCriteria`
+     - `evaluateScoreCriteria`, `evaluateTimeCriteria`, `calculateBadgeProgress`
+   - Removed 2 inline `any` type annotations in array callbacks
+   - Exported `BadgeEvaluationContext` for use by consumers
+
+2. **`/src/components/learning/AtomContainer.tsx`**:
+   - Removed `eslint-disable` comment and `any` type assertion
+   - Created 4 discriminated union types: `VideoAtomType`, `ReadingAtomType`, `QuizAtomType`, `PracticeAtomType`
+   - Implemented 4 type guard functions: `isVideoAtom`, `isReadingAtom`, `isQuizAtom`, `isPracticeAtom`
+   - Replaced switch statement with type guard if-chains for proper type narrowing
+   - Removed need for explicit return type annotation (JSX.Element namespace issue)
+
+### Files Changed
+- `/src/lib/utils/badgeEvaluator.ts`
+- `/src/components/learning/AtomContainer.tsx`
+
+### Validation
+- TypeScript: No errors in modified files
+- Lint: No errors in modified files
+- Total `any` instances removed: 10 (9 in badgeEvaluator + 1 in AtomContainer)
+
+---
+
+## 2026-01-19 - Streak Race Condition Fix (Task 3.1)
+
+### Task
+Fix race condition in streak updates where concurrent requests can both pass the "if (lastDate === today) return" check before either writes, causing double streak increments.
+
+### Changes
+1. **`/src/app/api/progress/complete-atom/route.ts`**:
+   - Wrapped `updateStreakOnCompletion()` function in Firestore transaction
+   - Moved date calculations outside transaction for consistency
+   - Transaction reads streak data, checks `lastCompletedDate`, and atomically updates
+
+2. **`/src/app/api/progress/sync/route.ts`**:
+   - Wrapped `updateStreak()` function in Firestore transaction
+   - Renamed unused `userId` parameter to `_userId` per conventions
+   - Transaction reads streak data, checks `lastCompletedDate`, and atomically updates
+
+3. **`/src/app/api/__tests__/complete-atom.test.ts`**:
+   - Added `runTransaction` mock to Firebase admin mock
+   - Mock transaction provides `get`, `update`, and `set` methods
+
+### Files Changed
+- `/src/app/api/progress/complete-atom/route.ts`
+- `/src/app/api/progress/sync/route.ts`
+- `/src/app/api/__tests__/complete-atom.test.ts`
+
+### Validation
+- Build: PASSED
+- Tests: 740/740 PASSED
+- Lint (modified files): PASSED
+
+---
+
+## 2026-01-19 - Export Coach RequestBody Types (Task 3.3)
+
+### Task
+Export coach request/response types from API route for frontend consumption.
+
+### Changes
+1. Extended `/src/types/coachActions.ts` with shared types:
+   - `CoachMessage` - Message structure for conversation history
+   - `ImmediateContext` - Real-time context for quiz/practice awareness
+   - `CoachContext` - Context provided with each coach request
+   - `CoachRequestBody` - Full request body for `/api/coach` endpoint
+   - `OrchestrationMetadata` - Multi-agent orchestration response metadata
+   - `RagMetadata` - RAG grounding response metadata
+   - `StudentState` - POMDP student state
+   - `CoachResponse` - Full response from `/api/coach` endpoint
+
+2. Updated `/src/app/api/coach/route.ts`:
+   - Import `CoachRequestBody` from shared types
+   - Remove local `RequestBody`, `Message`, and `ImmediateContext` type definitions
+   - Use `CoachRequestBody` throughout the file
+
+3. Updated `/src/hooks/useCoach.ts`:
+   - Import `CoachRequestBody` and `CoachResponse` from shared types
+
+### Files Changed
+- `/src/types/coachActions.ts` (extended with request/response types)
+- `/src/app/api/coach/route.ts` (import from shared types, removed local definitions)
+- `/src/hooks/useCoach.ts` (import shared types)
+
+### Validation
+- Build: PASSED
+
+---
+
+## 2026-01-19 - axe-core Integration for WCAG AA Compliance Testing (Task 3.4)
+
+### Task
+Integrate axe-core for automated WCAG AA accessibility compliance testing.
+
+### Changes
+1. Installed `@axe-core/playwright` as dev dependency
+2. Created comprehensive accessibility test suite covering:
+   - Public pages (login, signup, privacy, help)
+   - Protected pages (dashboard, learn, mastery, review, progress, settings)
+   - Component-specific tests (form focus management, navigation ARIA labels)
+
+### Files Changed
+- `/e2e/accessibility.spec.ts` (new file)
+- `package.json` (added @axe-core/playwright dependency)
+
+### Test Coverage
+- 12 accessibility tests across 3 test suites
+- Tests use WCAG 2.0 Level A and AA tags
+- Protected page tests note authentication requirements
+
+### Validation
+- Build: PASSED
+
+---
+
+## 2026-01-19 - Phase 2 Gate: Test Fixes for IDOR Protection
+
+### Task
+Fix test failures caused by IDOR protection requiring Authorization headers.
+
+### Changes
+Updated tests to include Authorization headers and use correct userId values:
+
+**coach.test.ts:**
+- Added Authorization headers to all test requests
+- Updated "requires userId" test to "uses authenticated userId when not provided" (behavior changed with IDOR)
+
+**courses.test.ts:**
+- Added Authorization header and use `test-user-id` to match global mock
+
+**badges.test.ts:**
+- Added Authorization headers
+- Updated "requires userId" test to "requires authentication" (auth check happens first now)
+
+**complete-atom.test.ts:**
+- Updated mock data structure for new `progress.atomsCompleted` path (data model consolidation)
+
+### Files Changed
+- `/src/app/api/__tests__/coach.test.ts`
+- `/src/app/api/__tests__/courses.test.ts`
+- `/src/app/api/__tests__/badges.test.ts`
+- `/src/app/api/__tests__/complete-atom.test.ts`
+
+### Validation
+- Build: PASSED
+- Lint: PASSED (pre-existing warnings only)
+- Tests: 740/740 PASSED
+
+---
+
+## 2026-01-19 - IDOR Vulnerability Fix (Task 2.1)
+
+### Task
+Fix Insecure Direct Object Reference (IDOR) vulnerabilities across all API routes by ensuring users cannot access other users' data.
+
+### Solution
+Created centralized authentication utility `/src/lib/auth/requireAuth.ts`:
+- `requireAuthWithIdor()` - Main auth function with IDOR protection
+- `getAuthenticatedUserId()` - Convenience wrapper returning userId or NextResponse
+- `validateBodyUserId()` - Validates userId from POST request bodies
+- `AuthError` - Custom error class for authentication failures
+
+### Routes Updated
+
+**Full IDOR Protection (require auth + validate userId):**
+- `/api/adaptive/session/route.ts` - GET and POST
+- `/api/badges/progress/route.ts` - GET
+- `/api/flow/route.ts` - GET and POST (removed insecure fallback auth methods)
+- `/api/path/optimized/route.ts` - GET and POST
+- `/api/coach/route.ts` - POST
+
+**Conditional IDOR Protection (optional auth when userId provided):**
+- `/api/courses/route.ts` - GET (userId optional for progress overlay)
+- `/api/lessons/[lessonId]/route.ts` - GET (userId optional for completion status)
+- `/api/courses/[courseId]/modules/[moduleId]/route.ts` - GET (userId optional for progress)
+
+### Files Changed
+- `/src/lib/auth/requireAuth.ts` (NEW) - IDOR protection utility
+- `/src/app/api/adaptive/session/route.ts`
+- `/src/app/api/badges/progress/route.ts`
+- `/src/app/api/flow/route.ts`
+- `/src/app/api/path/optimized/route.ts`
+- `/src/app/api/courses/route.ts`
+- `/src/app/api/lessons/[lessonId]/route.ts`
+- `/src/app/api/courses/[courseId]/modules/[moduleId]/route.ts`
+- `/src/app/api/coach/route.ts`
+
+### Security Improvements
+1. All routes now verify Bearer tokens from Authorization header
+2. userId from query params or body must match authenticated user
+3. Admin override supported for admin-only routes
+4. Custom error codes for different failure types (MISSING_TOKEN, INVALID_TOKEN, IDOR_VIOLATION)
+
+### Validation
+- Build: PASSED
+- Lint: PASSED (pre-existing warning in unrelated file)
+
+---
+
+## 2026-01-19 - Data Model Consolidation (Task 1.2)
+
+### Task
+Consolidate user progress data from multiple Firestore locations into a single source of truth (`users/{userId}.progress`).
+
+### Phase A - Research
+Created dependency map of all files reading/writing to:
+- `userProgress/{userId}` - Legacy collection (deprecated)
+- `users/{userId}.progress` - Primary location (target)
+- `learners/{userId}/data/progress` - Alternative structure
+
+### Phase B - Migration Script
+Created `/scripts/migrate-user-progress.ts`:
+- Reads from all three locations
+- Merges arrays without duplicates
+- Takes maximum of numeric fields (XP, level, streak)
+- Uses batched writes for efficiency
+- Has dry-run mode (`--dry-run`) for testing
+- Marks source docs as migrated (doesn't delete)
+- Supports `--limit=N` and `--user=<id>` options
+
+### Phase C - Route Updates
+Updated routes to use `users.progress` instead of `userProgress`:
+
+**Files Changed:**
+- `/src/app/api/progress/complete-atom/route.ts` - Migrated from `userProgress` to `users.progress`
+- `/src/app/api/progress/complete-lesson/route.ts` - Migrated from `userProgress` to `users.progress`
+- `/src/app/api/progress/update-streak/route.ts` - Migrated from `userProgress` to `users.streak`
+- `/src/app/api/progress/use-freeze/route.ts` - Migrated from `userProgress` to `users.streak`
+
+**Key Changes:**
+1. Updated all collection references from `adminDb.collection('userProgress')` to `adminDb.collection('users')`
+2. Changed field paths from flat structure to nested (e.g., `atomsCompleted` to `'progress.atomsCompleted'`)
+3. Added `invalidateProgressCache(userId)` calls after updates
+4. Updated documentation to remove @deprecated tags
+
+### Validation
+- Build: PASSED
+- Lint: PASSED (for modified files)
+
+### Next Steps
+1. Run migration script: `npx ts-node scripts/migrate-user-progress.ts --dry-run`
+2. After verification, run without dry-run
+3. Monitor for any issues with data consistency
+
+---
+
+## 2026-01-19 - API Client Standardization (Task 2.4)
+
+### Task
+Standardize all API calls to use centralized client with rate limit handling.
+
+### Files Changed
+- `/src/lib/api/client.ts` - Added 429 rate limit handling with Retry-After header support, request ID generation (x-request-id header), and RATE_LIMITED error code
+- `/src/hooks/useInteractionLogger.ts` - Updated flushBatch to use API client's `post()` and `isSuccess()` functions
+- `/src/hooks/useFlowController.ts` - Updated all fetch calls (refreshState, startFlow, advanceFlow, recordQuizAnswer, pauseFlow, resumeFlow) to use API client
+- `/src/components/learning/hooks/useContentProgress.ts` - Updated progress sync callbacks to use API client
+
+### Changes Made
+1. **client.ts enhancements:**
+   - Added `RATE_LIMITED` error code for 429 responses
+   - Added `MAX_RATE_LIMIT_WAIT` constant (30 seconds)
+   - Added `generateRequestId()` function for request tracing
+   - Added `getRateLimitWaitTime()` function to handle Retry-After header (supports both seconds and HTTP-date formats)
+   - Added `x-request-id` header to all requests
+   - Enhanced retry logic to use Retry-After header for 429 responses
+
+2. **Hook updates:**
+   - Replaced raw `fetch()` calls with `post()` and `get()` from API client
+   - Used `isSuccess()` type guard for response handling
+   - Maintained same error handling patterns while leveraging client's built-in retry logic
+
+### Validation
+- Build: PASSED (compiles successfully)
+- Lint: Pre-existing warning unrelated to this task (react-hooks/set-state-in-effect in useFlowController.ts)
+
+---
+
+## 2026-01-19 - Critical Component Tests (Task 2.Q2)
+
+### Task
+Create component tests for high-priority untested components: MainCoachChat and CoachLearningView.
+
+### Files Created
+- `src/components/__tests__/MainCoachChat.test.tsx` - 18 tests for AI coach interface
+- `src/components/__tests__/CoachLearningView.test.tsx` - 20 tests for main learning view
+
+### Test Coverage
+
+**MainCoachChat Tests (18 tests):**
+- Renders without crashing
+- Displays welcome message when no messages exist
+- Displays loading state correctly
+- Shows error state when error exists
+- Shows conversation loading state with lessonId
+- Displays messages correctly
+- Allows typing in input field
+- Sends message on button click
+- Sends message on Enter key
+- Disables send button when empty
+- Disables send button when loading
+- Shows quick prompts with few messages
+- Fills input on quick prompt click
+- Shows clear chat button with messages
+- Calls clearMessages on clear button click
+- Has accessible input field
+- Calls loadLatestForLesson with lessonId
+- Calls initializeChat without lessonId
+
+**CoachLearningView Tests (20 tests):**
+- Renders without crashing
+- Displays content skeleton when loading
+- Displays error message on load failure
+- Displays atom content when loaded
+- Shows progress indicator
+- Shows lesson title
+- Shows exit button with onExit prop
+- Calls onExit on button click
+- Shows Ask Sage button
+- Opens chat overlay on Ask Sage click
+- Shows continue button after content complete
+- Navigates correctly on Continue click
+- Shows progress sidebar
+- Shows lesson in progress sidebar
+- Displays coach tip in smart coach bar
+- Shows Content Not Found with no lesson
+- Calls onLessonComplete when finished
+- Renders with swipeable atom view
+- Renders with animated content wrapper
+- Accepts courseId prop
+
+### Validation
+- Tests: All 38 tests pass
+- Command: `npm run test -- --testNamePattern="MainCoachChat|CoachLearningView" --run`
+
+---
+
+## 2026-01-19 - Error Surfacing to UI (Task 2.3)
+
+### Task
+Add error state surfacing to data-fetching hooks following standard pattern.
+
+### Analysis Summary
+Reviewed priority hooks for error state implementation:
+- `useCoach.ts` - Already has error state via reducer pattern
+- `useCourseContent.ts` - Uses React Query with built-in error handling
+- `useStreamingResponse.ts` - Already has error state
+- `useMasteryPrediction.ts` - Already has error, refetch pattern
+- `useProgressReport.ts` - Already has error, refresh pattern
+- `useNotifications.ts` - Already has error state
+
+### Files Changed
+- `src/hooks/useInteractionLogger.ts` - Added error state, failedCount, and clearError to surface sync failures
+- `src/components/coach/AdaptiveQuiz.tsx` - Added error state UI with retry button as example implementation
+
+### Standard Pattern Implemented
+```typescript
+interface UseAsyncResult<T> {
+  data: T | null;
+  loading: boolean;
+  error: Error | null;
+  refetch: () => Promise<void>;
+}
+```
+
+### Validation
+- Build: Passed
+- Lint: Passed (0 errors, 3 pre-existing warnings)
+
+---
+
+## 2026-01-19 - CSP Assessment and Violation Reporting (Task 2.2)
+
+### Task
+Assess Content Security Policy configuration and implement violation reporting.
+
+### Files Changed
+- `middleware.ts` - Added report-uri directive, documented unsafe-eval requirements, added Firebase Storage to media-src
+- `src/lib/security/headers.ts` - Synchronized CSP configuration with middleware, added documentation
+- `src/app/api/csp-report/route.ts` - NEW: CSP violation report endpoint
+
+### CSP Assessment Findings
+
+**Current Configuration:**
+- `script-src`: self + unsafe-inline + unsafe-eval + Google APIs + PostHog
+- `style-src`: self + unsafe-inline + Google Fonts
+- `connect-src`: Firebase services, Sentry, PostHog
+- `frame-src`: YouTube, Google accounts, Firebase app
+- `media-src`: YouTube (added Firebase Storage)
+
+**Why unsafe-eval is Required:**
+1. **Google APIs SDK (gapi)** - Uses eval internally for authentication flows
+2. **PostHog Analytics** - SDK requires eval for some features
+3. **Next.js Dev Mode** - Some HMR features (production may not need)
+
+**Why unsafe-inline is Required:**
+1. **Tailwind CSS** - Injects styles dynamically
+2. **Next.js** - Style injection for CSS-in-JS patterns
+3. **Framer Motion** - Animation style injection
+
+**Recommendations:**
+- Monitor CSP reports in production to identify actual violations
+- Consider nonce-based CSP for scripts if unsafe-inline becomes problematic
+- Test removal of unsafe-eval in production after monitoring period
+
+### Implementation
+- CSP report endpoint accepts `application/csp-report` content type
+- Logs violations with structured data (document URI, directive, blocked URI)
+- Returns 204 No Content per CSP specification
+
+### Validation
+- Build: PASSED
+- Lint: PASSED (0 errors, 5 pre-existing warnings)
+
+---
+
+## 2026-01-19 - Visual Regression Testing Setup (Task 2.Q1)
+
+### Task
+Set up visual regression testing infrastructure with Playwright for key application views.
+
+### Files Changed
+- `playwright.config.ts` - Added `expect.toHaveScreenshot` configuration with maxDiffPixels: 100 and threshold: 0.2
+- `e2e/visual-regression.spec.ts` - NEW: Visual regression test suite
+
+### Implementation Details
+1. Updated Playwright config with visual regression settings
+2. Created comprehensive visual regression test suite covering:
+   - **Public Pages:** login, signup, privacy, help
+   - **Authenticated Pages:** dashboard, learn, mastery, progress, settings, review
+   - **Responsive Tests:** mobile (375px) and tablet (768px) viewports
+
+### Test Structure
+- Tests wait for `networkidle` state and 500ms animation settle time
+- Uses `maxDiffPixels: 100` to allow minor anti-aliasing differences
+- Baseline screenshots generated on first run in `e2e/visual-regression.spec.ts-snapshots/`
+- Update baselines with: `npx playwright test visual-regression --update-snapshots`
+
+### Validation
+- TypeScript compilation: PASSED
+- ESLint: PASSED
+
+---
+
+## 2026-01-19 - Zustand Store Consolidation (Task 1.4)
+
+### Task
+Consolidated Zustand stores by merging userProfileStore.ts into unifiedStore.ts and removing deprecated stores.
+
+### Files Changed
+- `src/store/unifiedStore.ts` - Added missing actions: `purchaseStreakFreeze`, `updateStreak`
+- `src/store/index.ts` - Updated re-exports to use unifiedStore
+- `src/store/userStore.ts` - DELETED (was unused)
+- `src/store/userProfileStore.ts` - DELETED (merged into unifiedStore)
+
+### Files Updated (imports changed from userProfileStore to unifiedStore)
+- 47+ files across app/, hooks/, and components/ directories
+- All `useUserProfileStore` -> `useUnifiedStore`
+- All `useUser` from userProfileStore -> `useUser` from unifiedStore
+- All `useProgress` from userProfileStore -> `useProgress` from unifiedStore
+
+### Implementation Details
+1. Verified userStore.ts was only referenced in test setup (mocked) and unifiedStore
+2. Identified two actions in userProfileStore not in unifiedStore: `purchaseStreakFreeze`, `updateStreak`
+3. Added both actions to unifiedStore with full Firestore sync
+4. Updated all 47+ imports across the codebase
+5. Updated store/index.ts to re-export from unifiedStore
+6. Deleted deprecated stores after build verification
+
+### Validation
+- Build: PASSED
+- Lint: PASSED
+- No remaining userProfileStore or userStore imports in src/
+
+---
+
+## 2026-01-20 - Critical Security Fix & Validation System
+
+### Task
+Fixed critical IDOR vulnerability and set up continuous validation system with background agents.
+
+### Security Fix: IDOR in Conversation API
+- **File:** `src/app/api/coach/[conversationId]/route.ts`
+- **Vulnerability:** GET, DELETE, HEAD endpoints had NO authentication or ownership verification
+- **Impact:** Any authenticated user could read/delete ANY user's private tutoring conversations
+- **Fix Applied:**
+  1. Added `authenticateUser()` function supporting Bearer tokens and session cookies
+  2. Added authentication check at start of each handler (returns 401 if not authenticated)
+  3. Added ownership verification after fetching conversation (returns 403 if not owner)
+  4. Added IDOR attempt logging for security monitoring
+
+### Validation System Setup
+- Created issue tracker: `.claude/VALIDATION_ISSUES.md`
+- Launched 6 background validation agents:
+  1. **Security Validator** - IDOR, auth, PII exposure
+  2. **Code Quality Validator** - Patterns, hooks, stores
+  3. **Design System Validator** - Colors, z-index, springs
+  4. **TypeScript Validator** - Build errors, any types
+  5. **Accessibility Validator** - WCAG 2.1 AA compliance
+  6. **Test Coverage Validator** - Missing tests
+
+### Issues Identified (26 total)
+- 1 Critical (IDOR) - ✅ FIXED
+- 7 High priority
+- 11 Medium priority
+- 7 Low priority
+
+---
+
+## 2026-01-19 - Stripe Webhook Implementation
+
+### Task
+Implemented all 6 Stripe webhook handlers to create/update subscription records in Firestore.
+
+### Files Changed
+- `src/app/api/webhooks/stripe/route.ts`
+
+### Implementation Details
+1. **handleCheckoutCompleted**: Creates subscription record in `subscriptions` collection and updates user document with subscription info
+2. **handleSubscriptionCreated**: Updates subscription with period dates from Stripe (merge with existing record)
+3. **handleSubscriptionUpdated**: Updates subscription status, plan tier, and period dates; includes fallback customer ID lookup
+4. **handleSubscriptionDeleted**: Sets status to 'canceled', plan to 'free'; updates both subscription and user documents
+5. **handleInvoicePaid**: Creates payment record in `payments` collection; restores past_due subscriptions to active
+6. **handleInvoicePaymentFailed**: Updates status to 'past_due', records failed payment attempt with error details
+
+### Added Imports
+- `adminDb` from Firebase admin
+- `FieldValue`, `Timestamp` from firebase-admin/firestore
+- `PlanTier`, `SubscriptionStatus` types
+
+### Helper Functions
+- `updateSubscriptionRecord`: Shared logic for updating subscription and user documents
+
+---
+
 ## 2026-01-19 - Critical Bug Fixes
 
 ### Session Summary
@@ -1556,3 +2531,36 @@ Fixed multiple UX issues identified in production including video placeholder st
 - `src/components/learning/CoachLearningView.tsx`
 - `src/components/accessibility/KeyboardShortcuts.tsx`
 - `src/app/progress/page.tsx`
+
+---
+
+## 2026-01-19 - Firebase Auth Configuration Fix
+
+### Task
+Fixed "Authentication service not available" error on Vercel caused by literal `\n` characters in environment variables.
+
+### Root Cause
+The `.env.vercel` file (pulled from Vercel dashboard) contained literal `\n` characters appended to environment variable values:
+```
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="aptly-study-app.firebaseapp.com\n"
+```
+This caused Firebase to try connecting to an invalid domain name.
+
+### Files Changed
+- `src/lib/firebase/config.ts` - Added `cleanEnvVar()` function to strip literal `\n` characters and whitespace, added lazy getters for Firebase services, added debug logging
+- `src/app/api/progress/update-streak/route.ts` - Fixed unused variable TypeScript error
+- `src/lib/ml/training/parameterEstimator.ts` - Fixed const reassignment error
+
+### Implementation Details
+1. Created `cleanEnvVar()` helper that removes:
+   - Literal `\n` strings (backslash + n)
+   - Actual newline characters
+   - Whitespace via `.trim()`
+2. Applied to all 6 Firebase config environment variables
+3. Added client-side debug logging to diagnose config values
+4. Added lazy getter functions for auth, db, storage services
+5. Added `isConfigValid` check before Firebase initialization
+
+### Validation
+- Build: PASSED
+- Deployed to Vercel via git push

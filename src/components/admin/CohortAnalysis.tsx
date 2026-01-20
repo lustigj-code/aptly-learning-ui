@@ -110,7 +110,7 @@ export function CohortAnalysis({ dateRange }: CohortAnalysisProps) {
               onClick={() => toggleCohort(cohort.id)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 selectedCohorts.includes(cohort.id)
-                  ? 'bg-indigo-100 text-indigo-700 border-2 border-indigo-300'
+                  ? 'bg-teal/20 text-teal-dark border-2 border-teal/30'
                   : 'bg-gray-100 text-gray-600 border-2 border-transparent hover:bg-gray-200'
               }`}
             >
@@ -241,7 +241,7 @@ export function CohortAnalysis({ dateRange }: CohortAnalysisProps) {
   );
 }
 
-const COLORS = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+const COLORS = ['#21A8B0', '#0A004A', '#FFDE00', '#69BCC1', '#1A365D'];
 
 interface MetricRowProps {
   label: string;

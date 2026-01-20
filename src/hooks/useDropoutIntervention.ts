@@ -11,7 +11,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useUserProfileStore } from '@/store/userProfileStore';
+import { useUnifiedStore } from '@/store/unifiedStore';
 import {
   assessDropoutRisk,
   isInInterventionWindow,
@@ -45,7 +45,7 @@ export interface DropoutInterventionState {
  * Hook to detect at-risk learners and generate re-engagement interventions
  */
 export function useDropoutIntervention(): DropoutInterventionState {
-  const user = useUserProfileStore((state) => state.user);
+  const user = useUnifiedStore((state) => state.user);
   const [dismissed, setDismissed] = useState(false);
 
   // Check if we should throttle based on last intervention time

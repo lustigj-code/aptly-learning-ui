@@ -1,7 +1,7 @@
 'use client';
 
 import { useReducer, useCallback, useEffect } from 'react';
-import { useUser } from '@/store/userProfileStore';
+import { useUser } from '@/store/unifiedStore';
 import type { CoachAction } from '@/types/coachActions';
 
 // ============================================

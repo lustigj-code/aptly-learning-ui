@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { CheckCircle, ArrowRight, Brain, Sparkles, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { Z_INDEX, COLORS_RAW } from '@/lib/design-tokens';
 
 export interface CompletionOverlayProps {
   isOpen: boolean;
@@ -49,12 +50,12 @@ export function CompletionOverlay({
       // Reset state when opening
       setShowActions(false);
 
-      // Fire confetti
+      // Fire confetti - brand colors only (teal, navy, yellow, muted-teal)
       confetti({
         particleCount: 60,
         spread: 70,
         origin: { y: 0.6 },
-        colors: ['#4F46E5', '#10B981', '#F59E0B', '#EC4899'],
+        colors: [COLORS_RAW.teal, COLORS_RAW.navy, COLORS_RAW.yellow, COLORS_RAW.mutedTeal],
       });
 
       // Show actions after celebration
@@ -75,7 +76,8 @@ export function CompletionOverlay({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+        style={{ zIndex: Z_INDEX.modal }}
         onClick={(e) => e.stopPropagation()}
       >
         <motion.div
@@ -85,17 +87,18 @@ export function CompletionOverlay({
           transition={{ type: 'spring', damping: 20, stiffness: 300 }}
           className="bg-white rounded-2xl p-8 max-w-md w-full text-center shadow-xl"
         >
-          {/* Success Icon */}
+          {/* Success Icon - teal for brand consistency */}
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: 'spring', delay: 0.2 }}
-            className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6"
+            className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"
+            style={{ backgroundColor: COLORS_RAW.lightTeal }}
           >
             {isSessionComplete ? (
-              <Trophy className="text-green-600 w-10 h-10" />
+              <Trophy className="w-10 h-10" style={{ color: COLORS_RAW.teal }} />
             ) : (
-              <CheckCircle className="text-green-600 w-10 h-10" />
+              <CheckCircle className="w-10 h-10" style={{ color: COLORS_RAW.teal }} />
             )}
           </motion.div>
 
@@ -121,12 +124,13 @@ export function CompletionOverlay({
             </motion.p>
           )}
 
-          {/* XP Badge */}
+          {/* XP Badge - yellow for celebration */}
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: 'spring', delay: 0.5 }}
-            className="inline-flex items-center gap-2 bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full mb-6"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6"
+            style={{ backgroundColor: COLORS_RAW.yellowLight, color: COLORS_RAW.yellowDark }}
           >
             <Sparkles size={18} />
             <span className="font-semibold">+{xpEarned} XP</span>

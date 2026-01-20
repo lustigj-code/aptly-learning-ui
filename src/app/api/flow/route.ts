@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { adminAuth } from '@/lib/firebase/admin'
 import {
   startLearningFlow,
   getCurrentFlowState,
@@ -11,6 +10,7 @@ import {
   type CompletionData,
   type QuizAnswer,
 } from '@/lib/services/flowController'
+import { getAuthenticatedUserId } from '@/lib/auth/requireAuth'
 
 /**
  * Flow Controller API
@@ -20,39 +20,15 @@ import {
  * - POST: Start flow, advance flow, record quiz answer, pause/resume
  */
 
-// Helper to get userId from request
-async function getUserId(request: NextRequest): Promise<string | null> {
-  // Try auth header first
-  try {
-    const authHeader = request.headers.get('authorization')
-    if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.substring(7)
-      const decodedToken = await adminAuth.verifyIdToken(token)
-      return decodedToken.uid
-    }
-  } catch {
-    // Fall through to other methods
-  }
-
-  // Try session ID header
-  const sessionId = request.headers.get('x-session-id')
-  if (sessionId) return sessionId
-
-  // Try query param
-  const url = new URL(request.url)
-  const userId = url.searchParams.get('userId')
-  if (userId) return userId
-
-  return null
-}
-
 // GET - Get current flow state
 export async function GET(request: NextRequest) {
   try {
-    const userId = await getUserId(request)
-    if (!userId) {
-      return NextResponse.json({ error: 'userId required' }, { status: 400 })
+    // IDOR Protection: Validate userId query param matches authenticated user
+    const userIdResult = await getAuthenticatedUserId(request, { allowUserId: true })
+    if (userIdResult instanceof NextResponse) {
+      return userIdResult
     }
+    const userId = userIdResult
 
     const state = await getCurrentFlowState(userId)
     return NextResponse.json(state)
@@ -68,10 +44,12 @@ export async function GET(request: NextRequest) {
 // POST - Flow operations
 export async function POST(request: NextRequest) {
   try {
-    const userId = await getUserId(request)
-    if (!userId) {
-      return NextResponse.json({ error: 'userId required' }, { status: 400 })
+    // IDOR Protection: Validate userId matches authenticated user
+    const userIdResult = await getAuthenticatedUserId(request, { allowUserId: true })
+    if (userIdResult instanceof NextResponse) {
+      return userIdResult
     }
+    const userId = userIdResult
 
     const body = await request.json()
     const { action } = body

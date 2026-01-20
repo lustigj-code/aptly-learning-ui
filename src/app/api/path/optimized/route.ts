@@ -15,22 +15,22 @@ import {
   checkFastTrackEligibility,
   calculateLearningVelocity,
 } from '@/lib/adaptive/pathOptimizer';
+import { getAuthenticatedUserId, validateBodyUserId } from '@/lib/auth/requireAuth';
 
 // ============================================
 // GET - Fetch optimized path data
 // ============================================
 
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const userId = searchParams.get('userId');
-  const courseId = searchParams.get('courseId') || 'ai-at-work';
-
-  if (!userId) {
-    return NextResponse.json(
-      { success: false, error: 'userId query param required' },
-      { status: 400 }
-    );
+  // IDOR Protection: Validate userId query param matches authenticated user
+  const userIdResult = await getAuthenticatedUserId(request, { allowUserId: true });
+  if (userIdResult instanceof NextResponse) {
+    return userIdResult;
   }
+  const userId = userIdResult;
+
+  const searchParams = request.nextUrl.searchParams;
+  const courseId = searchParams.get('courseId') || 'ai-at-work';
 
   try {
     // Fetch all data in parallel
@@ -74,14 +74,14 @@ interface PathRequest {
 export async function POST(request: NextRequest) {
   try {
     const body: PathRequest = await request.json();
-    const { userId, courseId = 'ai-at-work', options } = body;
+    const { userId: bodyUserId, courseId = 'ai-at-work', options } = body;
 
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: 'userId is required' },
-        { status: 400 }
-      );
+    // IDOR Protection: Validate userId from body matches authenticated user
+    const userIdResult = await validateBodyUserId(request, bodyUserId);
+    if (userIdResult instanceof NextResponse) {
+      return userIdResult;
     }
+    const userId = userIdResult;
 
     // Build path with options
     const path = await buildOptimizedPath(userId, courseId);

@@ -1,7 +1,7 @@
- 
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { z } from 'zod';
+import { getAuthenticatedUserId } from '@/lib/auth/requireAuth';
 import { calculateBadgeProgress } from '@/lib/utils/badgeEvaluator';
 import { getUserProgress } from '@/lib/data/userProgressLayer';
 import type { Badge } from '@/types';
@@ -36,8 +36,14 @@ type BadgeProgressResponse = {
  */
 export async function GET(request: NextRequest) {
   try {
+    // IDOR Protection: Validate userId query param matches authenticated user
+    const userIdResult = await getAuthenticatedUserId(request, { allowUserId: true });
+    if (userIdResult instanceof NextResponse) {
+      return userIdResult;
+    }
+    const userId = userIdResult;
+
     const searchParams = request.nextUrl.searchParams;
-    const userId = searchParams.get('userId');
     const badgeId = searchParams.get('badgeId');
 
     // Validate input
@@ -50,7 +56,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch user progress using unified layer (with caching and fallback)
-    const userData = await getUserProgress(userId!);
+    const userData = await getUserProgress(userId);
 
     // Convert to format expected by badge evaluator
     const userProgress = {

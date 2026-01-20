@@ -47,7 +47,7 @@ export function ToastDemo() {
 
           <button
             onClick={() => toast.info('Did you know?', 'You can dismiss toasts by clicking the X button.')}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+            className="px-4 py-2 bg-teal text-white rounded-lg hover:bg-teal-dark transition"
           >
             Info Toast
           </button>
@@ -60,21 +60,21 @@ export function ToastDemo() {
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => toast.badge('Master Learner', 'Completed 50 lessons')}
-            className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition"
+            className="px-4 py-2 bg-navy text-white rounded-lg hover:bg-navy/90 transition"
           >
             Badge Toast
           </button>
 
           <button
             onClick={() => toast.streak(7)}
-            className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition"
+            className="px-4 py-2 bg-warning text-white rounded-lg hover:bg-warning/90 transition"
           >
             Streak Toast
           </button>
 
           <button
             onClick={() => toast.xp(100)}
-            className="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition"
+            className="px-4 py-2 bg-teal text-white rounded-lg hover:bg-teal-dark transition"
           >
             XP Toast
           </button>
@@ -95,7 +95,7 @@ export function ToastDemo() {
                 showProgress: true,
               })
             }
-            className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition"
+            className="px-4 py-2 bg-teal text-white rounded-lg hover:bg-teal-dark transition"
           >
             With Progress Bar
           </button>
@@ -145,7 +145,7 @@ export function ToastDemo() {
                 duration: 1000,
               })
             }
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+            className="px-4 py-2 bg-teal text-white rounded-lg hover:bg-teal-dark transition"
           >
             1 Second Toast
           </button>
@@ -159,7 +159,7 @@ export function ToastDemo() {
                 duration: 10000,
               })
             }
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+            className="px-4 py-2 bg-teal text-white rounded-lg hover:bg-teal-dark transition"
           >
             10 Second Toast
           </button>

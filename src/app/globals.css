@@ -102,6 +102,22 @@
   --spacing-element: 24px;
   --spacing-element-md: 32px;
   --spacing-element-lg: 40px;
+
+  /* Z-Index Scale */
+  --z-background: -10;
+  --z-base: 0;
+  --z-dropdown: 10;
+  --z-sticky: 20;
+  --z-fixed: 30;
+  --z-modal-backdrop: 40;
+  --z-modal: 50;
+  --z-popover: 60;
+  --z-tooltip: 70;
+  --z-toast: 80;
+  --z-celebration: 90;
+  --z-celebration-modal: 100;
+  --z-skip-link: 9999;
+  --z-particles: 9999;
 }
 
 /* Tailwind v4 Theme Configuration */
@@ -685,7 +701,7 @@ select:focus-visible {
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: 9999;
+  z-index: var(--z-celebration);
 }
 
 /* Hide scrollbar utility */
@@ -747,7 +763,7 @@ select:focus-visible {
   text-decoration: none;
   border-radius: 0 0 4px 0;
   transition: top 0.2s;
-  z-index: 10000;
+  z-index: var(--z-skip-link);
 }
 
 .skip-link:focus {

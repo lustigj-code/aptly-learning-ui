@@ -47,7 +47,7 @@ function SessionOverview({ session, currentIndex, onStart }: SessionOverviewProp
     : 0;
 
   return (
-    <div className="bg-gradient-to-br from-teal/5 to-purple/5 rounded-2xl p-6 border border-teal/20">
+    <div className="bg-gradient-to-br from-teal/5 to-light-teal rounded-2xl p-6 border border-teal/20">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 bg-teal rounded-xl flex items-center justify-center">
@@ -153,8 +153,8 @@ function ItemTypeIcon({ type, isCompleted, isReviewChallenge }: { type: SessionI
 
   const colorMap = {
     warmup: 'bg-amber-100 text-amber-600',
-    learn: 'bg-blue-100 text-blue-600',
-    practice: 'bg-purple-100 text-purple-600',
+    learn: 'bg-light-teal text-teal-dark',
+    practice: 'bg-navy/10 text-navy',
     quiz: 'bg-teal text-white',
     review: 'bg-amber-100 text-amber-600',
     cooldown: 'bg-green-100 text-green-600',
@@ -186,10 +186,10 @@ export function PretestOffer({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-gradient-to-br from-purple/5 to-teal/5 rounded-2xl p-6 border border-purple/20"
+      className="bg-gradient-to-br from-navy/5 to-teal/5 rounded-2xl p-6 border border-navy/20"
     >
       <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 bg-purple-500 rounded-xl flex items-center justify-center">
+        <div className="w-10 h-10 bg-navy rounded-xl flex items-center justify-center">
           <Zap className="text-white" size={20} />
         </div>
         <div>
@@ -244,14 +244,14 @@ export function AdaptiveReasoningBanner({
     },
     learn: {
       icon: <BookOpen size={16} />,
-      bg: 'bg-blue-50 border-blue-200',
-      text: 'text-blue-700',
+      bg: 'bg-light-teal border-teal/30',
+      text: 'text-teal-dark',
       label: 'New Learning',
     },
     practice: {
       icon: <Zap size={16} />,
-      bg: 'bg-purple-50 border-purple-200',
-      text: 'text-purple-700',
+      bg: 'bg-navy/10 border-navy/20',
+      text: 'text-navy',
       label: 'Practice',
     },
   };

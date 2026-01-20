@@ -4,7 +4,19 @@ import { VideoAtom } from './VideoAtom';
 import { ReadingAtom } from './ReadingAtom';
 import { QuizAtom } from './QuizAtom';
 import { PracticeAtom } from './PracticeAtom';
-import type { Atom } from '@/types';
+import type { Atom, VideoContent, ReadingContent, QuizContent, PracticeContent } from '@/types';
+
+/** Video atom with properly typed content */
+type VideoAtomType = Atom & { type: 'video'; content: VideoContent };
+
+/** Reading atom with properly typed content */
+type ReadingAtomType = Atom & { type: 'reading'; content: ReadingContent };
+
+/** Quiz atom with properly typed content */
+type QuizAtomType = Atom & { type: 'quiz'; content: QuizContent };
+
+/** Practice atom with properly typed content */
+type PracticeAtomType = Atom & { type: 'practice'; content: PracticeContent };
 
 type AtomContainerProps = {
   atom: Atom;
@@ -12,6 +24,34 @@ type AtomContainerProps = {
   isLoading?: boolean;
   coachAvailable?: boolean;
 };
+
+/**
+ * Type guard to check if atom is a video atom
+ */
+function isVideoAtom(atom: Atom): atom is VideoAtomType {
+  return atom.type === 'video';
+}
+
+/**
+ * Type guard to check if atom is a reading atom
+ */
+function isReadingAtom(atom: Atom): atom is ReadingAtomType {
+  return atom.type === 'reading';
+}
+
+/**
+ * Type guard to check if atom is a quiz atom
+ */
+function isQuizAtom(atom: Atom): atom is QuizAtomType {
+  return atom.type === 'quiz';
+}
+
+/**
+ * Type guard to check if atom is a practice atom
+ */
+function isPracticeAtom(atom: Atom): atom is PracticeAtomType {
+  return atom.type === 'practice';
+}
 
 /**
  * AtomContainer routes to the correct atom component based on atom type
@@ -23,51 +63,48 @@ export function AtomContainer({
   isLoading = false,
   coachAvailable = true,
 }: AtomContainerProps) {
-  // Type assertion is safe here because atom.type is used as discriminator
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const typedAtom = atom as any;
-
-  switch (atom.type) {
-    case 'video':
-      return (
-        <VideoAtom
-          atom={typedAtom}
-          onComplete={onComplete}
-          isLoading={isLoading}
-        />
-      );
-
-    case 'reading':
-      return (
-        <ReadingAtom
-          atom={typedAtom}
-          onComplete={onComplete}
-          isLoading={isLoading}
-        />
-      );
-
-    case 'quiz':
-      return (
-        <QuizAtom
-          atom={typedAtom}
-          onComplete={onComplete}
-        />
-      );
-
-    case 'practice':
-      return (
-        <PracticeAtom
-          atom={typedAtom}
-          onComplete={onComplete}
-          coachAvailable={coachAvailable}
-        />
-      );
-
-    default:
-      return (
-        <div className="flex items-center justify-center p-8 text-navy">
-          <p>Unknown atom type: {atom.type}</p>
-        </div>
-      );
+  if (isVideoAtom(atom)) {
+    return (
+      <VideoAtom
+        atom={atom}
+        onComplete={onComplete}
+        isLoading={isLoading}
+      />
+    );
   }
+
+  if (isReadingAtom(atom)) {
+    return (
+      <ReadingAtom
+        atom={atom}
+        onComplete={onComplete}
+        isLoading={isLoading}
+      />
+    );
+  }
+
+  if (isQuizAtom(atom)) {
+    return (
+      <QuizAtom
+        atom={atom}
+        onComplete={onComplete}
+      />
+    );
+  }
+
+  if (isPracticeAtom(atom)) {
+    return (
+      <PracticeAtom
+        atom={atom}
+        onComplete={onComplete}
+        coachAvailable={coachAvailable}
+      />
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-center p-8 text-navy">
+      <p>Unknown atom type: {atom.type}</p>
+    </div>
+  );
 }

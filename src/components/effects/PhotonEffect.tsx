@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { EASING } from '@/lib/motion/springs';
+import { Z_INDEX, COLORS_RAW } from '@/lib/design-tokens';
 
 export interface PhotonEffectProps {
   from: { x: number; y: number };
@@ -17,13 +18,13 @@ export interface PhotonEffectProps {
  *
  * Visual characteristics:
  * - Small glowing particle (8-12px)
- * - Teal color (#2DD4BF) with glow effect
+ * - Teal color (#21A8B0) with glow effect
  * - Travels in arc path (not straight line)
  * - Shrinks as it approaches target (scale 1 -> 0.3)
  * - Fades out at end
  * - Duration: 0.8s with Apple easing
  */
-export function PhotonEffect({ from, to, onComplete, color = '#2DD4BF' }: PhotonEffectProps) {
+export function PhotonEffect({ from, to, onComplete, color = COLORS_RAW.teal }: PhotonEffectProps) {
   // Initialize with lazy callback to avoid setState in effect
   const [prefersReducedMotion] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -64,15 +65,15 @@ export function PhotonEffect({ from, to, onComplete, color = '#2DD4BF' }: Photon
       {isVisible && (
         <motion.div
           className={cn(
-            'pointer-events-none fixed z-[9999]',
-            'w-3 h-3 rounded-full',
-            'shadow-[0_0_12px_rgba(45,212,191,0.6)]'
+            'pointer-events-none fixed',
+            'w-3 h-3 rounded-full'
           )}
           style={{
             backgroundColor: color,
             boxShadow: `0 0 12px ${color}99, 0 0 6px ${color}`,
             left: from.x,
             top: from.y,
+            zIndex: Z_INDEX.particles,
           }}
           initial={{
             x: 0,

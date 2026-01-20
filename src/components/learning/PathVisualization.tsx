@@ -107,9 +107,9 @@ function SkillNode({
       label: 'Mastered',
     },
     skippable: {
-      bg: 'bg-purple-500',
-      border: 'border-purple-500',
-      text: 'text-purple-600',
+      bg: 'bg-teal',
+      border: 'border-teal',
+      text: 'text-teal',
       icon: <Sparkles size={16} className="text-white" />,
       label: 'Can Skip',
     },
@@ -192,7 +192,7 @@ function SkillNode({
           isMastered
             ? 'bg-success-light border-success/30'
             : skill.canSkip
-            ? 'bg-purple-50 border-purple-200'
+            ? 'bg-light-teal border-teal/30'
             : isInProgress
             ? 'bg-light-teal border-teal/30'
             : isLocked
@@ -214,7 +214,7 @@ function SkillNode({
                 {skill.skillName}
               </h4>
               {skill.canSkip && (
-                <span className="px-1.5 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 rounded">
+                <span className="px-1.5 py-0.5 text-xs font-medium bg-teal/10 text-teal-dark rounded">
                   Skip
                 </span>
               )}
@@ -246,7 +246,7 @@ function SkillNode({
 
             {/* Skip reason */}
             {skill.canSkip && skill.skipReason && (
-              <p className="text-xs text-purple-600 mt-1">{skill.skipReason}</p>
+              <p className="text-xs text-teal mt-1">{skill.skipReason}</p>
             )}
           </div>
 
@@ -346,13 +346,13 @@ function FastTrackCard({
       className={cn(
         'border-2',
         fastTrack.eligible
-          ? 'bg-purple-50 border-purple-200'
+          ? 'bg-light-teal border-teal/30'
           : 'bg-light-grey/50 border-grey/20'
       )}
     >
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          <Award size={16} className={fastTrack.eligible ? 'text-purple-600' : 'text-grey'} />
+          <Award size={16} className={fastTrack.eligible ? 'text-teal' : 'text-grey'} />
           Fast Track
         </CardTitle>
       </CardHeader>
@@ -363,7 +363,7 @@ function FastTrackCard({
           <>
             <div className="flex items-center justify-between mb-3 p-2 bg-white rounded">
               <span className="text-xs text-grey">Time Saved</span>
-              <span className="font-bold text-purple-600">
+              <span className="font-bold text-teal">
                 {Math.round(fastTrack.timeSavedMinutes / 60 * 10) / 10}h
               </span>
             </div>
@@ -373,7 +373,7 @@ function FastTrackCard({
               fullWidth
               onClick={onFastTrack}
               leftIcon={<Sparkles size={14} />}
-              className="bg-purple-600 hover:bg-purple-700"
+              className="bg-teal hover:bg-teal-dark"
             >
               Enable Fast Track
             </Button>
@@ -515,7 +515,7 @@ export default function PathVisualization({
             {path.skills.filter((s) => s.canSkip).length > 0 && (
               <>
                 <span className="text-grey">|</span>
-                <span className="text-purple-600 font-medium">
+                <span className="text-teal font-medium">
                   {path.skills.filter((s) => s.canSkip).length} skippable
                 </span>
               </>

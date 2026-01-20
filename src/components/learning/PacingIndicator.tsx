@@ -62,10 +62,10 @@ function getPacingConfig(status: PacingStatus, isCorrect?: boolean) {
       return {
         icon: Hourglass,
         message: "No rush - understanding is what matters.",
-        bgColor: 'bg-blue-50',
-        borderColor: 'border-blue-200',
-        textColor: 'text-blue-700',
-        iconColor: 'text-blue-500',
+        bgColor: 'bg-light-teal',
+        borderColor: 'border-teal/30',
+        textColor: 'text-teal-dark',
+        iconColor: 'text-teal',
       };
     case 'optimal':
       return {
@@ -174,7 +174,7 @@ export function PacingBadge({
     too_slow: {
       icon: Hourglass,
       label: 'Thoughtful',
-      color: 'bg-blue-100 text-blue-700 border-blue-200',
+      color: 'bg-light-teal text-teal-dark border-teal/30',
     },
     optimal: {
       icon: Clock,
@@ -226,17 +226,17 @@ export function TakeBreakSuggestion({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       className={cn(
-        'bg-blue-50 border border-blue-200 rounded-lg p-4',
+        'bg-light-teal border border-teal/30 rounded-lg p-4',
         className
       )}
     >
       <div className="flex items-start gap-3">
-        <Coffee className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+        <Coffee className="w-5 h-5 text-teal flex-shrink-0 mt-0.5" />
         <div className="flex-1">
-          <h4 className="font-medium text-blue-800">
+          <h4 className="font-medium text-navy">
             Need a quick break?
           </h4>
-          <p className="text-sm text-blue-700 mt-1">
+          <p className="text-sm text-teal-dark mt-1">
             Learning works best in focused sessions. A 5-minute break can
             help you come back refreshed.
           </p>
@@ -244,14 +244,14 @@ export function TakeBreakSuggestion({
             {onTakeBreak && (
               <button
                 onClick={onTakeBreak}
-                className="px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                className="px-3 py-1.5 rounded-lg text-sm font-medium bg-teal text-white hover:bg-teal-dark transition-colors"
               >
                 Take 5 min break
               </button>
             )}
             <button
               onClick={onDismiss}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors"
+              className="px-3 py-1.5 rounded-lg text-sm font-medium text-teal-dark hover:bg-teal/10 transition-colors"
             >
               I&apos;m good
             </button>

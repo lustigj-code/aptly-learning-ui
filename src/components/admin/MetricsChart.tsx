@@ -213,7 +213,7 @@ export function BarChart({ data, height = 200 }: BarChartProps) {
                 y={y}
                 width={width}
                 height={barHeight}
-                fill={d.color || '#4F46E5'}
+                fill={d.color || '#21A8B0'}
                 rx="1"
               />
               <text

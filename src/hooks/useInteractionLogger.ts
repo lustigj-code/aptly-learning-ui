@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useRef, useEffect, useMemo } from 'react';
-import { useUserProfileStore, useAuthStore } from '@/store';
+import { useCallback, useRef, useEffect, useMemo, useState } from 'react';
+import { useUnifiedStore, useAuthStore } from '@/store';
 import { emitQuizResult } from '@/lib/api/queryClient';
+import { post, isSuccess } from '@/lib/api/client';
 import type { InteractionType, InteractionLogInput, AtomType, DeviceType } from '@/types';
 import { INTERACTION } from '@/config/constants';
 
@@ -105,7 +106,11 @@ export function useInteractionLogger() {
   const consecutiveWrongRef = useRef<Record<string, number>>({});
   const hintsUsedRef = useRef<Record<string, number>>({});
 
-  const user = useUserProfileStore((state) => state.user);
+  // Error state for surfacing sync failures to UI
+  const [error, setError] = useState<Error | null>(null);
+  const [failedCount, setFailedCount] = useState(0);
+
+  const user = useUnifiedStore((state) => state.user);
   const authUser = useAuthStore((state) => state.authUser);
 
   // Memoize device type (only detect once per session)
@@ -117,6 +122,12 @@ export function useInteractionLogger() {
   const currentLessonId = user?.progress?.currentLessonId || 'unknown';
   const currentAtomId = user?.progress?.currentAtomId || 'unknown';
 
+  // Clear error state
+  const clearError = useCallback(() => {
+    setError(null);
+    setFailedCount(0);
+  }, []);
+
   // Flush batch to API
   const flushBatch = useCallback(async () => {
     if (batchRef.current.length === 0) return;
@@ -124,20 +135,19 @@ export function useInteractionLogger() {
     const batch = [...batchRef.current];
     batchRef.current = [];
 
-    try {
-      const response = await fetch('/api/interactions/log', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ interactions: batch }),
-      });
+    // Clear error before attempting flush
+    setError(null);
 
-      if (!response.ok) {
-        console.error('Failed to log interactions:', response.status);
-        // Put failed items back in batch for retry
-        batchRef.current = [...batch, ...batchRef.current];
-      }
-    } catch (error) {
-      console.error('Error flushing interaction batch:', error);
+    const response = await post<{ success: boolean }>('/api/interactions/log', { interactions: batch });
+
+    if (isSuccess(response)) {
+      // Success - reset failed count
+      setFailedCount(0);
+    } else {
+      const errorMessage = response.error.message;
+      console.error('Failed to log interactions:', errorMessage);
+      setError(new Error(errorMessage));
+      setFailedCount((prev) => prev + batch.length);
       // Put failed items back in batch for retry
       batchRef.current = [...batch, ...batchRef.current];
     }
@@ -446,12 +456,18 @@ export function useInteractionLogger() {
   }, []);
 
   return {
+    // Logging functions
     logQuizAnswer,
     logPracticeResponse,
     logContentView,
     logHintRequest,
     logCoachInteraction,
     logReviewAttempt,
-    flushBatch, // Manual flush if needed
+    // Error state
+    error,
+    failedCount,
+    clearError,
+    // Actions
+    flushBatch, // Manual flush / retry
   };
 }

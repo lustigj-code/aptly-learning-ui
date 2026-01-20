@@ -34,7 +34,7 @@ export function XPBreakdown({
   timeSpentSeconds,
 }: XPBreakdownProps) {
   return (
-    <Card className="p-6 bg-gradient-to-br from-teal/5 to-light-blue/5">
+    <Card className="p-6 bg-gradient-to-br from-teal/5 to-light-teal/50">
       <div className="flex items-center gap-3 mb-4">
         <TrendingUp className="w-6 h-6 text-teal" />
         <h3 className="text-lg font-semibold text-navy">XP Breakdown</h3>
@@ -63,13 +63,13 @@ export function XPBreakdown({
             className="flex items-center justify-between py-2 border-b border-gray-200"
           >
             <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-orange" />
+              <Zap className="w-4 h-4 text-warning" />
               <span className="text-sm text-gray-700">
                 Streak Bonus
                 {streakDays && <span className="text-xs text-gray-500 ml-1">({streakDays} days)</span>}
               </span>
             </div>
-            <span className="font-semibold text-orange">+{streakBonus} XP</span>
+            <span className="font-semibold text-warning">+{streakBonus} XP</span>
           </motion.div>
         )}
 
@@ -82,10 +82,10 @@ export function XPBreakdown({
             className="flex items-center justify-between py-2 border-b border-gray-200"
           >
             <div className="flex items-center gap-2">
-              <Award className="w-4 h-4 text-purple" />
+              <Award className="w-4 h-4 text-navy" />
               <span className="text-sm text-gray-700">Perfect Score</span>
             </div>
-            <span className="font-semibold text-purple">+{perfectBonus} XP</span>
+            <span className="font-semibold text-navy">+{perfectBonus} XP</span>
           </motion.div>
         )}
 
@@ -98,7 +98,7 @@ export function XPBreakdown({
             className="flex items-center justify-between py-2 border-b border-gray-200"
           >
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-blue" />
+              <Clock className="w-4 h-4 text-teal" />
               <span className="text-sm text-gray-700">
                 Speed Bonus
                 {timeSpentSeconds && (
@@ -106,7 +106,7 @@ export function XPBreakdown({
                 )}
               </span>
             </div>
-            <span className="font-semibold text-blue">+{speedBonus} XP</span>
+            <span className="font-semibold text-teal">+{speedBonus} XP</span>
           </motion.div>
         )}
 

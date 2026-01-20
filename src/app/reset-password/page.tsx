@@ -124,7 +124,7 @@ export default function ResetPasswordPage() {
   // Loading state
   if (isVerifying) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4 py-12">
+      <div className="min-h-screen bg-gradient-to-br from-light-teal to-white flex items-center justify-center px-4 py-12">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -133,7 +133,7 @@ export default function ResetPasswordPage() {
         >
           <Card className="shadow-xl">
             <div className="p-8 text-center">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+              <Loader2 className="w-8 h-8 animate-spin text-teal mx-auto mb-4" />
               <p className="text-gray-600">Verifying reset link...</p>
             </div>
           </Card>
@@ -145,7 +145,7 @@ export default function ResetPasswordPage() {
   // Invalid link state
   if (!isValid) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4 py-12">
+      <div className="min-h-screen bg-gradient-to-br from-light-teal to-white flex items-center justify-center px-4 py-12">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -165,7 +165,7 @@ export default function ResetPasswordPage() {
 
               <div className="space-y-3">
                 <Link href="/forgot-password" className="block">
-                  <Button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-2 rounded-lg">
+                  <Button className="w-full bg-teal hover:bg-teal-dark text-white font-semibold py-2 rounded-lg">
                     Request New Link
                   </Button>
                 </Link>
@@ -184,7 +184,7 @@ export default function ResetPasswordPage() {
 
   // Valid link - show reset form
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-light-teal to-white flex items-center justify-center px-4 py-12">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -195,7 +195,7 @@ export default function ResetPasswordPage() {
           <div className="p-8">
             {/* Header */}
             <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              <h1 className="text-3xl font-bold text-navy">
                 Create New Password
               </h1>
               <p className="text-gray-600 mt-2">Enter a strong password for your account</p>
@@ -232,7 +232,7 @@ export default function ResetPasswordPage() {
                       if (error) setError('')
                     }}
                     disabled={isLoading}
-                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal focus:border-transparent disabled:bg-gray-50"
                   />
                   <button
                     type="button"
@@ -314,7 +314,7 @@ export default function ResetPasswordPage() {
                       if (error) setError('')
                     }}
                     disabled={isLoading}
-                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal focus:border-transparent disabled:bg-gray-50"
                   />
                   <button
                     type="button"
@@ -355,7 +355,7 @@ export default function ResetPasswordPage() {
               <Button
                 type="submit"
                 disabled={isLoading || !isPasswordStrong}
-                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-2 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-teal hover:bg-teal-dark text-white font-semibold py-2 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? (
                   <>
@@ -371,7 +371,7 @@ export default function ResetPasswordPage() {
             {/* Back to Sign In */}
             <Link
               href="/login"
-              className="flex items-center justify-center mt-6 text-blue-600 hover:text-blue-700 font-medium"
+              className="flex items-center justify-center mt-6 text-teal hover:text-teal-dark font-medium"
             >
               Back to Sign In
             </Link>

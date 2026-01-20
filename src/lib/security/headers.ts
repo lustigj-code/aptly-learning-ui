@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server'
 
 /**
  * Security headers for production
+ *
+ * CSP Notes:
+ * - unsafe-eval: Required by Google APIs SDK (gapi) and PostHog
+ * - unsafe-inline: Required for Tailwind/Next.js style injection
+ * - report-uri: Sends violation reports to /api/csp-report for monitoring
  */
 export const securityHeaders = {
   // Content Security Policy
@@ -11,14 +16,15 @@ export const securityHeaders = {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: blob: https: http:",
-    "media-src 'self' https://www.youtube.com https://youtube.com",
+    "media-src 'self' https://www.youtube.com https://youtube.com https://firebasestorage.googleapis.com",
     "frame-src 'self' https://www.youtube.com https://youtube.com https://accounts.google.com https://aptly-study-app.firebaseapp.com",
-    "connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://apis.google.com https://us.i.posthog.com https://*.sentry.io wss://*.firebaseio.com",
+    "connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://apis.google.com https://us.i.posthog.com https://*.sentry.io wss://*.firebaseio.com https://firebasestorage.googleapis.com",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'self'",
     "upgrade-insecure-requests",
+    "report-uri /api/csp-report",
   ].join('; '),
 
   // Prevent clickjacking

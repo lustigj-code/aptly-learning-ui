@@ -7,6 +7,7 @@ import { Star, Trophy, Sparkles, Zap, Flame } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { SPRING, getMotionSafeTransition } from '@/lib/motion/springs';
+import { Z_INDEX } from '@/lib/design-tokens';
 import type { CelebrationTier, CharacterMood, CharacterName, Badge } from '@/types';
 
 // Celebration configuration for each tier
@@ -241,7 +242,7 @@ export function CelebrationProvider({ children }: CelebrationProviderProps) {
         spread: 70,
         origin: { x: getContentCenterX(), y: 0.6 },
         colors: ['#FFDE00', '#21A8B0', '#88B644'],
-        zIndex: 9999,
+        zIndex: Z_INDEX.celebration,
       });
     }
   }, [prefersReducedMotion]);
@@ -260,7 +261,7 @@ export function CelebrationProvider({ children }: CelebrationProviderProps) {
         spread: 45,
         origin: { x: getContentCenterX(), y: 0.7 },
         colors: ['#21A8B0', '#FFDE00'],
-        zIndex: 9999,
+        zIndex: Z_INDEX.celebration,
       });
     }
   }, [addFloatingXP, prefersReducedMotion]);
@@ -272,7 +273,7 @@ export function CelebrationProvider({ children }: CelebrationProviderProps) {
       {children}
 
       {/* Floating XP indicators */}
-      <div className="fixed inset-0 pointer-events-none z-[100]">
+      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: Z_INDEX.celebration }}>
         <AnimatePresence>
           {floatingXPs.map((floatingXP) => (
             <motion.div
@@ -354,7 +355,7 @@ function fireConfetti(config: CelebrationConfig['confetti'], tier: CelebrationTi
 
   const defaults = {
     origin: { x: contentCenterX, y: 0.7 },
-    zIndex: 9999,
+    zIndex: Z_INDEX.celebration,
     ...config,
   };
 
@@ -393,7 +394,8 @@ function CelebrationOverlay({ event, onDismiss, prefersReducedMotion }: Celebrat
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={getMotionSafeTransition(SPRING.modal, prefersReducedMotion)}
-      className="fixed inset-0 z-[90] flex items-center justify-center p-4"
+      className="fixed inset-0 flex items-center justify-center p-4"
+      style={{ zIndex: Z_INDEX.celebration }}
       onClick={onDismiss}
     >
       {/* Backdrop */}
@@ -599,7 +601,8 @@ export function StreakCelebration({ show, days, onDismiss, prefersReducedMotion 
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={getMotionSafeTransition(SPRING.modal, prefersReducedMotion)}
-          className="fixed inset-0 z-[90] flex items-center justify-center p-4"
+          className="fixed inset-0 flex items-center justify-center p-4"
+      style={{ zIndex: Z_INDEX.celebration }}
           onClick={onDismiss}
         >
           <motion.div

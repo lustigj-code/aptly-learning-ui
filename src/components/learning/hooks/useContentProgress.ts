@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { post, isSuccess } from '@/lib/api/client'
 import type { SessionState } from './useLearningSession'
 import type { Module } from '@/types'
 
@@ -52,19 +53,15 @@ export function useContentProgress(
       // Queue progress update with offline support (fire and forget)
       withOfflineSupport(
         async () => {
-          const response = await fetch('/api/progress/sync', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: progressType,
-              atomId,
-              lessonId: lesson?.id,
-              courseId: effectiveCourseId,
-              quizScore: score,
-              timestamp: Date.now(),
-            }),
+          const response = await post<{ success: boolean }>('/api/progress/sync', {
+            type: progressType,
+            atomId,
+            lessonId: lesson?.id,
+            courseId: effectiveCourseId,
+            quizScore: score,
+            timestamp: Date.now(),
           })
-          return response.ok
+          return isSuccess(response)
         },
         {
           type: progressType,
@@ -104,17 +101,13 @@ export function useContentProgress(
           // Queue lesson completion with offline support (fire and forget)
           withOfflineSupport(
             async () => {
-              const response = await fetch('/api/progress/sync', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  type: 'lesson_complete',
-                  lessonId: lesson.id,
-                  courseId: effectiveCourseId,
-                  timestamp: Date.now(),
-                }),
+              const response = await post<{ success: boolean }>('/api/progress/sync', {
+                type: 'lesson_complete',
+                lessonId: lesson.id,
+                courseId: effectiveCourseId,
+                timestamp: Date.now(),
               })
-              return response.ok
+              return isSuccess(response)
             },
             {
               type: 'lesson_complete',

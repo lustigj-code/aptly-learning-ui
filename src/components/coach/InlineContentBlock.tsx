@@ -223,14 +223,14 @@ function ReadingBlock({
       animate={{ opacity: 1, y: 0 }}
       className="my-3"
     >
-      <Card className="overflow-hidden border-purple/20">
+      <Card className="overflow-hidden border-teal/20">
         {/* Header */}
         <button
           onClick={() => setExpanded(!expanded)}
           className="w-full flex items-center gap-3 p-3 hover:bg-light-grey/50 transition-colors"
         >
-          <div className="w-10 h-10 bg-purple/20 rounded-lg flex items-center justify-center">
-            <BookOpen className="w-5 h-5 text-purple-600" />
+          <div className="w-10 h-10 bg-teal/20 rounded-lg flex items-center justify-center">
+            <BookOpen className="w-5 h-5 text-teal" />
           </div>
           <div className="flex-1 text-left">
             <h4 className="font-medium text-navy text-sm">{atom.title}</h4>
@@ -378,11 +378,11 @@ function QuizBlock({
       animate={{ opacity: 1, y: 0 }}
       className="my-3"
     >
-      <Card className="overflow-hidden border-blue-500/20">
+      <Card className="overflow-hidden border-teal/20">
         {/* Header */}
-        <div className="flex items-center gap-3 p-3 bg-blue-50 border-b border-blue-100">
-          <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-            <HelpCircle className="w-5 h-5 text-blue-600" />
+        <div className="flex items-center gap-3 p-3 bg-light-teal border-b border-teal/20">
+          <div className="w-10 h-10 bg-teal/20 rounded-lg flex items-center justify-center">
+            <HelpCircle className="w-5 h-5 text-teal" />
           </div>
           <div className="flex-1">
             <h4 className="font-medium text-navy text-sm">{atom.title}</h4>

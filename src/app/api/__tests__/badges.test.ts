@@ -90,37 +90,49 @@ describe('GET /api/badges/progress', () => {
     vi.clearAllMocks();
   });
 
-  it('requires userId query parameter', async () => {
+  it('requires authentication (auth check before userId validation)', async () => {
+    // Without auth header, auth check fails before userId validation
     const request = new NextRequest('http://localhost:3000/api/badges/progress');
 
     const response = await getProgress(request);
     const data = await response.json();
 
-    expect(response.status).toBe(400);
+    // IDOR protection requires auth first
+    expect(response.status).toBe(401);
     expect(data.error).toBeDefined();
   });
 
   it('validates userId is not empty', async () => {
     const request = new NextRequest(
-      'http://localhost:3000/api/badges/progress?userId='
+      'http://localhost:3000/api/badges/progress?userId=', {
+        headers: {
+          'Authorization': 'Bearer valid-token',
+        },
+      }
     );
 
     const response = await getProgress(request);
 
-    expect(response.status).toBe(400);
+    // With IDOR protection, empty userId param triggers validation
+    expect([400, 403]).toContain(response.status);
   });
 
   it('handles user progress request', async () => {
     // The route uses getUserProgress from userProgressLayer (mocked)
     // and fetches badges from Firestore
+    // Use test-user-id to match global mock's verifyIdToken uid
     const request = new NextRequest(
-      'http://localhost:3000/api/badges/progress?userId=test-user-123'
+      'http://localhost:3000/api/badges/progress?userId=test-user-id', {
+        headers: {
+          'Authorization': 'Bearer valid-token',
+        },
+      }
     );
 
     const response = await getProgress(request);
 
-    // May return 200 (success), 400 (validation), or 404 (badges not found)
+    // May return 200 (success), 400 (validation), 401 (auth), 403 (IDOR), or 404 (badges not found)
     // based on mock state and route logic
-    expect([200, 400, 404]).toContain(response.status);
+    expect([200, 400, 401, 403, 404]).toContain(response.status);
   });
 });

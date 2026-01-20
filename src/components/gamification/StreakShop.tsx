@@ -5,8 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingBag, Snowflake, Sparkles, Check, AlertCircle } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Modal } from '@/components/ui/Modal';
-import { useUser } from '@/store/userProfileStore';
+import { useUser } from '@/store/unifiedStore';
 import { cn } from '@/lib/utils';
+import { Z_INDEX } from '@/lib/design-tokens';
 
 const STREAK_FREEZE_COST = 100; // XP cost for one streak freeze
 
@@ -43,7 +44,7 @@ export function StreakShop({ isOpen, onClose }: StreakShopProps) {
           spread: 70,
           origin: { x: 0.5, y: 0.6 },
           colors: ['#21A8B0', '#FFDE00', '#88B644', '#3B336E'],
-          zIndex: 9999,
+          zIndex: Z_INDEX.celebration,
         });
 
         // Auto-reset success state after animation
@@ -76,7 +77,7 @@ export function StreakShop({ isOpen, onClose }: StreakShopProps) {
     >
       <div className="space-y-6">
         {/* XP Balance */}
-        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-teal/10 to-purple/10 rounded-xl">
+        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-teal/10 to-light-teal rounded-xl">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-teal/20 flex items-center justify-center">
               <Sparkles size={20} className="text-teal" />
@@ -93,7 +94,7 @@ export function StreakShop({ isOpen, onClose }: StreakShopProps) {
           <div className="p-5">
             <div className="flex items-start gap-4">
               {/* Item Icon */}
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center flex-shrink-0">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal to-teal-dark flex items-center justify-center flex-shrink-0">
                 <Snowflake size={32} className="text-white" />
               </div>
 

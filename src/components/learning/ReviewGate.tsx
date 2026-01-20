@@ -33,17 +33,17 @@ export function ReviewGate({
       className={`rounded-xl p-6 ${
         mustReview
           ? 'bg-amber-50 border-2 border-amber-300'
-          : 'bg-blue-50 border border-blue-200'
+          : 'bg-light-teal border border-teal/30'
       }`}
     >
       <div className="flex items-start gap-4">
         <div
           className={`p-3 rounded-full ${
-            mustReview ? 'bg-amber-100' : 'bg-blue-100'
+            mustReview ? 'bg-amber-100' : 'bg-teal/20'
           }`}
         >
           <Brain
-            className={mustReview ? 'text-amber-600' : 'text-blue-600'}
+            className={mustReview ? 'text-amber-600' : 'text-teal'}
             size={24}
           />
         </div>
@@ -51,7 +51,7 @@ export function ReviewGate({
         <div className="flex-1">
           <h3
             className={`font-semibold text-lg mb-1 ${
-              mustReview ? 'text-amber-800' : 'text-blue-800'
+              mustReview ? 'text-amber-800' : 'text-teal-dark'
             }`}
           >
             {mustReview ? 'Reviews Required' : 'Reviews Available'}
@@ -59,7 +59,7 @@ export function ReviewGate({
 
           <p
             className={`mb-4 ${
-              mustReview ? 'text-amber-700' : 'text-blue-700'
+              mustReview ? 'text-amber-700' : 'text-teal'
             }`}
           >
             You have <strong>{dueCount} concept{dueCount !== 1 ? 's' : ''}</strong> ready

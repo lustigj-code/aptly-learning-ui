@@ -135,7 +135,7 @@ export function InterventionEffectiveness({
           </h3>
           <MetricsChart
             data={data.trend}
-            color="#10B981"
+            color="#21A8B0"
             label="Success Rate %"
           />
         </div>
@@ -215,14 +215,14 @@ export function InterventionEffectiveness({
       </div>
 
       {/* Recommendations */}
-      <div className="bg-blue-50 rounded-xl border border-blue-200 p-6">
-        <h3 className="text-lg font-semibold text-blue-900 mb-3">
+      <div className="bg-light-teal rounded-xl border border-teal/30 p-6">
+        <h3 className="text-lg font-semibold text-navy mb-3">
           Recommendations
         </h3>
         <ul className="space-y-2">
           {getRecommendations(data).map((rec, i) => (
-            <li key={i} className="flex items-start gap-2 text-sm text-blue-800">
-              <span className="text-blue-500 mt-0.5">•</span>
+            <li key={i} className="flex items-start gap-2 text-sm text-teal-dark">
+              <span className="text-teal mt-0.5">•</span>
               {rec}
             </li>
           ))}
@@ -243,9 +243,9 @@ interface MetricCardProps {
 function MetricCard({ title, value, color, subtitle }: MetricCardProps) {
   const colorClasses = {
     yellow: 'bg-yellow-50 border-yellow-200 text-yellow-700',
-    blue: 'bg-blue-50 border-blue-200 text-blue-700',
+    blue: 'bg-light-teal border-teal/30 text-teal-dark',
     green: 'bg-green-50 border-green-200 text-green-700',
-    purple: 'bg-purple-50 border-purple-200 text-purple-700',
+    purple: 'bg-navy/10 border-navy/30 text-navy',
   };
 
   return (

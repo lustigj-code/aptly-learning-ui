@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useUser } from '@/store/userProfileStore';
+import { useUser } from '@/store/unifiedStore';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ClassHeatmap } from '@/components/teacher/ClassHeatmap';

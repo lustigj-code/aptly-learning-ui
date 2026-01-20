@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 
 const COGNITIVE_GRADIENTS = {
   calm: {
-    colors: ['#0F172A', '#2DD4BF'], // Navy + Teal
+    colors: ['#0F172A', '#21A8B0'], // Navy + Teal
     animation: 6000, // 6s breathing cycle
   },
   focused: {

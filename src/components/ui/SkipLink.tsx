@@ -1,5 +1,7 @@
 'use client'
 
+import { Z_INDEX } from '@/lib/design-tokens';
+
 /**
  * Skip Link Component
  * Provides keyboard-accessible skip navigation for screen readers
@@ -9,7 +11,8 @@ export function SkipLink() {
   return (
     <a
       href="#main-content"
-      className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-navy focus:text-white focus:rounded-lg focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-yellow focus:ring-offset-2 transition-all"
+      className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:px-4 focus:py-2 focus:bg-navy focus:text-white focus:rounded-lg focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-yellow focus:ring-offset-2 transition-all"
+      style={{ zIndex: Z_INDEX.skipLink }}
     >
       Skip to main content
     </a>

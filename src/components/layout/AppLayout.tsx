@@ -6,7 +6,7 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { useAuthStore } from '@/store/authStore';
-import { useUser } from '@/store/userProfileStore';
+import { useUser } from '@/store/unifiedStore';
 import { useUIStore } from '@/store/uiStore';
 import { cn } from '@/lib/utils';
 import { useHydration } from '@/hooks/useHydration';
@@ -76,12 +76,24 @@ export function AppLayout({ children }: AppLayoutProps) {
 
         <div className="flex-1 overflow-y-auto">
           <div className="min-h-full flex flex-col">
-            <div className="flex-1 px-4 py-6 sm:px-6 sm:py-8 md:px-8 md:py-10 lg:px-12 lg:py-12">
-              <div className="max-w-7xl mx-auto">
+            <div className={cn(
+              "flex-1",
+              // Dashboard: moderate padding, centered content
+              // Other pages: standard padding
+              pathname === '/dashboard'
+                ? 'px-4 py-6 sm:px-6 sm:py-8 md:px-8 md:py-8 lg:px-10 lg:py-10'
+                : 'px-4 py-6 sm:px-6 sm:py-8 md:px-8 md:py-10 lg:px-12 lg:py-12'
+            )}>
+              <div className={cn(
+                "mx-auto",
+                // Dashboard uses wider max-width for bento cards
+                pathname === '/dashboard' ? 'max-w-6xl' : 'max-w-7xl'
+              )}>
                 {children}
               </div>
             </div>
-            <Footer />
+            {/* Hide footer on dashboard */}
+            {pathname !== '/dashboard' && <Footer />}
           </div>
         </div>
       </main>

@@ -6,17 +6,16 @@ import {
   X,
   CheckCircle,
   ChevronRight,
-  MessageCircle,
+  ChevronLeft,
   ArrowLeft,
   Brain,
   WifiOff,
   RefreshCw,
   BookOpen,
 } from 'lucide-react'
-import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { useReviewQueue } from '@/hooks/useReviewQueue'
 import { useOfflineSync } from '@/hooks/useOfflineSync'
-import { useUser } from '@/store/userProfileStore'
+import { useUser } from '@/store/unifiedStore'
 import { useLearningPreference } from '@/hooks/useLearningPreference'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
@@ -300,7 +299,7 @@ function generateContentReason(lesson: Lesson, insights: LearningInsights): stri
 }
 
 // ============================================
-// PROGRESS SIDEBAR
+// PROGRESS SIDEBAR (Redesigned with Progress Ring)
 // ============================================
 
 function ProgressSidebar({
@@ -308,155 +307,118 @@ function ProgressSidebar({
   currentLessonIndex,
   completedLessonIds,
   onSelectLesson,
+  masteryPercent = 0,
 }: {
   module: Module
   currentLessonIndex: number
   completedLessonIds: string[]
   onSelectLesson: (index: number) => void
+  masteryPercent?: number
 }) {
-  return (
-    <div className="w-64 bg-white border-r border-grey/20 p-4 hidden lg:block">
-      <h3 className="text-xs font-semibold text-grey uppercase tracking-wide mb-3">
-        {module.title}
-      </h3>
-      <div className="space-y-2">
-        {module.lessons.map((lesson, index) => {
-          const isComplete = completedLessonIds.includes(lesson.id)
-          const isCurrent = index === currentLessonIndex
+  const completedCount = completedLessonIds.length
+  const totalLessons = module.lessons.length
+  const progressPercent = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0
 
-          return (
-            <button
-              key={lesson.id}
-              onClick={() => onSelectLesson(index)}
-              className={cn(
-                'w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-2',
-                isCurrent && 'bg-teal/10 text-teal font-medium',
-                isComplete && !isCurrent && 'text-green-600',
-                !isCurrent && !isComplete && 'text-rich-black/70 hover:bg-light-grey'
-              )}
-            >
-              {isComplete ? (
-                <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-              ) : (
-                <span className={cn(
-                  'w-4 h-4 rounded-full border-2 flex-shrink-0',
-                  isCurrent ? 'border-teal' : 'border-grey/40'
-                )} />
-              )}
-              <span className="truncate">{lesson.title}</span>
-            </button>
-          )
-        })}
+  // SVG circle calculations
+  const radius = 50
+  const circumference = 2 * Math.PI * radius
+  const strokeDashoffset = circumference - (progressPercent / 100) * circumference
+
+  return (
+    <div className="w-72 bg-white/75 backdrop-blur-xl border-r border-white/20 hidden lg:flex flex-col shadow-lg">
+      {/* Progress Ring Section */}
+      <div className="p-6 border-b border-grey/10">
+        <div className="flex flex-col items-center">
+          {/* Circular Progress Ring */}
+          <div className="relative w-32 h-32 mb-4">
+            <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 120 120">
+              {/* Background circle */}
+              <circle
+                cx="60"
+                cy="60"
+                r={radius}
+                fill="none"
+                stroke="currentColor"
+                className="text-grey/15"
+                strokeWidth="8"
+              />
+              {/* Progress circle */}
+              <circle
+                cx="60"
+                cy="60"
+                r={radius}
+                fill="none"
+                stroke="currentColor"
+                className="text-teal"
+                strokeWidth="8"
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={strokeDashoffset}
+                style={{ transition: 'stroke-dashoffset 0.5s ease-out' }}
+              />
+            </svg>
+            {/* Center text */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-2xl font-bold text-navy">{progressPercent}%</span>
+              <span className="text-xs text-grey mt-0.5">{completedCount}/{totalLessons} done</span>
+            </div>
+          </div>
+
+          {/* Mastery Bar */}
+          {masteryPercent > 0 && (
+            <div className="w-full mt-2">
+              <div className="flex items-center justify-between text-xs mb-1.5">
+                <span className="font-medium text-navy">Mastery</span>
+                <span className="text-teal font-semibold">{Math.round(masteryPercent)}%</span>
+              </div>
+              <div className="h-2 bg-grey/10 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-teal to-teal-dark rounded-full transition-all duration-500"
+                  style={{ width: `${masteryPercent}%` }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Lessons List */}
+      <div className="flex-1 overflow-y-auto p-4">
+        <h3 className="text-xs font-semibold text-grey uppercase tracking-wide mb-3 px-2">
+          Lessons
+        </h3>
+        <div className="space-y-1">
+          {module.lessons.map((lesson, index) => {
+            const isComplete = completedLessonIds.includes(lesson.id)
+            const isCurrent = index === currentLessonIndex
+
+            return (
+              <button
+                key={lesson.id}
+                onClick={() => onSelectLesson(index)}
+                className={cn(
+                  'w-full text-left px-3 py-2.5 rounded-xl text-sm transition-all flex items-center gap-3 group',
+                  isCurrent && 'bg-teal/10 text-teal font-medium shadow-sm',
+                  isComplete && !isCurrent && 'text-rich-black/70 hover:bg-light-grey/50',
+                  !isCurrent && !isComplete && 'text-rich-black/60 hover:bg-light-grey/50'
+                )}
+              >
+                {isComplete ? (
+                  <CheckCircle className="w-5 h-5 text-success flex-shrink-0" />
+                ) : isCurrent ? (
+                  <div className="w-5 h-5 rounded-full bg-teal flex items-center justify-center flex-shrink-0">
+                    <div className="w-2 h-2 rounded-full bg-white" />
+                  </div>
+                ) : (
+                  <div className="w-5 h-5 rounded-full border-2 border-grey/30 flex-shrink-0 group-hover:border-grey/50 transition-colors" />
+                )}
+                <span className="truncate">{lesson.title}</span>
+              </button>
+            )
+          })}
+        </div>
       </div>
     </div>
-  )
-}
-
-// ============================================
-// SMART COACH BAR (Floating Glassmorphic Panel)
-// ============================================
-
-function SmartCoachBar({
-  message,
-  onAskSage,
-  showContinue,
-  onContinue,
-}: {
-  message: string
-  onAskSage: () => void
-  showContinue: boolean
-  onContinue: () => void
-}) {
-  const prefersReducedMotion = useReducedMotion()
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 30, scale: 0.9 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 20, scale: 0.95 }}
-      transition={{
-        type: 'spring',
-        stiffness: 350,
-        damping: 28,
-      }}
-      className={cn(
-        'fixed bottom-6 left-1/2 -translate-x-1/2 z-30',
-        'flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4',
-        'px-6 py-4 rounded-2xl',
-        'bg-white/90 backdrop-blur-lg overflow-hidden',
-        'border border-white/60',
-        'shadow-2xl shadow-navy/15',
-        'max-w-[90vw] sm:max-w-2xl',
-        'relative'
-      )}
-    >
-      {/* Subtle gradient overlay for depth */}
-      <div className="absolute inset-0 bg-gradient-to-br from-light-teal/5 to-transparent pointer-events-none" />
-
-      {/* Glass reflection effect */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent opacity-50 pointer-events-none" />
-
-      {/* Sage Avatar */}
-      <motion.div
-        className="w-12 h-12 rounded-full bg-gradient-to-br from-teal to-teal-dark flex items-center justify-center flex-shrink-0 shadow-lg shadow-teal/30 relative z-10"
-        whileHover={!prefersReducedMotion ? { scale: 1.05, rotate: [0, -5, 5, 0] } : undefined}
-        transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-      >
-        <span className="text-xl">🦉</span>
-      </motion.div>
-
-      {/* Message */}
-      <motion.p
-        className="flex-1 text-sm text-navy min-w-0 font-medium relative z-10"
-        initial={{ opacity: 0, x: -10 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.1 }}
-      >
-        {message}
-      </motion.p>
-
-      {/* Actions */}
-      <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto relative z-10">
-        <motion.button
-          onClick={onAskSage}
-          whileHover={!prefersReducedMotion ? { scale: 1.03, boxShadow: '0 4px 12px rgba(33, 168, 176, 0.2)' } : undefined}
-          whileTap={!prefersReducedMotion ? { scale: 0.97 } : undefined}
-          className={cn(
-            'flex items-center justify-center gap-1.5 px-4 py-2.5',
-            'text-sm font-medium text-teal',
-            'bg-teal/10 hover:bg-teal/20',
-            'rounded-xl transition-all duration-200',
-            'min-h-[44px] flex-1 sm:flex-initial',
-            'border border-teal/20 hover:border-teal/40'
-          )}
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.2 }}
-        >
-          <MessageCircle className="w-4 h-4" />
-          <span>Ask Sage</span>
-        </motion.button>
-        {showContinue && (
-          <motion.button
-            onClick={onContinue}
-            whileHover={!prefersReducedMotion ? { scale: 1.03, boxShadow: '0 8px 24px rgba(33, 168, 176, 0.3)' } : undefined}
-            whileTap={!prefersReducedMotion ? { scale: 0.97 } : undefined}
-            className={cn(
-              'flex items-center justify-center gap-1.5 px-4 py-2.5',
-              'bg-gradient-to-r from-teal to-teal-dark text-white text-sm font-medium',
-              'rounded-xl hover:from-teal-dark hover:to-teal transition-all duration-200',
-              'min-h-[44px] flex-1 sm:flex-initial',
-              'shadow-lg shadow-teal/40'
-            )}
-            initial={{ opacity: 0, scale: 0.9, x: 10 }}
-            animate={{ opacity: 1, scale: 1, x: 0 }}
-            transition={{ delay: 0.25, type: 'spring', stiffness: 300 }}
-          >
-            <span>Continue</span>
-            <ChevronRight className="w-4 h-4" />
-          </motion.button>
-        )}
-      </div>
-    </motion.div>
   )
 }
 
@@ -512,7 +474,18 @@ export function CoachLearningView({
     const saved = loadSession()
     // Only restore session if both courseId and moduleId match
     if (saved && saved.courseId === effectiveCourseId && saved.moduleId === currentModule.id) {
-      return saved
+      // Validate bounds to prevent "Content Not Found" errors
+      const maxLessonIndex = currentModule.lessons.length - 1
+      const safeCurrentLessonIndex = Math.min(Math.max(0, saved.currentLessonIndex), maxLessonIndex)
+      const currentLessonAtoms = currentModule.lessons[safeCurrentLessonIndex]?.atoms || []
+      const maxAtomIndex = Math.max(0, currentLessonAtoms.length - 1)
+      const safeCurrentAtomIndex = Math.min(Math.max(0, saved.currentAtomIndex), maxAtomIndex)
+
+      return {
+        ...saved,
+        currentLessonIndex: safeCurrentLessonIndex,
+        currentAtomIndex: safeCurrentAtomIndex,
+      }
     }
     return {
       courseId: effectiveCourseId,
@@ -524,7 +497,7 @@ export function CoachLearningView({
     }
   })
 
-  const [coachTip, setCoachTip] = useState('')
+  const [_coachTip, _setCoachTip] = useState('')
   const [showChatOverlay, setShowChatOverlay] = useState(false)
   const [contentComplete, setContentComplete] = useState(false)
   const [learningInsights, setLearningInsights] = useState<LearningInsights>({
@@ -567,7 +540,7 @@ export function CoachLearningView({
 
   // Struggle detection state
   const [struggleState, setStruggleState] = useState<StruggleState | null>(null)
-  const [_struggleContext, _setStruggleContext] = useState<string | null>(null)
+  const [_struggleContext, setStruggleContext] = useState<string | null>(null)
   const answerStartTimeRef = useRef<number>(0)
 
   // Timing trigger state for proactive coach
@@ -1257,30 +1230,48 @@ export function CoachLearningView({
     );
   }
 
+  // Check if we can go to previous content
+  const canGoPrevious = sessionState.currentAtomIndex > 0 || sessionState.currentLessonIndex > 0
+
   return (
-    <div className="flex h-screen bg-white">
+    <div className="flex h-screen bg-light-grey/30">
       {/* Progress Sidebar */}
       <ProgressSidebar
         module={currentModule}
         currentLessonIndex={sessionState.currentLessonIndex}
         completedLessonIds={sessionState.completedLessonIds}
         onSelectLesson={handleSelectLesson}
+        masteryPercent={learningInsights.averageQuizScore}
       />
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Content Area - Full Screen (with bottom padding for floating coach bar) */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden px-4 sm:px-6 md:px-8 lg:px-12 py-4 sm:py-6 pb-24 sm:pb-20">
-          {/* Inline Header */}
+      {/* Main Content Area - shrinks when Sage panel is open on desktop */}
+      <div className={cn(
+        'flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-300',
+        showChatOverlay && 'lg:mr-96' // Shrink for side panel on desktop
+      )}>
+        {/* Content Area - Reduced padding since coach bar is inline */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden px-4 sm:px-6 lg:px-8 py-4 sm:py-6 pb-6">
+          {/* Inline Header with Previous Button */}
           <div className="flex items-center justify-between mb-4 flex-shrink-0">
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              {/* Previous Button (new - moved from bottom) */}
+              {canGoPrevious && (
+                <button
+                  onClick={handleSwipePrevious}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-navy/70 hover:text-navy bg-white hover:bg-light-grey border border-grey/15 hover:border-grey/30 rounded-lg transition-colors flex-shrink-0 min-h-[44px]"
+                  aria-label="Go to previous content"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span className="hidden sm:inline">Previous</span>
+                </button>
+              )}
               {onExit && (
                 <button
                   onClick={onExit}
-                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-navy bg-light-grey/50 hover:bg-light-grey border border-grey/20 hover:border-grey/40 rounded-lg transition-colors flex-shrink-0 min-h-[44px]"
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-navy bg-white hover:bg-light-grey border border-grey/15 hover:border-grey/30 rounded-lg transition-colors flex-shrink-0 min-h-[44px]"
                 >
-                  <ArrowLeft className="w-5 h-5" />
-                  <span>Exit</span>
+                  <ArrowLeft className="w-4 h-4" />
+                  <span className="hidden sm:inline">Exit</span>
                 </button>
               )}
               <div className="min-w-0">
@@ -1331,42 +1322,25 @@ export function CoachLearningView({
                   <span>{dueCount} due</span>
                 </a>
               )}
-              {/* Desktop Progress Bar */}
-              <div className="hidden md:flex items-center gap-2">
-                <div className="w-20 h-1 bg-grey/10 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-teal rounded-full transition-all"
-                    style={{ width: `${progressPercent}%` }}
-                  />
-                </div>
-                <span className="text-xs text-grey tabular-nums">{progressPercent}%</span>
-              </div>
-              {/* Mobile Progress - Circular */}
-              <div className="md:hidden relative w-10 h-10">
-                <svg className="w-10 h-10 transform -rotate-90" viewBox="0 0 36 36">
-                  <circle
-                    cx="18"
-                    cy="18"
-                    r="16"
-                    fill="none"
-                    className="stroke-grey/10"
-                    strokeWidth="3"
-                  />
-                  <circle
-                    cx="18"
-                    cy="18"
-                    r="16"
-                    fill="none"
-                    className="stroke-teal"
-                    strokeWidth="3"
-                    strokeDasharray={`${progressPercent} 100`}
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-navy">
-                  {progressPercent}
-                </span>
-              </div>
+              {/* Sage Trigger Button */}
+              <button
+                onClick={() => {
+                  setShowChatOverlay(true)
+                  setLearningInsights(prev => ({
+                    ...prev,
+                    coachQuestionsAsked: prev.coachQuestionsAsked + 1,
+                  }))
+                }}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all min-h-[36px]",
+                  "bg-teal/10 text-teal hover:bg-teal/20 border border-teal/20 hover:border-teal/30",
+                  "text-sm font-medium"
+                )}
+                aria-label="Ask Sage AI coach"
+              >
+                <span className="text-base">🦉</span>
+                <span className="hidden sm:inline">Sage</span>
+              </button>
             </div>
           </div>
 
@@ -1399,6 +1373,8 @@ export function CoachLearningView({
                 <ContentSkeleton type="reading" />
               )}
             </SwipeableAtomView>
+            {/* Bottom fade gradient for content */}
+            <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none" />
           </div>
 
           {/* Pacing Indicator after quiz answers (Phase 3-2) */}
@@ -1415,33 +1391,53 @@ export function CoachLearningView({
             </div>
           )}
 
-          {/* Smart Coach Bar */}
-          <SmartCoachBar
-            message={coachTip}
-            onAskSage={() => {
-              setShowChatOverlay(true)
-              setLearningInsights(prev => ({
-                ...prev,
-                coachQuestionsAsked: prev.coachQuestionsAsked + 1,
-              }))
-            }}
-            showContinue={contentComplete}
-            onContinue={handleContinue}
-          />
         </div>
       </div>
 
-      {/* Chat Overlay - Now using MainCoachChat with full features */}
+      {/* Fixed Continue Button - appears when content is complete */}
+      <AnimatePresence>
+        {contentComplete && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+            className={cn(
+              'fixed bottom-6 left-1/2 -translate-x-1/2 z-30',
+              showChatOverlay && 'lg:left-[calc(50%-12rem)]' // Shift left when side panel is open
+            )}
+          >
+            <motion.button
+              onClick={handleContinue}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className={cn(
+                'flex items-center gap-2 px-6 py-3',
+                'bg-gradient-to-r from-teal to-teal-dark text-white text-sm font-semibold',
+                'rounded-full hover:from-teal-dark hover:to-teal transition-all duration-200',
+                'shadow-lg shadow-teal/30',
+                'min-h-[48px]'
+              )}
+            >
+              <CheckCircle className="w-5 h-5" />
+              <span>Continue</span>
+              <ChevronRight className="w-4 h-4" />
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Sage Chat Panel - Side Panel on Desktop, Bottom Sheet on Mobile */}
       <AnimatePresence>
         {showChatOverlay && (
           <>
-            {/* Backdrop with blur */}
+            {/* Backdrop - only on mobile (lg and below) */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 bg-navy/30 z-40"
+              className="fixed inset-0 bg-navy/20 z-40 lg:hidden"
               onClick={() => {
                 setShowChatOverlay(false)
                 setStruggleContext(null)
@@ -1449,49 +1445,127 @@ export function CoachLearningView({
               }}
             />
 
-            {/* Chat Panel using MainCoachChat */}
+            {/* Desktop: Side Panel (slides from right) */}
             <motion.div
-              initial={{ y: '100%', opacity: 0, scale: 0.95 }}
-              animate={{ y: 0, opacity: 1, scale: 1 }}
-              exit={{ y: '100%', opacity: 0, scale: 0.95 }}
+              initial={{ x: '100%', opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: '100%', opacity: 0 }}
               transition={{
                 type: 'spring',
                 stiffness: 300,
                 damping: 30,
-                mass: 1,
               }}
               className={cn(
-                'fixed inset-x-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 bottom-4 z-50',
-                'w-full max-w-lg',
-                'bg-white/95 backdrop-blur-md overflow-hidden',
-                'border border-white/60',
-                'rounded-2xl shadow-xl shadow-navy/15',
-                'max-h-[80vh] sm:max-h-[70vh] flex flex-col'
+                // Desktop: Fixed right side panel
+                'hidden lg:flex',
+                'fixed top-0 right-0 bottom-0 w-96 z-50',
+                'bg-white border-l border-grey/15',
+                'shadow-2xl shadow-navy/10',
+                'flex-col'
               )}
             >
-              {/* Close button */}
-              <button
-                onClick={() => {
-                  setShowChatOverlay(false)
-                  setStruggleContext(null)
-                  setImmediateContext(null)
-                }}
-                className="absolute top-2 right-2 z-10 p-2 hover:bg-grey/10 rounded-xl min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors"
-              >
-                <X className="w-5 h-5 text-grey" />
-              </button>
+              {/* Panel Header */}
+              <div className="flex items-center justify-between p-4 border-b border-grey/10 bg-gradient-to-r from-teal/5 to-transparent">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal to-teal-dark flex items-center justify-center shadow-md">
+                    <span className="text-lg">🦉</span>
+                  </div>
+                  <div>
+                    <h2 className="font-semibold text-navy">Sage</h2>
+                    <p className="text-xs text-grey">Your AI learning coach</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowChatOverlay(false)
+                    setStruggleContext(null)
+                    setImmediateContext(null)
+                  }}
+                  className="p-2 hover:bg-grey/10 rounded-xl transition-colors"
+                  aria-label="Close Sage panel"
+                >
+                  <X className="w-5 h-5 text-grey" />
+                </button>
+              </div>
 
-              {/* MainCoachChat with full features */}
-              <MainCoachChat
-                lessonId={currentLesson?.id}
-                immediateContext={immediateContext ?? undefined}
-                onAction={handleCoachAction}
-                lessonContext={{
-                  currentCourse: getCourse(effectiveCourseId)?.title,
-                  currentLesson: currentLesson?.title,
-                  atomType: currentAtom?.type,
-                }}
-              />
+              {/* MainCoachChat fills remaining space */}
+              <div className="flex-1 overflow-hidden">
+                <MainCoachChat
+                  lessonId={currentLesson?.id}
+                  immediateContext={immediateContext ?? undefined}
+                  onAction={handleCoachAction}
+                  compact={true}
+                  lessonContext={{
+                    currentCourse: getCourse(effectiveCourseId)?.title,
+                    currentLesson: currentLesson?.title,
+                    atomType: currentAtom?.type,
+                  }}
+                />
+              </div>
+            </motion.div>
+
+            {/* Mobile: Bottom Sheet */}
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{
+                type: 'spring',
+                stiffness: 300,
+                damping: 30,
+              }}
+              className={cn(
+                // Mobile only bottom sheet
+                'lg:hidden',
+                'fixed inset-x-0 bottom-0 z-50',
+                'bg-white rounded-t-3xl',
+                'shadow-2xl shadow-navy/20',
+                'max-h-[60vh] flex flex-col'
+              )}
+            >
+              {/* Drag Handle */}
+              <div className="flex justify-center py-3">
+                <div className="w-10 h-1 bg-grey/30 rounded-full" />
+              </div>
+
+              {/* Sheet Header */}
+              <div className="flex items-center justify-between px-4 pb-3 border-b border-grey/10">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal to-teal-dark flex items-center justify-center shadow-md">
+                    <span className="text-base">🦉</span>
+                  </div>
+                  <div>
+                    <h2 className="font-semibold text-navy text-sm">Sage</h2>
+                    <p className="text-xs text-grey">Your AI learning coach</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowChatOverlay(false)
+                    setStruggleContext(null)
+                    setImmediateContext(null)
+                  }}
+                  className="p-2 hover:bg-grey/10 rounded-xl transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                  aria-label="Close Sage"
+                >
+                  <X className="w-5 h-5 text-grey" />
+                </button>
+              </div>
+
+              {/* MainCoachChat fills remaining space */}
+              <div className="flex-1 overflow-hidden">
+                <MainCoachChat
+                  lessonId={currentLesson?.id}
+                  immediateContext={immediateContext ?? undefined}
+                  onAction={handleCoachAction}
+                  compact={true}
+                  lessonContext={{
+                    currentCourse: getCourse(effectiveCourseId)?.title,
+                    currentLesson: currentLesson?.title,
+                    atomType: currentAtom?.type,
+                  }}
+                />
+              </div>
             </motion.div>
           </>
         )}

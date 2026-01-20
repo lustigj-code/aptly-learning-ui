@@ -10,6 +10,108 @@
  */
 
 // ============================================
+// MESSAGE TYPES
+// ============================================
+
+/**
+ * Coach message structure for conversation history
+ */
+export type CoachMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+};
+
+/**
+ * Immediate context for real-time awareness during quiz/practice
+ */
+export type ImmediateContext = {
+  questionId: string;
+  questionText: string;
+  selectedAnswer: string;
+  wasCorrect: boolean;
+  attemptNumber: number;
+};
+
+/**
+ * Context provided with each coach request
+ */
+export type CoachContext = {
+  userName: string;
+  currentCourse: string;
+  currentModule: string;
+  currentLesson: string;
+  currentAtom: string;
+  atomType: string;
+  atomContent?: string;
+  recentPerformance?: string;
+  masteryLevel?: number;
+  practiceContext?: string;
+  questionId?: string;
+  questionText?: string;
+  selectedAnswer?: string;
+  consecutiveWrong?: number;
+  conceptId?: string;
+  immediateContext?: ImmediateContext;
+};
+
+/**
+ * Request body for the /api/coach endpoint
+ */
+export type CoachRequestBody = {
+  messages: CoachMessage[];
+  context: CoachContext;
+  type: 'chat' | 'practice_feedback' | 'quiz_help' | 'summary';
+  conversationId?: string;
+  userId?: string;
+  lessonId?: string;
+  currentAtomId?: string;
+};
+
+/**
+ * Orchestration metadata returned from multi-agent system
+ */
+export type OrchestrationMetadata = {
+  success: boolean;
+  agentsUsed: string[];
+  totalTokens: number;
+  totalTimeMs: number;
+  errors?: string[];
+};
+
+/**
+ * RAG metadata for grounded responses
+ */
+export type RagMetadata = {
+  isGrounded: boolean;
+  groundingScore?: number;
+  sourceCitations?: string[];
+};
+
+/**
+ * Student state from POMDP model
+ */
+export type StudentState = {
+  mastery: number;
+  engagement: number;
+  confusion: number;
+  frustration: number;
+};
+
+/**
+ * Response from the /api/coach endpoint
+ */
+export type CoachResponse = {
+  message: string;
+  conversationId: string;
+  actions?: CoachAction[];
+  orchestration?: OrchestrationMetadata;
+  studentState?: StudentState;
+  ragMetadata?: RagMetadata;
+  pathModified?: boolean;
+  error?: boolean;
+};
+
+// ============================================
 // ACTION TYPES
 // ============================================
 

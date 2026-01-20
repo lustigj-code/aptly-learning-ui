@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useUser } from '@/store/userProfileStore';
+import { useUser } from '@/store/unifiedStore';
 import {
   getRecommendedFormat,
   getSessionRecommendation,

@@ -46,30 +46,30 @@ export const CELEBRATION_CONFIGS: Record<CelebrationTier, {
   1: {
     confettiCount: 30,
     duration: 2000,
-    colors: ['#22B8B0', '#B8E8E4'], // teal colors
+    colors: ['#21A8B0', '#69BCC1'], // teal colors
   },
   2: {
     confettiCount: 60,
     duration: 3000,
-    colors: ['#22B8B0', '#FFD93D', '#B8E8E4'],
+    colors: ['#21A8B0', '#FFDE00', '#69BCC1'],
   },
   3: {
     confettiCount: 100,
     duration: 4000,
     soundEffect: 'success',
-    colors: ['#22B8B0', '#FFD93D', '#8B5CF6', '#B8E8E4'],
+    colors: ['#21A8B0', '#FFDE00', '#0A004A', '#69BCC1'],
   },
   4: {
     confettiCount: 150,
     duration: 5000,
     soundEffect: 'celebration',
-    colors: ['#22B8B0', '#FFD93D', '#8B5CF6', '#F97316', '#EC4899'],
+    colors: ['#21A8B0', '#FFDE00', '#0A004A', '#69BCC1', '#B8E8E4'],
   },
   5: {
     confettiCount: 300,
     duration: 7000,
     soundEffect: 'fanfare',
-    colors: ['#22B8B0', '#FFD93D', '#8B5CF6', '#F97316', '#EC4899', '#10B981'],
+    colors: ['#21A8B0', '#FFDE00', '#0A004A', '#69BCC1', '#B8E8E4', '#1A365D'],
   },
 };
 

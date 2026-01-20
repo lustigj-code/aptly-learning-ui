@@ -102,15 +102,37 @@ export const TOUCH_TARGET = {
 // Z-INDEX
 // ===========================================
 // Layering system for overlapping elements
+// Use this scale exclusively - no arbitrary z-[X] values
 export const Z_INDEX = {
+  // Backgrounds
+  background: -10, // CognitiveMesh, background effects
+
+  // Base layer
   base: 0,
+
+  // Interactive elements
   dropdown: 10,
   sticky: 20,
-  overlay: 30,
-  modal: 40,
-  toast: 50,
-  tooltip: 60,
-  confetti: 100,
+  fixed: 30,
+
+  // Overlays (use ONE at a time via OverlayManager)
+  modalBackdrop: 40,
+  modal: 50,
+
+  // System notifications (can coexist with modals)
+  popover: 60,
+  tooltip: 70,
+  toast: 80,
+
+  // Celebrations (above everything interactive)
+  celebration: 90, // CelebrationSystem particles/confetti
+  celebrationModal: 100, // CelebrationProvider modal
+
+  // Accessibility (highest interactive priority)
+  skipLink: 9999,
+
+  // Effects (non-blocking, must have pointer-events-none)
+  particles: 9999, // PhotonEffect and similar effects
 } as const;
 
 // ===========================================
