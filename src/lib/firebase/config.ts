@@ -1,4 +1,4 @@
-import { initializeApp, getApps } from 'firebase/app';
+import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
@@ -35,7 +35,7 @@ const missingEnvVars = requiredEnvVars.filter(
   (envVar) => !process.env[envVar]
 );
 
-if (missingEnvVars.length > 0) {
+if (missingEnvVars.length > 0 && typeof window !== 'undefined') {
   console.warn(
     `Missing Firebase environment variables: ${missingEnvVars.join(', ')}. Firebase will not be initialized.`
   );
@@ -50,8 +50,8 @@ const firebaseConfig: FirebaseConfig = {
   appId: cleanEnvVar(process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
 };
 
-// Debug logging for Vercel troubleshooting (remove after fixing)
-if (typeof window !== 'undefined') {
+// Debug logging for Vercel troubleshooting (client-side only)
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
   console.log('[Firebase Config Debug]', {
     hasApiKey: !!firebaseConfig.apiKey,
     authDomain: firebaseConfig.authDomain,
@@ -60,28 +60,44 @@ if (typeof window !== 'undefined') {
   });
 }
 
-// Initialize Firebase (only if no app exists and config is valid)
-let app: ReturnType<typeof initializeApp> | null = null;
+// ============================================
+// LAZY INITIALIZATION WITH CACHING
+// ============================================
 
-const isConfigValid = firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId;
-
-if (isConfigValid) {
-  try {
-    app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
-  } catch (error) {
-    console.error('Firebase app initialization failed:', error);
-  }
-}
-
-// Lazy getters for Firebase services - initialize on first access
+// Cached instances - initialized on first access
+let _app: FirebaseApp | null = null;
 let _auth: Auth | null = null;
 let _db: Firestore | null = null;
 let _storage: FirebaseStorage | null = null;
 
-// Get Auth instance (lazy initialization)
+const isConfigValid = firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId;
+
+/**
+ * Get Firebase App instance (lazy initialization)
+ * Returns cached instance or creates new one if config is valid
+ */
+function getAppInstance(): FirebaseApp | null {
+  if (_app) return _app;
+  if (!isConfigValid) return null;
+
+  try {
+    _app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
+    return _app;
+  } catch (error) {
+    console.error('Firebase app initialization failed:', error);
+    return null;
+  }
+}
+
+/**
+ * Get Auth instance (lazy initialization)
+ * IMPORTANT: Use this getter function for guaranteed lazy access
+ */
 function getAuthInstance(): Auth | null {
   if (_auth) return _auth;
+  const app = getAppInstance();
   if (!app) return null;
+
   try {
     _auth = getAuth(app);
     return _auth;
@@ -91,10 +107,15 @@ function getAuthInstance(): Auth | null {
   }
 }
 
-// Get Firestore instance (lazy initialization)
+/**
+ * Get Firestore instance (lazy initialization)
+ * IMPORTANT: Use this getter function for guaranteed lazy access
+ */
 function getFirestoreInstance(): Firestore | null {
   if (_db) return _db;
+  const app = getAppInstance();
   if (!app) return null;
+
   try {
     _db = getFirestore(app);
     return _db;
@@ -104,10 +125,15 @@ function getFirestoreInstance(): Firestore | null {
   }
 }
 
-// Get Storage instance (lazy initialization)
+/**
+ * Get Storage instance (lazy initialization)
+ * IMPORTANT: Use this getter function for guaranteed lazy access
+ */
 function getStorageInstance(): FirebaseStorage | null {
   if (_storage) return _storage;
+  const app = getAppInstance();
   if (!app) return null;
+
   try {
     _storage = getStorage(app);
     return _storage;
@@ -117,10 +143,19 @@ function getStorageInstance(): FirebaseStorage | null {
   }
 }
 
-// Export getters that return initialized instances
-// These are evaluated lazily when accessed
+// ============================================
+// EXPORTS
+// ============================================
+
+// Export getter functions for guaranteed lazy initialization
+// These should be used in critical paths where timing matters
+export { getAppInstance, getAuthInstance, getFirestoreInstance, getStorageInstance };
+
+// Legacy named exports - evaluated once at first access after module load
+// For true lazy behavior in edge cases, use the getter functions above
+const app = getAppInstance();
 const auth = getAuthInstance();
 const db = getFirestoreInstance();
 const storage = getStorageInstance();
 
-export { app, auth, db, storage, getAuthInstance, getFirestoreInstance, getStorageInstance };
+export { app, auth, db, storage };

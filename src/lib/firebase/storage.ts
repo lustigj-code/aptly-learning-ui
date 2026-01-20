@@ -5,7 +5,7 @@ import {
   getDownloadURL,
   UploadMetadata,
 } from 'firebase/storage';
-import { storage } from './config';
+import { getStorageInstance } from './config';
 
 type UploadOptions = {
   metadata?: UploadMetadata;
@@ -19,6 +19,7 @@ export async function uploadFile(
   file: File | Blob,
   options?: UploadOptions
 ): Promise<string> {
+  const storage = getStorageInstance();
   if (!storage) {
     throw new Error('Firebase Storage is not initialized');
   }
@@ -38,6 +39,7 @@ export async function uploadFile(
  * Delete a file from Firebase Storage
  */
 export async function deleteFile(path: string): Promise<void> {
+  const storage = getStorageInstance();
   if (!storage) {
     throw new Error('Firebase Storage is not initialized');
   }
@@ -55,6 +57,7 @@ export async function deleteFile(path: string): Promise<void> {
  * Get download URL for a file in Firebase Storage
  */
 export async function getDownloadURLForFile(path: string): Promise<string> {
+  const storage = getStorageInstance();
   if (!storage) {
     throw new Error('Firebase Storage is not initialized');
   }
@@ -78,6 +81,7 @@ export async function uploadFileWithProgress(
   onProgress?: (progress: number) => void,
   options?: UploadOptions
 ): Promise<string> {
+  const storage = getStorageInstance();
   if (!storage) {
     throw new Error('Firebase Storage is not initialized');
   }
@@ -104,6 +108,7 @@ export async function uploadFileWithProgress(
  * Batch delete multiple files
  */
 export async function deleteMultipleFiles(paths: string[]): Promise<void> {
+  const storage = getStorageInstance();
   if (!storage) {
     throw new Error('Firebase Storage is not initialized');
   }

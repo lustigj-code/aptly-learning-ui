@@ -15,7 +15,7 @@ import {
   QuerySnapshot,
   writeBatch,
 } from 'firebase/firestore';
-import { db } from './config';
+import { getFirestoreInstance } from './config';
 
 /**
  * Get a single document from Firestore
@@ -24,6 +24,7 @@ export async function getDocData<T extends DocumentData>(
   collectionName: string,
   docId: string
 ): Promise<T | null> {
+  const db = getFirestoreInstance();
   if (!db) {
     throw new Error('Firestore is not initialized');
   }
@@ -54,6 +55,7 @@ export async function setDocData<T extends DocumentData>(
   data: T,
   merge: boolean = false
 ): Promise<void> {
+  const db = getFirestoreInstance();
   if (!db) {
     throw new Error('Firestore is not initialized');
   }
@@ -78,6 +80,7 @@ export async function updateDocData<T extends DocumentData>(
   docId: string,
   data: Partial<T>
 ): Promise<void> {
+  const db = getFirestoreInstance();
   if (!db) {
     throw new Error('Firestore is not initialized');
   }
@@ -101,6 +104,7 @@ export async function deleteDocFromFirestore(
   collectionName: string,
   docId: string
 ): Promise<void> {
+  const db = getFirestoreInstance();
   if (!db) {
     throw new Error('Firestore is not initialized');
   }
@@ -124,6 +128,7 @@ export async function queryDocs<T extends DocumentData>(
   collectionName: string,
   constraints: QueryConstraint[]
 ): Promise<(T & { id: string })[]> {
+  const db = getFirestoreInstance();
   if (!db) {
     throw new Error('Firestore is not initialized');
   }
@@ -150,6 +155,7 @@ export async function addDocument<T extends DocumentData>(
   collectionName: string,
   data: T
 ): Promise<string> {
+  const db = getFirestoreInstance();
   if (!db) {
     throw new Error('Firestore is not initialized');
   }
@@ -175,6 +181,7 @@ export async function batchWrite(
     data?: DocumentData;
   }>
 ): Promise<void> {
+  const db = getFirestoreInstance();
   if (!db) {
     throw new Error('Firestore is not initialized');
   }
