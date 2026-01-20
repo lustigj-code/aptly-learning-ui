@@ -502,7 +502,7 @@ export function CoachLearningView({
     }
   })
 
-  const [_coachTip, _setCoachTip] = useState('')
+  const [_coachTip, setCoachTip] = useState('')
   const [showChatOverlay, setShowChatOverlay] = useState(false)
   const [contentComplete, setContentComplete] = useState(false)
   const [learningInsights, setLearningInsights] = useState<LearningInsights>({
