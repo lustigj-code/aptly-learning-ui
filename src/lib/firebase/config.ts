@@ -12,6 +12,15 @@ type FirebaseConfig = {
   appId: string;
 };
 
+// Clean env vars: remove literal \n strings AND whitespace
+const cleanEnvVar = (value: string | undefined): string => {
+  if (!value) return '';
+  return value
+    .replace(/\\n/g, '')  // Remove literal \n (two chars: backslash + n)
+    .replace(/\n/g, '')   // Remove actual newlines
+    .trim();              // Remove whitespace
+};
+
 // Validate required environment variables
 const requiredEnvVars = [
   'NEXT_PUBLIC_FIREBASE_API_KEY',
@@ -33,12 +42,12 @@ if (missingEnvVars.length > 0) {
 }
 
 const firebaseConfig: FirebaseConfig = {
-  apiKey: (process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '').trim(),
-  authDomain: (process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || '').trim(),
-  projectId: (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '').trim(),
-  storageBucket: (process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || '').trim(),
-  messagingSenderId: (process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '').trim(),
-  appId: (process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '').trim(),
+  apiKey: cleanEnvVar(process.env.NEXT_PUBLIC_FIREBASE_API_KEY),
+  authDomain: cleanEnvVar(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN),
+  projectId: cleanEnvVar(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID),
+  storageBucket: cleanEnvVar(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET),
+  messagingSenderId: cleanEnvVar(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID),
+  appId: cleanEnvVar(process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
 };
 
 // Initialize Firebase (only if no app exists)
