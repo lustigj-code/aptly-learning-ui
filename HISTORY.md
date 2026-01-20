@@ -61,6 +61,13 @@ Removed all blue, indigo, purple, pink colors (except semantic success/error sta
 - Build passes successfully
 - Color audit: `grep -r "blue-600|indigo-600|purple-600|#4F46E5|#EC4899|#2DD4BF|#8B5CF6|#10B981" src/` returns no matches
 
+### Repo Cleanup
+- Added `playwright-report/` and `test-results/` to `.gitignore`
+- Removed unused imports (`MessageCircle`, `useReducedMotion`) from CoachLearningView.tsx
+- Removed unused `_SmartCoachBar` function from CoachLearningView.tsx
+- Fixed ESLint warnings (prefixed unused variables with underscore)
+- Commit: `f313486` → rebased to `9b10047`
+
 ---
 
 ## 2026-01-19 - Fix Progress Persistence Between Sessions
